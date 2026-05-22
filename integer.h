@@ -1852,9 +1852,9 @@ integer factor(const integer& n, bool& pollard)//不质数幂
     };
     std::vector<equa>smooth;//qs知乎学的,e45之内保证不超过10s,超过e47时间指数增长
     std::vector<equa>flaw; int fs = 0;
-    integer X, Y; int ta = 0, tb = 0, tc = 0,td=0; float bound;
+    integer X, Y; int ta = 0, tb = 0, tc = 0; float bound;
     auto insert_lambda =
-        [&q, &prime, &smooth, &flaw, &fs, &X, &Y, &n, &ok, &ta, &tb, &tc,&td, &bound](const integer& x, integer y) -> integer {
+        [&q, &prime, &smooth, &flaw, &fs, &X, &Y, &n, &ok, &ta, &tb, &tc, &bound](const integer& x, integer y) -> integer {
         int  ps = prime.size();
         equa e; e.y = y; e.mask.assign(ps / 64 + (bool)(ps % 64 != 0), 0);
         for (int i = 0; i < ps && (y.num.size() > 1 || y.num[0] > 1); i++)
@@ -1939,7 +1939,7 @@ integer factor(const integer& n, bool& pollard)//不质数幂
             return gcd(q.out(e.x) + e.y, n);
         }
         smooth[index] = e;
-        std::cout << "\r    relation:" << ta + tc << " need:" << prime.size() << " poly:"<<td<<" |from " <<tb << " fail extract " << fs << " flaw and " << tc << " relation\r" << std::flush;
+        //std::cout << "\r    relation:" << ta + tc << " need:" << prime.size() << " |from " <<tb << " fail extract " << fs << " flaw and " << tc << " relation\r" << std::flush;
         const int level = 4;
         if (tb > (ta << (level + 1))) { bound += 0.1; }if ((ta << level) > tb) { bound -= 0.1; }//倾向于错误多些,快
         return 0;
@@ -1976,7 +1976,7 @@ integer factor(const integer& n, bool& pollard)//不质数幂
     bound = getlog(d * m) * 2 - 13;
     while (ok > 0)
     {
-        integer y0;td++;
+        integer y0;
         do { d.addsmall(z[zi]); zi = (zi + 1) % 8; } while ((d.num[0] & 3) == 1 || (((y0 = power(n, (d + 1) / 4, d)) * y0 - n) % d).num.back());
         integer y1 = (n - y0 * y0) / d * inv(y0 * 2, d) % d;
         if (y1.sign == -1) { y1 = y1 + d; }
