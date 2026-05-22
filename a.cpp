@@ -1,21 +1,118 @@
 
-#include"integer.h"
-#include<chrono>
+/*
+ * main.cpp - integer.h 测试程序 (计时修正版)
+ */
+#include "integer.h"
+#include <chrono>
+#include <iomanip>
+#include <sstream>
 using namespace std;
-int main()
-{
-    integer n; n.get();
-    // 只对 factor 计时
-    auto start = std::chrono::high_resolution_clock::now();
-    vector<integer>l;
-    euler(n, &l);
-    auto end = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-    cout << "\nfactor运行时间: " << duration.count() << " 微秒" << endl;
-    for (auto& e : l) { e.print(); }
+using namespace chrono;
+string format_time(double ms) {
+    int sec = (int)(ms / 1000);
+    int msec = (int)ms % 1000;
+    stringstream ss;
+    ss << sec << ".";
+    if (msec < 10) ss << "00";
+    else if (msec < 100) ss << "0";
+    ss << msec << " s";
+    return ss.str();
+}
+int main() {
+    cout << "=====================================\n";
+    cout << "   integer.h 测试结果\n";
+    cout << "=====================================\n\n";
+    
+    auto total_start = high_resolution_clock::now();
+    double ms;
+    
+    // 1. 计算 a = 1000000!
+    auto t1 = high_resolution_clock::now();
+    integer a = fac(1000000);
+    auto t2 = high_resolution_clock::now();
+    ms = duration_cast<microseconds>(t2 - t1).count() / 1000.0;
+    cout << "1. a = 1000000! = ";
+    a.print();
+    cout << "   (" << format_time(ms) << ")\n\n";
+    
+    // 2. 计算 b = C(5000000, 2500000)
+    t1 = high_resolution_clock::now();
+    integer b = C(5000000, 2500000);
+    t2 = high_resolution_clock::now();
+    ms = duration_cast<microseconds>(t2 - t1).count() / 1000.0;
+    cout << "2. b =C(5000000, 2500000) = ";
+    b.print();
+    cout << "   (" << format_time(ms) << ")\n\n";
+    
+    // 3. 计算 c = a / b
+    t1 = high_resolution_clock::now();
+    integer r;
+    integer c = a.divide(b, r);
+    t2 = high_resolution_clock::now();
+    ms = duration_cast<microseconds>(t2 - t1).count() / 1000.0;
+    cout << "3. c = a / b = ";
+    c.print();
+    cout << "   (" << format_time(ms) << ")\n\n";
+    
+    // 4. 计算 d = sqroot(a)
+    t1 = high_resolution_clock::now();
+    integer d = sqroot(a);
+    t2 = high_resolution_clock::now();
+    ms = duration_cast<microseconds>(t2 - t1).count() / 1000.0;
+    cout << "4. d = sqroot(a) = ";
+    d.print();
+    cout << "   (" << format_time(ms) << ")\n\n";
+    
+    // 5. 计算 e = gcd(100000!, 10^N)
+    t1 = high_resolution_clock::now();
+    integer f = fac(100000);
+    integer g_shift = integer(1).shift(f.num.size());
+    integer e = gcd(f, g_shift);
+    t2 = high_resolution_clock::now();
+    ms = duration_cast<microseconds>(t2 - t1).count() / 1000.0;
+    cout << "5. e = gcd(100000!, 10^N) = ";
+    e.print();
+    cout << "   (" << format_time(ms) << ")\n\n";
+    
+    // 6. 计算 g = power(300!, 400!, 500!)
+    t1 = high_resolution_clock::now();
+    integer base = fac(300);
+    integer exp = fac(400);
+    integer mod = fac(500);
+    integer g = power(base, exp, mod);
+    t2 = high_resolution_clock::now();
+    ms = duration_cast<microseconds>(t2 - t1).count() / 1000.0;
+    cout << "6. g = power(300!, 400!, 500!) = ";
+    g.print();
+    cout << "   (" << format_time(ms) << ")\n\n";
+    
+    // 7. 找出 n! + 1 是质数的 n
+    t1 = high_resolution_clock::now();
+    cout << "7. n! + 1 是质数的 n (1~300)miller+lucas: ";
+    integer fact = 1;
+    for (int n = 1; n <= 300; n++) {
+        fact = fact * integer(n);
+        if (isprime(fact + 1)) {
+            cout << n << " ";
+        }
+    }
+    t2 = high_resolution_clock::now();
+    ms = duration_cast<microseconds>(t2 - t1).count() / 1000.0;
+    cout << "\n   (" << format_time(ms) << ")\n\n";
+    
+    // 8. 费马数 F7 的质因子
+    t1 = high_resolution_clock::now();
+    cout << "8. euler phi(F7 = 2^128 + 1)=\n";
+    euler(power(2, 128) + 1).print();
+    t2 = high_resolution_clock::now();
+    ms = duration_cast<microseconds>(t2 - t1).count() / 1000.0;
+    cout << "\n   (" << format_time(ms) << ")\n\n";
+    
+    auto total_end = high_resolution_clock::now();
+    ms = duration_cast<microseconds>(total_end - total_start).count() / 1000.0;
+    cout << "=====================================\n";
+    cout << "总时间: " << format_time(ms) << "\n";
+    cout << "=====================================\n";
+    
     return 0;
-}//11111111111111111111111111111111111222233311123111111311
-//1000000000000000000000000000156000000000000000000000000005643
-//1111111111111111111111111111111111122223331112311111
-//11111111111111111111111111111111111222233311123111111111111131
-//1000000000000000000000000000156000000000000000000000011
+}
