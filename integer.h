@@ -81,7 +81,7 @@ public:
     }
     void second(const c2& y)
     {
-        constexpr cd w = cd(0.7071067811865475, -0.7071067811865475),w2 = cd(0.3535533905932738, -0.3535533905932738);
+        constexpr cd w = cd(0.7071067811865475, -0.7071067811865475), w2 = cd(0.3535533905932738, -0.3535533905932738);
         cd u = cd(r.a, i.a), v = cd(r.b, -i.b);
         cd xa = (u + v) * 0.5, xb = (u - v) * w2; xb = cd(std::imag(xb), -std::real(xb));
         u = cd(y.r.a, y.i.a), v = cd(y.r.b, -y.i.b);
@@ -159,7 +159,7 @@ void ifft(c2* x, int n)
         int gap = i << 1;
         for (int t = i - 2; t < n; t += gap)
         {
-            c2 u = x[t], v = x[t + 1];v.bmulj();
+            c2 u = x[t], v = x[t + 1]; v.bmulj();
             x[t] = u + v, x[t + 1] = u - v;
         }
     }
@@ -502,12 +502,12 @@ public:
     void reciprocal(integer& xt, int l) const  // xt=base^t/this,,t最终=l,对商长度和*this长度有最小值要求
     {
         int k = 1;
-        int t = num.size()+k;
+        int t = num.size() + k;
         int a = num.size(), b;
         integer tmp;
-        xt=div_native(integer(1).shift(3),view(num.data(),a-2,a-1,sign),tmp);
-        int l1 =0;
-        if(l>200)
+        xt = div_native(integer(1).shift(3), view(num.data(), a - 2, a - 1, sign), tmp);
+        int l1 = 0;
+        if (l > 200)
         {
             l1 = l - num.size();
             while (l1 > 40) { l1 = (l1 + 1) / 2; }l1 += num.size();
@@ -516,16 +516,16 @@ public:
         {
             if (t + k >= l) { k = l - t; }  // 最终微调
             else if (l1 && k + t >= l1) { k = l1 - t; l1 = 0; }//中间级微调,使得最终xt几乎充分利用
-            tmp = karamul(xt,xt);//想要触发fft平方优化
+            tmp = karamul(xt, xt);//想要触发fft平方优化
             int need = xt.num.size() + k + 2;  // 向(xt * 2).shift(k)约xt.size+k对齐
             b = std::max(a - need, 0);
             int b1 = std::max((int)tmp.num.size() - need, 0);
             tmp = karamul(view(*this, b), view(tmp, b1));
-            xt = (xt+xt).shift(k);
+            xt = (xt + xt).shift(k);
             view tmpview(tmp, -(b + b1 + k - t));
             xt = addorsub(xt.num.data(), xt.num.size(), xt.sign, tmpview.ptr, tmpview.len, tmpview.sign, 0);
             t += k;  // 新增k个待计算（有效数字增长一倍)
-            k = xt.num.size()-1;
+            k = xt.num.size() - 1;
         }
         xt.addsmall(-sign);  // 不能大于,认为最多差1
     }
@@ -536,13 +536,13 @@ public:
         int t = ns + 2 * k;
         int l = 2 * (ns + 2);
         int b = std::max(ns - (k + 2), 0);
-        integer xt=(ll)sqrt((ll)Base*Base/num.back())*10000,tmp=shift(-b),y;
+        integer xt = (ll)sqrt((ll)Base * Base / num.back()) * 10000, tmp = shift(-b), y;
         while ((y = (xt * 3 - ((tmp * xt) * (xt * xt)).shift(-t + b)) / 2).num != xt.num)
         {
             std::swap(xt, y);
         }
-        int l1 =0;
-        if(l>200)
+        int l1 = 0;
+        if (l > 200)
         {
             l1 = l - ns;
             while (l1 > 40) { l1 = (l1 + 1) / 2; }l1 += ns;
@@ -551,7 +551,7 @@ public:
         {
             if (t + 2 * k > l) { k = (l - t + 1) / 2; }
             else if (l1 && t + 2 * k > l1) { k = (l1 - t + 1) / 2; l1 = 0; }
-            tmp = karamul(xt,xt);
+            tmp = karamul(xt, xt);
             int need = k + xt.num.size() + 2;
             b = std::max(ns - need, 0);
             int b1 = std::max((int)tmp.num.size() - need, 0);
@@ -566,7 +566,7 @@ public:
         }
         b = num.size() - xt.num.size() - 2;
         integer r = karamul(xt, view(*this, b)).shift(b - t / 2);
-        if (r.num.size() != ns / 2) { r = r /10000; }
+        if (r.num.size() != ns / 2) { r = r / 10000; }
         integer y2 = r * r - *this;
         if (y2.num.size() > ns / 2 + 1) { std::cout << "fsqrt"; exit(0); }
         if (y2.sign == 1)
@@ -582,9 +582,9 @@ public:
     {
         r.num.clear();
         int la = num.size(), lb = that.num.size();
-        int n =std::min(20,la/lb);
-        int l=(la - lb) / n+3;
-        while(l>=512){l>>=1;}n+=l<280&&l>255;
+        int n = std::min(20, la / lb);
+        int l = (la - lb) / n + 3;
+        while (l >= 512) { l >>= 1; }n += l < 280 && l>255;
         l = (la - lb) / n + lb + 1;//(l-that.size)*n=size-that.size,保护+1;
         integer xt;
         that.reciprocal(xt, l);
@@ -609,14 +609,14 @@ public:
             while (!res.num.back()) { res.num.pop_back(); }
         }
         while (q.num.size() > 1 && q.num.back() == 0) { q.num.pop_back(); }
-        q.sign=sign*that.sign;
+        q.sign = sign * that.sign;
         if (res.num.empty()) { r = 0; return q; }
         if (res.num.size() > that.num.size() + 10) { std::cout << "div_newton"; exit(0); }
         return q + div_native(res, that, r);
     }
     integer divide(const integer& that, integer& r)const
     {
-        if (num.size() > that.num.size() +40 && that.num.size() >1)
+        if (num.size() > that.num.size() + 40 && that.num.size() > 1)
         {
             return div_newton(that, r);
         }
@@ -715,12 +715,12 @@ public:
             if (!num.back()) { num.pop_back(); }
         }
     }
-   static void mul_core(std::vector<integer>& level, int& zeros)
+    static void mul_core(std::vector<integer>& level, int& zeros)
     {
-        int s,s2;
-        while ((s=level.size()) > 1)
+        int s, s2;
+        while ((s = level.size()) > 1)
         {
-            s2=s/2;
+            s2 = s / 2;
             std::vector<integer> nextlevel;
             for (int k = 0; k < s2; k++)
             {
@@ -734,7 +734,7 @@ public:
                 zeros += i; view b_view(b, i);
                 nextlevel.push_back(karamul(a_view, b_view));
             }
-            if (s% 2) { nextlevel.push_back(level.back()); }
+            if (s % 2) { nextlevel.push_back(level.back()); }
             level = std::move(nextlevel);
         }
     }
@@ -743,7 +743,7 @@ integer integer::addorsub(const int* a, int la, int asign, const int* b, int lb,
 {
     int change = 1;
     if (la < lb) { std::swap(a, b); std::swap(la, lb); std::swap(asign, bsign); change = -1; }
-    bool k = 0;int j;
+    bool k = 0; int j;
     integer result;
     result.num.assign(a, a + la);
     result.sign = asign;
@@ -778,8 +778,8 @@ integer integer::addorsub(const int* a, int la, int asign, const int* b, int lb,
             for (auto& e : result.num)
             {
                 e = -e - k;
-                k=e<0;
-                e+=k*Base;
+                k = e < 0;
+                e += k * Base;
             }
         }
         else
@@ -790,14 +790,14 @@ integer integer::addorsub(const int* a, int la, int asign, const int* b, int lb,
             for (; i < lb && i < lr; i++)
             {
                 result.num[i] -= k;
-                k=result.num[i] < 0;
-                result.num[i] += k*Base;
+                k = result.num[i] < 0;
+                result.num[i] += k * Base;
             }
             for (; i < lr && k; i++)
             {
                 result.num[i] -= k;
-                k=result.num[i] < 0;
-                result.num[i] += k*Base;
+                k = result.num[i] < 0;
+                result.num[i] += k * Base;
             }
         }
         while (result.num.back() == 0 && result.num.size() > 1) { result.num.pop_back(); }
@@ -952,10 +952,10 @@ integer integer::fftmul(const  view& a, const view& b)
     }if (!same) { delete[]y0; }
     ifft(xx, n4);
     integer c;
-    c.num.reserve(m = la + lb);m=(m+1)/2;
+    c.num.reserve(m = la + lb); m = (m + 1) / 2;
     c.sign = a.sign * b.sign;
     ll k = 0;
-    for (int i = 0;i< m; i++)
+    for (int i = 0; i < m; i++)
     {
         ll t = (ll)(xx[i].r.a + 0.5) + k;
         ll pre = t % e4;
@@ -1016,12 +1016,12 @@ integer C_core(int e, int s, int  e_s, int& zeros)//s<=e
     }u.push_back(p.size()), u.push_back(a);
     auto mul_lambda = [&p](int s, int e)->integer {
         std::vector<integer>l;
-        for (e--; s < e; s+=2)
+        for (e--; s < e; s += 2)
         {
-            l.push_back((ll)p[s]*p[s+1]);
+            l.push_back((ll)p[s] * p[s + 1]);
         }
-        if(s==e){l.push_back(p[e]);}
-        integer::mul_core(l,s);
+        if (s == e) { l.push_back(p[e]); }
+        integer::mul_core(l, s);
         return l.back();
         };
     std::vector<integer>l;
@@ -1032,7 +1032,7 @@ integer C_core(int e, int s, int  e_s, int& zeros)//s<=e
     {
         l.push_back(power(mul_lambda(j, u[i]), u[i + 1]));
     }
-    integer::mul_core(l,s);
+    integer::mul_core(l, s);
     integer r = (l.back() * power(10, b % Blen));
     if (u.size() > 2) { r = r * power(mul_lambda(u[u.size() - 4], u[u.size() - 2]), u[u.size() - 1]); }
     zeros += b / Blen;
@@ -1227,21 +1227,21 @@ integer inv(const integer& a, const integer& p)//p>0
 }
 integer sqroot(const integer& n, bool trust = 1)
 {
-    if (n.sign == -1&&n.num.back()) { std::cout << "sqroot"; exit(0); }
-    if(n.num.size()<3)
+    if (n.sign == -1 && n.num.back()) { std::cout << "sqroot"; exit(0); }
+    if (n.num.size() < 3)
     {
-        integer t=sqrt(n.toll());
-        if(n.num.size()>1&&(t*t).absbigger(n,0)){t.addsmall(-1);}//(Base-1)^2-1
-        return t;
+        ll a=n.toll(),b = sqrt(a);
+        if (n.num.size() > 1 && b * b > a) { b -= 1; }//(Base-1)^2-1
+        return b;
     }
     if (trust && n.num.size() > 160) { return n.fsqrt(); }
     integer y, x;
-    int a;ll t=sqrt((ll)n.num.back()*Base+n.num[n.num.size()-2])+1;
+    int a; ll t = sqrt((ll)n.num.back() * Base + n.num[n.num.size() - 2]) + 1;
     if (n.num.size() > 6)//trust=0除法版本牛顿迭代慢
     {
         a = n.num.size();
         int k = 1, b = a - 2 * k, l = (a + 2) / 2;
-        x =t;
+        x = t;
         while ((k = x.num.size()) < l)
         {
             int j = 2 * k > l ? l - k : k;
@@ -1256,10 +1256,10 @@ integer sqroot(const integer& n, bool trust = 1)
         x = x / power(10, k - b);
         a = 2;
     }
-    else 
-    { 
-        if(n.num.size()&1){t*=10000;}
-        x = integer(t).shift(n.num.size()/2-1);
+    else
+    {
+        if (n.num.size() & 1) { t *= 10000; }
+        x = integer(t).shift(n.num.size() / 2 - 1);
         a = -1;
     }
     while (x.absbigger(y = (x + n / x) / 2, 0))
@@ -1405,24 +1405,24 @@ public:
         else if (ans.absbigger(p, 1)) { ans = ans - p; }
         return ans;
     }
-    integer pow_exponent(const integer&u,const std::vector<int>&l,int w=5)
+    integer pow_exponent(const integer& u, const std::vector<int>& l, int w = 5)
     {
         if (l.empty()) { return f; }
-        std::vector<integer>b;b.push_back(u);
-        integer a = out(u*u); w = (1 << (w - 1)) - 1;
+        std::vector<integer>b; b.push_back(u);
+        integer a = out(u * u); w = (1 << (w - 1)) - 1;
         for (int i = 0; i < w; i++)
         {
-            b.push_back(out(a*b.back()));
+            b.push_back(out(a * b.back()));
         }
         const int ls = l.size();
         a = b[l[ls - 2]];
-        for (int j = 0; j < l[ls - 1]; j++) { a =out(a*a); }
+        for (int j = 0; j < l[ls - 1]; j++) { a = out(a * a); }
         for (int i = ls - 4; i > -1; i -= 2)
         {
-            a = out(a*b[l[i]]);
+            a = out(a * b[l[i]]);
             for (int j = 0; j < l[i + 1]; j++)
             {
-                a = out(a*a);
+                a = out(a * a);
             }
         }
         return a;
@@ -1589,16 +1589,16 @@ public:
         }
         return ans;
     }
-    pairs pow_exponent(const pairs& x, const std::vector<int>& l,int w=5)
+    pairs pow_exponent(const pairs& x, const std::vector<int>& l, int w = 5)
     {
         pairs ans;
         if (a1)
         {
-            ans.f = a.pow_exponent(x.f,l,w);
+            ans.f = a.pow_exponent(x.f, l, w);
         }
         if (b1)
         {
-            ans.s = b.pow_exponent(x.s,l,w);
+            ans.s = b.pow_exponent(x.s, l, w);
         }
         return ans;
     }
@@ -1659,8 +1659,8 @@ integer power(const integer& x, const integer& n, const integer& p)//p>1
         }
         return ans.sign == -1 && ans.num.back() ? ans + p : ans;
     }
-    mod q(p);int w=std::min((int)n.num.size(),4)+1;
-    return q.out(q.pow_exponent(q.in(x), exponent(n,w),w));
+    mod q(p); int w = std::min((int)n.num.size(), 4) + 1;
+    return q.out(q.pow_exponent(q.in(x), exponent(n, w), w));
 }
 int ctz(integer& d)//d改变
 {
@@ -1677,9 +1677,9 @@ int ctz(integer& d)//d改变
     d = (x * b + r) / (1 << j);
     return s * 26 + j;
 }
-bool inside(int k,const std::initializer_list<int>&t) {
+bool inside(int k, const std::initializer_list<int>& t) {
     for (int v : t) {
-        if (v == k){return 1;}
+        if (v == k) { return 1; }
     }
     return 0;
 }
@@ -1690,19 +1690,19 @@ bool miller(const integer& n, const std::initializer_list<int> t = { 2, 3, 5, 7,
     if (n.num[0] % 2 == 0 || n.num[0] % 5 == 0) { return 0; }
     integer d(n - 1);
     int s = ctz(d);
-    mont q;q.p=n;q.init(1);
+    mont q; q.p = n; q.init(1);
     integer flag = q.p - q.f;
-    int w=n.num.size();
-    w=1+(w>1)+(w>2)+(w>3)+(w>4);
-    std::vector<int> l = exponent(d,w);
+    int w = n.num.size();
+    w = 1 + (w > 1) + (w > 2) + (w > 3) + (w > 4);
+    std::vector<int> l = exponent(d, w);
     for (int e : t)
     {
-        integer now = q.pow_exponent(q.in(e), l,w);
+        integer now = q.pow_exponent(q.in(e), l, w);
         if (now.num == q.f.num || now.num == flag.num) { continue; }
         int k;
         for (k = 0; k < s; k++)
         {
-            now = q.out(now*now);
+            now = q.out(now * now);
             if (now.num == flag.num) { break; }
         }
         if (k == s) { return 0; }
@@ -1736,14 +1736,14 @@ bool lucas(const integer& x)
 {
     if (x.num.size() == 1 && (x.num[0] == 2 || x.num[0] == 5)) { return 1; }
     integer u;
-    if (x.num[0] % 2 == 0 || x.num[0] % 5 == 0 ||((u = sqroot(x)) * u).num == x.num) { return 0; }
+    if (x.num[0] % 2 == 0 || x.num[0] % 5 == 0 || ((u = sqroot(x)) * u).num == x.num) { return 0; }
     int t = 5, s = 1;
     while (jacobi(t * s, x) != -1)
     {
         t += 2; s = -s;
     }
     std::vector<int>l = exponent(x + 1, 1);
-    mont q; q.p = x; q.init(1);u = q.f;
+    mont q; q.p = x; q.init(1); u = q.f;
     integer v = u, d = q.in(t * s), qk = q.in((1 - t * s) / 4), q0 = qk, inv2 = q.in((x + 1) / 2);
     const int ls = l.size();
     for (int j = 0; j < l[ls - 1]; j++)
@@ -1935,7 +1935,7 @@ integer factor(const integer& n, bool& pollard)//不质数幂
                 }
                 e.mask[c / 64] ^= si;
             }
-            e.y = mul(l) % n*(e.y*s.y)%n;
+            e.y = mul(l) % n * (e.y * s.y) % n;
             for (c = pre; c < cend && !e.mask[c / 64]; c += 64);
             if (c < cend) { for (bit = e.mask[c / 64], r = 0; r < ps - c && r < 64 && !(bit & 1); r++, bit >>= 1); }
         }
@@ -1969,7 +1969,7 @@ integer factor(const integer& n, bool& pollard)//不质数幂
     }prime.push_back(2);
     for (int i = 1; i < root.size(); i++) { if (root[i] && jacobi(n, 2 * i + 1) == 1) { prime.push_back(2 * i + 1); } }
     root.clear();
-    int m = 1 << (14 + std::min((int)d.num.size(),3));
+    int m = 1 << (14 + std::min((int)d.num.size(), 3));
     for (int i = 1; i < prime.size(); i++)
     {
         int p = prime[i];
@@ -2016,12 +2016,12 @@ integer factor(const integer& n, bool& pollard)//不质数幂
             if (pos[i] > bound)
             {
                 g = insert_lambda(e + d * i, a * ((ll)i * i) + b * (i << 1) + c);
-                if (check_lambda()) {return g; }
+                if (check_lambda()) { return g; }
             }
             if (neg[i] > bound)
             {
                 g = insert_lambda(e - d * i, a * ((ll)i * i) - b * (i << 1) + c);
-                if (check_lambda()) {return g; }
+                if (check_lambda()) { return g; }
             }
         }
     }
@@ -2136,7 +2136,7 @@ pairs fib(int n)
         return ans;
     }
     pairs  t = fib(n >> 1);
-    integer a = t.f * t.f + t.s * t.s, b = t.f * (t.s+t.s - t.f);
+    integer a = t.f * t.f + t.s * t.s, b = t.f * (t.s + t.s - t.f);
     if (n & 1) { ans.f = a, ans.s = a + b; }
     else { ans.f = b, ans.s = a; }
     return ans;
