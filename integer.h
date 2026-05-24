@@ -8,6 +8,7 @@ integer.h：支持快速乘法（karatsuba和FFT）、高效除法（burnikel-zi
 只能作为演示使用，务必-O2或者release
 */
 //[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+//g++ a.cpp -O2 -I D:\mingw64download\mingw64\include -L D:\mingw64download\mingw64\lib -lgmp -lgmpxx -o a.exe
 #ifndef _INTEGER_H_//-O2运行
 #define _INTEGER_H_
 #include<iostream>
@@ -424,7 +425,7 @@ public:
     }
     ll toll()const
     {
-        if (absbigger(integer("9223372036854775807"), 0)) { std::cout << "toll"; exit(0); }
+        if (absbigger(integer(9223372036854775807), 0)) { std::cout << "toll"; exit(0); }
         return sign * absll();
     }
     void get()
@@ -500,21 +501,22 @@ public:
     }
     void reciprocal(integer& xt, int l) const  // xt=base^t/this,,t最终=l,对商长度和*this长度有最小值要求
     {
-        int k = 2;
-        int t = num.size() + k;
-        xt = integer(sign).shift(k);
-        int a = num.size(), b = a - (k + 2);
-        integer tmp = shift(-b), y;
-        while ((y = xt * 2 - (xt * xt * tmp).shift(b - t)).num != xt.num)
+        int k = 1;
+        int t = num.size()+k;
+        int a = num.size(), b;
+        integer tmp;
+        xt=div_native(integer(1).shift(3),view(num.data(),a-2,a-1,sign),tmp);
+        int l1 =0;
+        if(l>200)
         {
-            std::swap(y, xt);
-        }int l1 = l - num.size();
-        while (l1 > 40) { l1 = (l1 + 1) / 2; }l1 += num.size();
+            l1 = l - num.size();
+            while (l1 > 40) { l1 = (l1 + 1) / 2; }l1 += num.size();
+        }
         while (t < l)
         {
             if (t + k >= l) { k = l - t; }  // 最终微调
             else if (l1 && k + t >= l1) { k = l1 - t; l1 = 0; }//中间级微调,使得最终xt几乎充分利用
-            integer tmp = karamul(xt,xt);//想要触发fft平方优化
+            tmp = karamul(xt,xt);//想要触发fft平方优化
             int need = xt.num.size() + k + 2;  // 向(xt * 2).shift(k)约xt.size+k对齐
             b = std::max(a - need, 0);
             int b1 = std::max((int)tmp.num.size() - need, 0);
@@ -523,7 +525,7 @@ public:
             view tmpview(tmp, -(b + b1 + k - t));
             xt = addorsub(xt.num.data(), xt.num.size(), xt.sign, tmpview.ptr, tmpview.len, tmpview.sign, 0);
             t += k;  // 新增k个待计算（有效数字增长一倍)
-            k = xt.num.size() - 1;
+            k = xt.num.size()-1;
         }
         xt.addsmall(-sign);  // 不能大于,认为最多差1
     }
@@ -534,13 +536,17 @@ public:
         int t = ns + 2 * k;
         int l = 2 * (ns + 2);
         int b = std::max(ns - (k + 2), 0);
-        integer xt(Base), y, tmp = shift(-b);
+        integer xt=(ll)sqrt((ll)Base*Base/num.back())*10000,tmp=shift(-b),y;
         while ((y = (xt * 3 - ((tmp * xt) * (xt * xt)).shift(-t + b)) / 2).num != xt.num)
         {
             std::swap(xt, y);
         }
-        int l1 = l - ns;
-        while (l1 > 40) { l1 = (l1 + 1) / 2; }l1 += ns;
+        int l1 =0;
+        if(l>200)
+        {
+            l1 = l - ns;
+            while (l1 > 40) { l1 = (l1 + 1) / 2; }l1 += ns;
+        }
         while (t < l)
         {
             if (t + 2 * k > l) { k = (l - t + 1) / 2; }
@@ -560,7 +566,7 @@ public:
         }
         b = num.size() - xt.num.size() - 2;
         integer r = karamul(xt, view(*this, b)).shift(b - t / 2);
-        if (r.num.size() != ns / 2) { r = r / 10000; }
+        if (r.num.size() != ns / 2) { r = r /10000; }
         integer y2 = r * r - *this;
         if (y2.num.size() > ns / 2 + 1) { std::cout << "fsqrt"; exit(0); }
         if (y2.sign == 1)
@@ -610,7 +616,7 @@ public:
     }
     integer divide(const integer& that, integer& r)const
     {
-        if (num.size() > that.num.size() +160 && that.num.size() > 80)
+        if (num.size() > that.num.size() +40 && that.num.size() >1)
         {
             return div_newton(that, r);
         }
@@ -618,7 +624,6 @@ public:
     }
     integer div_bz(const integer& b, integer& r) const//不如牛顿迭代法快
     {
-        if (num.size() < b.num.size() + 200 || b.num.size() < 100) { return div_native(*this, b, r); }
         integer x, y;
         int v = bz_init(b, x, y);
         int m = y.num.size(), k = 2 * m, n = k, i = x.num.size() - n;
@@ -1222,26 +1227,21 @@ integer inv(const integer& a, const integer& p)//p>0
 }
 integer sqroot(const integer& n, bool trust = 1)
 {
-    if (!n.num.back()) { return 0; }
-    if (n.sign == -1) { std::cout << "sqroot"; exit(0); }
+    if (n.sign == -1&&n.num.back()) { std::cout << "sqroot"; exit(0); }
+    if(n.num.size()<3){return sqrt(n.toll());}
     if (trust && n.num.size() > 160) { return n.fsqrt(); }
     integer y, x;
-    int a;
+    int a;ll t=sqrt((ll)n.num.back()*Base+n.num[n.num.size()-2])+1;
     if (n.num.size() > 6)//trust=0除法版本牛顿迭代慢
     {
         a = n.num.size();
-        int k = 2, b = a - 2 * k, l = (a + 2) / 2;
-        integer tmp = n.shift(-b);
-        x = integer(1).shift(k);
-        while (x.absbigger(y = (x + tmp / x) / 2, 0))
-        {
-            std::swap(x, y);
-        }
+        int k = 1, b = a - 2 * k, l = (a + 2) / 2;
+        x =t;
         while ((k = x.num.size()) < l)
         {
             int j = 2 * k > l ? l - k : k;
             x = x.shift(j);
-            b = a - 2 * (k + j);//b会小于0所以不能view
+            b = a - 2 * (k + j);//b会小于0所以不能view,因为必须从大于一侧逼近
             x = (x + n.shift(-b) / x) / 2;
         }
         b = (n.num.size() - 1) * Blen, a = n.num.back();
@@ -1251,7 +1251,12 @@ integer sqroot(const integer& n, bool trust = 1)
         x = x / power(10, k - b);
         a = 2;
     }
-    else { x = (n + 1) / 2; a = -1; }
+    else 
+    { 
+        if(n.num.size()&1){t*=10000;}
+        x = integer(t).shift(n.num.size()/2-1);
+        a = -1;
+    }
     while (x.absbigger(y = (x + n / x) / 2, 0))
     {
         if (a-- == 0) { std::cout << "sqroot"; exit(0); }
