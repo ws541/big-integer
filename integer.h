@@ -1228,7 +1228,12 @@ integer inv(const integer& a, const integer& p)//p>0
 integer sqroot(const integer& n, bool trust = 1)
 {
     if (n.sign == -1&&n.num.back()) { std::cout << "sqroot"; exit(0); }
-    if(n.num.size()<3){return sqrt(n.toll());}
+    if(n.num.size()<3)
+    {
+        integer t=sqrt(n.toll());
+        if(n.num.size()>1&&(t*t).absbigger(n,0)){t.addsmall(-1);}//(Base-1)^2-1
+        return t;
+    }
     if (trust && n.num.size() > 160) { return n.fsqrt(); }
     integer y, x;
     int a;ll t=sqrt((ll)n.num.back()*Base+n.num[n.num.size()-2])+1;
