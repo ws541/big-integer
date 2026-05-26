@@ -538,7 +538,7 @@ public:
             t += 2 * k;
             k = xt.num.size() - 1;
         }
-        b = num.size() - xt.num.size() - 2;
+        b = num.size() - xt.num.size() - 2;if(b<0){b=0;}
         integer r = karamul(xt, view(*this, b)).shift(b - t / 2);
         if (r.num.size() != ns / 2) { r = r / 10000; }
         integer y2 = r * r - *this;
@@ -584,8 +584,8 @@ public:
     }
     integer divide(const integer& that, integer& r)const
     {
-        bool small=that.num.size()<6&&num.size()<500;
-        if (!small&&num.size() > that.num.size() + 16 && that.num.size() > 1)
+        int a=num.size(),b=that.num.size(),c=a-b;
+        if (a>50&&b>1&&c>9&&(c>70||b*c>1600))
         {
             return div_newton(that, r);
         }
@@ -741,9 +741,11 @@ integer integer::addorsub(const int* a, int la, int asign, const int* b, int lb,
     if (la < lb) { std::swap(a, b); std::swap(la, lb); std::swap(asign, bsign); change = -1; }
     bool k = 0; int j;
     integer result;
+    const bool absadd=(asign == bsign) == add;
+    result.num.reserve(la+absadd);
     result.num.assign(a, a + la);
     result.sign = asign;
-    if ((asign == bsign) == add)
+    if (absadd)
     {
         for (int i = 0; i < lb; i++)
         {
@@ -774,7 +776,7 @@ integer integer::multiply(const int* a, int la, const int* b, int lb, int sign)/
     int n = la - 1, m = lb - 1, l = n + m + 1;
     integer c;
     c.sign = sign;
-    c.num.resize(l);
+    c.num.resize(l+1);
     ll k = 0;
     int i;
     for (i = 0; i < m; i++)
@@ -804,7 +806,7 @@ integer integer::multiply(const int* a, int la, const int* b, int lb, int sign)/
         c.num[i] = k % Base;
         k = k / Base;
     }
-    if (k) { c.num.push_back(k); }
+    c.num[l]=k;
     while (c.num.size() > 1 && c.num.back() == 0) { c.num.pop_back(); }
     return c;
 }
@@ -1197,7 +1199,7 @@ integer sqroot(const integer& n, bool trust = 1)
         if (n.num.size() > 1 && b * b > a) { b -= 1; }//(Base-1)^2-1
         return b;
     }
-    if (trust && n.num.size() > 160) { return n.fsqrt(); }
+    if (trust&&n.num.size()>30) { return n.fsqrt(); }
     integer y, x;
     int a; ll t = sqrt((ll)n.num.back() * Base + n.num[n.num.size() - 2]) + 1;
     if (n.num.size() > 6)//trust=0除法版本牛顿迭代慢
