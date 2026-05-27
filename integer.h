@@ -564,7 +564,7 @@ public:
         that.reciprocal(xt, l);
         integer res(*this), q;
         q.num.assign(num.size() - that.num.size() + 1, 0);
-        for (int i = 0, b = that.num.size() - 2; i < n && res.num.size()>that.num.size() + 10; i++)
+        for (int i = 0, b = that.num.size() - 2; i < n && res.num.size()>that.num.size() + 5; i++)
         {
             int lr = res.num.size(), start = lr - l;
             if (start < 0) { start = 0; }
@@ -579,13 +579,13 @@ public:
         while (q.num.size() > 1 && q.num.back() == 0) { q.num.pop_back(); }
         q.sign = sign * that.sign;
         if (res.num.empty()) { r = 0; return q; }
-        if (res.num.size() > that.num.size() + 10) { std::cout << "div_newton"; exit(0); }
+        if (res.num.size() > that.num.size() + 5) { std::cout << "div_newton"; exit(0); }
         return q + div_native(res, that, r);
     }
     integer divide(const integer& that, integer& r)const
     {
         int a=num.size(),b=that.num.size(),c=a-b;
-        if (a>50&&b>1&&c>9&&(c>70||b*c>1600))
+        if (a>50&&b>1&&c>15&&(c>70||b*c>1600))
         {
             return div_newton(that, r);
         }
@@ -1078,7 +1078,7 @@ bool lehmer(integer& x, integer& y, integer* a, integer* b, integer* c, integer*
 void hgcd(const integer::view& x, const integer::view& y, integer& a, integer& b, integer& c, integer& d)//多项式版本粗暴映射
 {
     int m = x.len / 2;
-    if (m < 40)
+    if (m < 50)
     {
         integer xn(x), yn(y);
         while (yn.num.back() && yn.num.size() >= m)
