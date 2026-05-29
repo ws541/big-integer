@@ -597,8 +597,8 @@ public:
         int m = y.num.size(), n = 2 * m;
         integer q, r1;
         view y1(y.num.data(), m / 2, m - 1, y.sign);
-        q.num.assign(r.num.size() - y.num.size() + 1, 0); m = 1;
-        while (m && r.num.size() > y.num.size())
+        q.num.assign(r.num.size() - y.num.size() + 1, 0);
+        while (m)
         {
             int lr = r.num.size(); m = lr - n;
             if (m < 0) { m = 0; }
