@@ -529,7 +529,7 @@ public:
             tmp = karamul(view(*this, b), view(tmp, b1));
             int b2 = std::max((int)tmp.num.size() - need, 0);
             tmp = karamul(xt, view(tmp, b2));
-            view tmpview(tmp, -(k - t + b + b1 + b2));//为了保证是左移需要*this足够大,小的用除法版本
+            view tmpview(tmp, -(k - t + b + b1 + b2));
             xt = (xt * 3).shift(k);
             abssub(xt.num.data(), xt.num.size(), tmpview.ptr, tmpview.len);
             while (xt.num.back() == 0 && xt.num.size() > 1) { xt.num.pop_back(); }
@@ -813,7 +813,7 @@ integer integer::karamul(view a, view b)
 {
     if (a.len < b.len) { std::swap(a, b); }
     if (b.len < 80) return multiply(a.ptr, a.len, b.ptr, b.len, a.sign * b.sign);
-    if (a.len + b.len <= halflen && b.len > 160) return fftmul(a, b);
+    if (a.len + b.len <= halflen) return fftmul(a, b);
     int n = (a.len + 1) / 2;
     view a1(a.ptr, n, a.len - 1, 1);
     view a0(a.ptr, 0, n - 1, 1);
@@ -831,13 +831,13 @@ integer integer::karamul(view a, view b)
         view b0(b.ptr, 0, n - 1, 1);
         integer c1 = karamul(a1, b1);
         integer c0 = karamul(a0, b0);
-
-        integer a0_a1 = addorsub(a0.ptr, a0.len, 1, a1.ptr, a1.len, 1, 0);
-        integer b0_b1 = addorsub(b0.ptr, b0.len, 1, b1.ptr, b1.len, 1, 0);
-
         ans.num = c0.num;
         ans.num.resize(a.len + b.len);
-        ans.shiftadd(c0 + c1 - karamul(a0_a1, b0_b1), n);
+        integer tmp=karamul(addorsub(a0.ptr, a0.len, 1, a1.ptr, a1.len, 1, 1),addorsub(b0.ptr, b0.len, 1, b1.ptr, b1.len, 1, 1));
+        abssub(tmp.num.data(),tmp.num.size(),c0.num.data(),c0.num.size());
+        abssub(tmp.num.data(),tmp.num.size(),c1.num.data(),c1.num.size());
+        while(tmp.num.back()==0&&tmp.num.size()>1){tmp.num.pop_back();}
+        ans.shiftadd(tmp, n);
         ans.shiftadd(c1, 2 * n);
     }
     while (ans.num.size() > 1 && ans.num.back() == 0) ans.num.pop_back();
@@ -916,7 +916,7 @@ integer integer::fftmul(const  view& a, const view& b)
     }if (!same) { delete[]y0; }
     ifft(xx, n4);
     integer c;
-    c.num.reserve(m = la + lb); m = (m + 1) / 2;
+    c.num.reserve(m = la + lb+1); m /= 2;
     c.sign = a.sign * b.sign;
     ll k = 0;
     for (int i = 0; i < m; i++)
