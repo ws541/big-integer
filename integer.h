@@ -17,7 +17,7 @@ integer.h：支持快速乘法（karatsuba和FFT）、高效除法（burnikel-zi
 #include<complex>
 typedef long long int ll;
 typedef std::complex<double> cd;
-constexpr int log2lenmax = 20, lenmax = 1 << log2lenmax, halflen = lenmax >> 1, Base = 100000000, Blen = 8, e4 = 10000;
+constexpr int log2lenmax = 20, lenmax = 1 << log2lenmax, halflen = lenmax >> 1, Base = 100000000, Blen = 8;
 //jacobi要求Blen>=3,quotient要求Blen>=2,sqroot要求Blen偶数,karamul不溢出要求Blen<=8,硬编码Blen=8
 struct c2
 {
@@ -874,7 +874,7 @@ integer integer::karamul(view a, view b)
 double* integer::e4rrii(const view& a, int n)
 {
     double* y = new double[n]();
-    int i = 0;
+    int i = 0;constexpr int e4 = 10000;
     for (; i + 1 < a.len; i += 2)
     {
         y[2 * i] = a.ptr[i] % e4;
@@ -945,7 +945,7 @@ integer integer::fftmul(const  view& a, const view& b)
     integer c;
     c.num.reserve(m = la + lb+1); m /= 2;
     c.sign = a.sign * b.sign;
-    ll k = 0;
+    ll k = 0;constexpr int e4 = 10000;
     for (int i = 0; i < m; i++)
     {
         ll t = (ll)(xx[i].r.a + 0.5) + k;
@@ -1074,6 +1074,29 @@ void gcdshift1(integer& x, integer& y, const integer& A, const integer& B, const
     integer tmp;
     std::swap(tmp, x), x = A * tmp + C * y, y = B * tmp + D * y;
 }
+void gcdshift1_small(integer& x, integer& y,ll A,ll B,ll C,ll D)
+{
+    int i=0;
+    ll kx=0,ky=0;
+    for(;i<y.num.size();i++)
+    {
+        int xi=x.num[i],yi=y.num[i];
+        kx+=A*xi+C*yi;
+        ky+=B*xi+D*yi;
+        x.num[i]=kx%Base,kx/=Base;
+        y.num[i]=ky%Base,ky/=Base;
+        if(x.num[i]<0){kx-=1;x.num[i]+=Base;}
+        if(y.num[i]<0){ky-=1;y.num[i]+=Base;}
+    }
+    for(;i<x.num.size();i++)
+    {
+        kx+=A*x.num[i];
+        x.num[i]=kx%Base,kx/=Base;
+        if(x.num[i]<0){kx-=1;x.num[i]+=Base;}
+    }
+    while(x.num.size()>1&&x.num.back()==0){x.num.pop_back();}
+    while(y.num.size()>1&&y.num.back()==0){y.num.pop_back();}
+}
 void gcdshift2(integer& a, integer& b, integer& c, integer& d,
     const integer& A, const integer& B, const integer& C, const integer& D)
 {
@@ -1095,8 +1118,8 @@ bool lehmer(integer& x, integer& y, integer* a, integer* b, integer* c, integer*
         u = xh, xh = yh, yh = u - yh * q;
     }
     if (B)
-    {
-        gcdshift1(x, y, A, B, C, D);
+    {   
+        gcdshift1_small(x, y, A, B, C, D);
         if (a) { gcdshift2(*a, *b, *c, *d, A, B, C, D); }
     }
     return B;
@@ -1141,7 +1164,7 @@ integer gcd(const integer& m, const integer& n)
     if (y.absbigger(x, 0)) { std::swap(x, y); }
     while (y.num.back())
     {
-        while (y.num.size() > 200 && 10 * y.num.size() > 9 * x.num.size())
+        while (y.num.size() >730 && 10 * y.num.size() > 9 * x.num.size())
         {
             integer A(1), B(0), C(0), D(1);
             hgcd(x, y, A, B, C, D);
@@ -1152,7 +1175,7 @@ integer gcd(const integer& m, const integer& n)
             int l = x.num.size();
             if (!(l > 1 && l < y.num.size() + 2 && lehmer(x, y, 0, 0, 0, 0)))
             {
-                integer r, q1 = x.divide(y, r);
+                integer r;x.divide(y, r);
                 std::swap(x, y); std::swap(y, r);
             }
         }
@@ -1167,7 +1190,7 @@ integer euclid(const integer& m, const integer& n, integer& a, integer& c)
     if (y.absbigger(x, 0)) { std::swap(x, y); change = 1; }
     a = 1, c = 0;
     integer b(0), d(1);
-    while (y.num.size() > 200)
+    while (y.num.size() > 730)
     {
         while (10 * y.num.size() > 9 * x.num.size())
         {
@@ -1176,7 +1199,7 @@ integer euclid(const integer& m, const integer& n, integer& a, integer& c)
             gcdshift1(x, y, A, B, C, D);
             gcdshift2(a, b, c, d, A, B, C, D);
         }
-        if (y.num.size() > 200)
+        if (y.num.size() > 730)
         {
             integer r, q = x.divide(y, r);
             gcdshift(a, b, q);
