@@ -780,7 +780,16 @@ integer integer::multiply(const int* a, int la, const int* b, int lb, int sign)/
     int i;
     for (i = 0; i < m; i++)
     {
-        for (int j = i; j >= 0; j--)
+        int j=i;
+        for(;j>3;j-=4)
+        {
+            int t=i-j;
+            k+=(ll)a[t]*b[j]
+            +(ll)a[t+1]*b[j-1]
+            +(ll)a[t+2]*b[j-2]
+            +(ll)a[t+3]*b[j-3];
+        }
+        for (; j >-1; j--)
         {
             k += (ll)a[i - j] * b[j];
         }
@@ -789,7 +798,16 @@ integer integer::multiply(const int* a, int la, const int* b, int lb, int sign)/
     }
     for (; i < n; i++)
     {
-        for (int j = m; j >= 0; j--)
+        int j=m;
+        for(;j>3;j-=4)
+        {
+            int t=i-j;
+            k+=(ll)a[t]*b[j]
+            +(ll)a[t+1]*b[j-1]
+            +(ll)a[t+2]*b[j-2]
+            +(ll)a[t+3]*b[j-3];
+        }
+        for (; j >-1; j--)
         {
             k += (ll)a[i - j] * b[j];
         }
@@ -798,7 +816,16 @@ integer integer::multiply(const int* a, int la, const int* b, int lb, int sign)/
     }
     for (; i < l; i++)
     {
-        for (int j = m; j >= i - n; j--)
+        int j=m;
+        for(;j>i-n+3;j-=4)
+        {
+            int t=i-j;
+            k+=(ll)a[t]*b[j]
+            +(ll)a[t+1]*b[j-1]
+            +(ll)a[t+2]*b[j-2]
+            +(ll)a[t+3]*b[j-3];
+        }
+        for (; j >i-n-1; j--)
         {
             k += (ll)a[i - j] * b[j];
         }
