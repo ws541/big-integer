@@ -1,6 +1,6 @@
 
 /*
- * main.cpp - integer.h 测试程序 (计时修正版)
+ *务必-O2或者release
  */
 #include "integer.h"
 #include <chrono>
@@ -102,11 +102,11 @@ int main() {
     
     // 8. 费马数 F7 的质因子
     t1 = high_resolution_clock::now();
-    cout << "8. euler phi(F7 = 2^128 + 1)=\n";
+    cout << "8. euler phi(F7 = 2^128 + 1)=";
     euler(power(2, 128) + 1).print();
     t2 = high_resolution_clock::now();
     ms = duration_cast<microseconds>(t2 - t1).count() / 1000.0;
-    cout << "\n   (" << format_time(ms) << ")\n\n";
+    cout << "   (" << format_time(ms) << ")\n\n";
     
     auto total_end = high_resolution_clock::now();
     ms = duration_cast<microseconds>(total_end - total_start).count() / 1000.0;
