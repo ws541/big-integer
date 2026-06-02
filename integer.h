@@ -277,7 +277,7 @@ private:
         r32.num.insert(r32.num.begin(), a.ptr, a.ptr + n);
         integer q; q.num.resize(a.len - b.len + 1);
         q.shiftadd(div_3n_2n(r32, b, b1, r), 0);
-        if (q1.num.back()) {q.shiftadd(q1, n);}
+        if (q1.num.back()) { q.shiftadd(q1, n); }
         while (q.num.size() > 1 && !q.num.back()) q.num.pop_back();
         return q;
     }
@@ -780,16 +780,16 @@ integer integer::multiply(const int* a, int la, const int* b, int lb, int sign)/
     int i;
     for (i = 0; i < m; i++)
     {
-        int j=i;
-        for(;j>3;j-=4)
+        int j = i;
+        for (; j > 3; j -= 4)
         {
-            int t=i-j;
-            k+=(ll)a[t]*b[j]
-            +(ll)a[t+1]*b[j-1]
-            +(ll)a[t+2]*b[j-2]
-            +(ll)a[t+3]*b[j-3];
+            int t = i - j;
+            k += (ll)a[t] * b[j]
+                + (ll)a[t + 1] * b[j - 1]
+                + (ll)a[t + 2] * b[j - 2]
+                + (ll)a[t + 3] * b[j - 3];
         }
-        for (; j >-1; j--)
+        for (; j > -1; j--)
         {
             k += (ll)a[i - j] * b[j];
         }
@@ -798,16 +798,16 @@ integer integer::multiply(const int* a, int la, const int* b, int lb, int sign)/
     }
     for (; i < n; i++)
     {
-        int j=m;
-        for(;j>3;j-=4)
+        int j = m;
+        for (; j > 3; j -= 4)
         {
-            int t=i-j;
-            k+=(ll)a[t]*b[j]
-            +(ll)a[t+1]*b[j-1]
-            +(ll)a[t+2]*b[j-2]
-            +(ll)a[t+3]*b[j-3];
+            int t = i - j;
+            k += (ll)a[t] * b[j]
+                + (ll)a[t + 1] * b[j - 1]
+                + (ll)a[t + 2] * b[j - 2]
+                + (ll)a[t + 3] * b[j - 3];
         }
-        for (; j >-1; j--)
+        for (; j > -1; j--)
         {
             k += (ll)a[i - j] * b[j];
         }
@@ -816,16 +816,16 @@ integer integer::multiply(const int* a, int la, const int* b, int lb, int sign)/
     }
     for (; i < l; i++)
     {
-        int j=m;
-        for(;j>i-n+3;j-=4)
+        int j = m;
+        for (; j > i - n + 3; j -= 4)
         {
-            int t=i-j;
-            k+=(ll)a[t]*b[j]
-            +(ll)a[t+1]*b[j-1]
-            +(ll)a[t+2]*b[j-2]
-            +(ll)a[t+3]*b[j-3];
+            int t = i - j;
+            k += (ll)a[t] * b[j]
+                + (ll)a[t + 1] * b[j - 1]
+                + (ll)a[t + 2] * b[j - 2]
+                + (ll)a[t + 3] * b[j - 3];
         }
-        for (; j >i-n-1; j--)
+        for (; j > i - n - 1; j--)
         {
             k += (ll)a[i - j] * b[j];
         }
@@ -860,10 +860,10 @@ integer integer::karamul(view a, view b)
         integer c0 = karamul(a0, b0);
         ans.num = c0.num;
         ans.num.resize(a.len + b.len);
-        integer tmp=karamul(addorsub(a0.ptr, a0.len, 1, a1.ptr, a1.len, 1, 1),addorsub(b0.ptr, b0.len, 1, b1.ptr, b1.len, 1, 1));
-        abssub(tmp.num.data(),tmp.num.size(),c0.num.data(),c0.num.size());
-        abssub(tmp.num.data(),tmp.num.size(),c1.num.data(),c1.num.size());
-        while(tmp.num.back()==0&&tmp.num.size()>1){tmp.num.pop_back();}
+        integer tmp = karamul(addorsub(a0.ptr, a0.len, 1, a1.ptr, a1.len, 1, 1), addorsub(b0.ptr, b0.len, 1, b1.ptr, b1.len, 1, 1));
+        abssub(tmp.num.data(), tmp.num.size(), c0.num.data(), c0.num.size());
+        abssub(tmp.num.data(), tmp.num.size(), c1.num.data(), c1.num.size());
+        while (tmp.num.back() == 0 && tmp.num.size() > 1) { tmp.num.pop_back(); }
         ans.shiftadd(tmp, n);
         ans.shiftadd(c1, 2 * n);
     }
@@ -874,7 +874,7 @@ integer integer::karamul(view a, view b)
 double* integer::e4rrii(const view& a, int n)
 {
     double* y = new double[n]();
-    int i = 0;constexpr int e4 = 10000;
+    int i = 0; constexpr int e4 = 10000;
     for (; i + 1 < a.len; i += 2)
     {
         y[2 * i] = a.ptr[i] % e4;
@@ -943,9 +943,9 @@ integer integer::fftmul(const  view& a, const view& b)
     }if (!same) { delete[]y0; }
     ifft(xx, n4);
     integer c;
-    c.num.reserve(m = la + lb+1); m /= 2;
+    c.num.reserve(m = la + lb + 1); m /= 2;
     c.sign = a.sign * b.sign;
-    ll k = 0;constexpr int e4 = 10000;
+    ll k = 0; constexpr int e4 = 10000;
     for (int i = 0; i < m; i++)
     {
         ll t = (ll)(xx[i].r.a + 0.5) + k;
@@ -1074,29 +1074,6 @@ void gcdshift1(integer& x, integer& y, const integer& A, const integer& B, const
     integer tmp;
     std::swap(tmp, x), x = A * tmp + C * y, y = B * tmp + D * y;
 }
-void gcdshift1_small(integer& x, integer& y,ll A,ll B,ll C,ll D)
-{
-    int i=0;
-    ll kx=0,ky=0;
-    for(;i<y.num.size();i++)
-    {
-        int xi=x.num[i],yi=y.num[i];
-        kx+=A*xi+C*yi;
-        ky+=B*xi+D*yi;
-        x.num[i]=kx%Base,kx/=Base;
-        y.num[i]=ky%Base,ky/=Base;
-        if(x.num[i]<0){kx-=1;x.num[i]+=Base;}
-        if(y.num[i]<0){ky-=1;y.num[i]+=Base;}
-    }
-    for(;i<x.num.size();i++)
-    {
-        kx+=A*x.num[i];
-        x.num[i]=kx%Base,kx/=Base;
-        if(x.num[i]<0){kx-=1;x.num[i]+=Base;}
-    }
-    while(x.num.size()>1&&x.num.back()==0){x.num.pop_back();}
-    while(y.num.size()>1&&y.num.back()==0){y.num.pop_back();}
-}
 void gcdshift2(integer& a, integer& b, integer& c, integer& d,
     const integer& A, const integer& B, const integer& C, const integer& D)
 {
@@ -1118,9 +1095,47 @@ bool lehmer(integer& x, integer& y, integer* a, integer* b, integer* c, integer*
         u = xh, xh = yh, yh = u - yh * q;
     }
     if (B)
-    {   
-        gcdshift1_small(x, y, A, B, C, D);
-        if (a) { gcdshift2(*a, *b, *c, *d, A, B, C, D); }
+    {
+        int i = 0; ll kx = 0, ky = 0;
+        for (; i < y.num.size(); i++) {
+            int xi = x.num[i], yi = y.num[i];
+            kx += A * xi + C * yi;
+            ky += B * xi + D * yi;
+            x.num[i] = kx % Base; kx /= Base;
+            y.num[i] = ky % Base; ky /= Base;
+            if (x.num[i] < 0) { kx -= 1; x.num[i] += Base; }
+            if (y.num[i] < 0) { ky -= 1; y.num[i] += Base; }
+        }
+        for (; i < x.num.size(); i++) {
+            kx += A * x.num[i];
+            x.num[i] = kx % Base; kx /= Base;
+            if (x.num[i] < 0) { kx -= 1; x.num[i] += Base; }
+        }
+        while (x.num.size() > 1 && x.num.back() == 0) x.num.pop_back();
+        while (y.num.size() > 1 && y.num.back() == 0) y.num.pop_back();
+
+        auto shift2 = [](integer& a, integer& b, ll A, ll B, ll C, ll D) {
+            int i = 0; ll ka = 0, kb = 0;
+            if (!b.num.back()) b.sign = -a.sign;
+            for (; i < a.num.size(); i++) {
+                int ai = a.num[i], bi = b.num[i];
+                ka += llabs(A * ai - C * bi);
+                kb += llabs(B * ai - D * bi);
+                a.num[i] = ka % Base; ka /= Base;
+                b.num[i] = kb % Base; kb /= Base;
+            }
+            for (; i < b.num.size(); i++) {
+                ka += llabs(C * b.num[i]);
+                kb += llabs(D * b.num[i]);
+                a.num.push_back(ka % Base); ka /= Base;
+                b.num[i] = kb % Base; kb /= Base;
+            }
+            while (ka) { a.num.push_back(ka % Base); ka /= Base; }
+            while (kb) { b.num.push_back(kb % Base); kb /= Base; }
+            b.sign *= (D > 0 ? 1 : -1);
+            a.sign = -b.sign;
+            };
+        if (a) shift2(*a, *b, A, B, C, D), shift2(*c, *d, A, B, C, D);
     }
     return B;
 }
@@ -1164,7 +1179,7 @@ integer gcd(const integer& m, const integer& n)
     if (y.absbigger(x, 0)) { std::swap(x, y); }
     while (y.num.back())
     {
-        while (y.num.size() >730 && 10 * y.num.size() > 9 * x.num.size())
+        while (y.num.size() > 500 && 10 * y.num.size() > 9 * x.num.size())
         {
             integer A(1), B(0), C(0), D(1);
             hgcd(x, y, A, B, C, D);
@@ -1175,7 +1190,7 @@ integer gcd(const integer& m, const integer& n)
             int l = x.num.size();
             if (!(l > 1 && l < y.num.size() + 2 && lehmer(x, y, 0, 0, 0, 0)))
             {
-                integer r;x.divide(y, r);
+                integer r; x.divide(y, r);
                 std::swap(x, y); std::swap(y, r);
             }
         }
@@ -1190,7 +1205,7 @@ integer euclid(const integer& m, const integer& n, integer& a, integer& c)
     if (y.absbigger(x, 0)) { std::swap(x, y); change = 1; }
     a = 1, c = 0;
     integer b(0), d(1);
-    while (y.num.size() > 730)
+    while (y.num.size() > 500)
     {
         while (10 * y.num.size() > 9 * x.num.size())
         {
@@ -1199,7 +1214,7 @@ integer euclid(const integer& m, const integer& n, integer& a, integer& c)
             gcdshift1(x, y, A, B, C, D);
             gcdshift2(a, b, c, d, A, B, C, D);
         }
-        if (y.num.size() > 730)
+        if (y.num.size() > 500)
         {
             integer r, q = x.divide(y, r);
             gcdshift(a, b, q);
