@@ -311,6 +311,8 @@ private:
         }
         while (now.num.back() == 0 && now.num.size() > 1) { now.num.pop_back(); }
     }
+    static int abssub(int* a, int la, const int* b, int lb);
+public:
     static integer div_native(const view& a, const view& b, integer& r)
     {
         if (!b.ptr[b.len - 1]) { std::cout << "div0"; exit(0); }
@@ -336,8 +338,6 @@ private:
         c.sign = a.sign * b.sign;
         return c;
     }
-    static int abssub(int* a, int la, const int* b, int lb);
-public:
     static integer addorsub(const int* a, int la, int asign, const int* b, int lb, int bsign, bool add);
     int sign = 1;
     std::vector<int> num;
@@ -644,14 +644,6 @@ public:
         }
         c.sign = sign;
         return c;
-    }
-    integer cut(int start, int end)const
-    {
-        integer a;
-        while (end > start && num[end] == 0) { end--; }
-        a.num.assign(num.begin() + start, num.begin() + end + 1);
-        a.sign = sign;
-        return a;
     }
     void addsmall(int n)//n绝对值不超过Base
     {
@@ -1179,7 +1171,7 @@ integer gcd(const integer& m, const integer& n)
     if (y.absbigger(x, 0)) { std::swap(x, y); }
     while (y.num.back())
     {
-        while (y.num.size() > 500 && 10 * y.num.size() > 9 * x.num.size())
+        while (y.num.size() > 550 && 10 * y.num.size() > 9 * x.num.size())
         {
             integer A(1), B(0), C(0), D(1);
             hgcd(x, y, A, B, C, D);
@@ -1205,7 +1197,7 @@ integer euclid(const integer& m, const integer& n, integer& a, integer& c)
     if (y.absbigger(x, 0)) { std::swap(x, y); change = 1; }
     a = 1, c = 0;
     integer b(0), d(1);
-    while (y.num.size() > 500)
+    while (y.num.size() > 550)
     {
         while (10 * y.num.size() > 9 * x.num.size())
         {
@@ -1214,7 +1206,7 @@ integer euclid(const integer& m, const integer& n, integer& a, integer& c)
             gcdshift1(x, y, A, B, C, D);
             gcdshift2(a, b, c, d, A, B, C, D);
         }
-        if (y.num.size() > 500)
+        if (y.num.size() > 550)
         {
             integer r, q = x.divide(y, r);
             gcdshift(a, b, q);
@@ -1333,7 +1325,7 @@ private:
     }
     integer fastmod(const integer& x)
     {
-        integer ans = x.cut(0, std::min((int)x.num.size() - 1, m - 1));
+        integer ans = integer::view(x.num.data(), 0, std::min((int)x.num.size() - 1, m - 1), x.sign);
         if (normal) { return ans; }
         if (m < x.num.size()) {
             integer::view tmp(x.num.data(), m, x.num.size() - 1, x.sign);
@@ -1351,7 +1343,7 @@ private:
     {
         integer ans;
         if (m > x.num.size() - 1) { ans = 0; }
-        else { ans = x.cut(m, x.num.size() - 1); }
+        else { ans = integer::view(x.num.data(), m, x.num.size() - 1, x.sign); }
         if (normal) { return ans; }
         integer remain;
         if (ans.num.back())
@@ -1485,7 +1477,8 @@ public:
         int j = 1;
         while (m % 10 == 0) { m /= 10; j *= 10; }
         m = m % 5 ? 2 : 5;
-        integer p = power(m, step), res(j), q = x.cut(i, x.num.size() - 1) / res, g;
+        integer p = power(m, step), res(j), g,
+            q = integer::div_native(integer::view(x.num.data(), i, x.num.size() - 1, x.sign), res, g);
         do
         {
             p = p * p;
