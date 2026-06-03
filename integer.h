@@ -1572,22 +1572,19 @@ public:
     }
     pairs inv_inside(const pairs& x)
     {
-        pairs ans;
+        pairs ans;int ok=1;
         if (a1)
         {
             ans.f = a.inv_inside(x.f);
-            if (!ans.f.num.back()) { return zero(); }
+            ok&=ans.f.num.back()!=0;
         }
-        if (b1)
+        if (b1&&ok)
         {
             ans.s = b.inv_inside(x.s);
-            if (!ans.s.num.back()) { return zero(); }
+            ok&=ans.s.num.back()!=0;
         }
+        if(!ok){std::cout<<"inv_inside";exit(0);}//不存在直接退出
         return ans;
-    }
-    bool iszero(const pairs& x)
-    {
-        return  (!(a1 && x.f.num.back())) && !(b1 && x.s.num.back());
     }
     pairs pow_binary(const pairs& x, const std::vector<int>& l)
     {
@@ -1749,7 +1746,9 @@ bool lucas(const integer& x)
 {
     if (x.num.size() == 1 && (x.num[0] == 2 || x.num[0] == 5)) { return 1; }
     integer u;
-    if (x.num[0] % 2 == 0 || x.num[0] % 5 == 0 || ((u = sqroot(x)) * u).num == x.num) { return 0; }
+    if (x.num[0] % 2 == 0 || x.num[0] % 5 == 0 ||
+        ((inside(x.num[0]%10,{1,9})&&
+         ((u = sqroot(x)) * u).num == x.num))) { return 0; }
     int t = 5, s = 1;
     while (jacobi(t * s, x) != -1)
     {
