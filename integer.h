@@ -211,16 +211,6 @@ public:
         }
     };
 private:
-    ll absll()const
-    {
-        ll a = 0, b = 1;
-        for (ll e : num)
-        {
-            a += e * b;
-            b *= Base;
-        }
-        return a;
-    }
     static integer multiply(const int* a, int la, const int* b, int lb, int sign);
     int bz_init(const integer& b, integer& x, integer& y)const
     {
@@ -275,10 +265,13 @@ private:
         int n = b.len / 2;
         integer r32, q1 = div_3n_2n(view(a.ptr, n, a.len - 1, a.sign), b, b1, r32);
         r32.num.insert(r32.num.begin(), a.ptr, a.ptr + n);
-        integer q; q.num.resize(a.len - b.len + 1);
-        q.shiftadd(div_3n_2n(r32, b, b1, r), 0);
-        if (q1.num.back()) { q.shiftadd(q1, n); }
-        while (q.num.size() > 1 && !q.num.back()) q.num.pop_back();
+        integer q=div_3n_2n(r32, b, b1, r); 
+        if (q1.num.back()) 
+        { 
+            q.num.resize(a.len - b.len + 1);
+            q.shiftadd(q1, n);
+            while (q.num.size() > 1 && !q.num.back()) q.num.pop_back();
+        }
         return q;
     }
     void quotient(const view& a, const view& b, integer& now)
@@ -289,8 +282,8 @@ private:
         if (!(m /= 10)) { m = 1; }
         ll m100 = m * 100, bb = m100 * b.ptr[b.len - 1] + (ll)m * b.ptr[b.len - 2] / (Base / 100);
         now.num.reserve(a.len + 1);
-        now = a; now.num.push_back(0);
-        for (int ln; (ln = now.num.size()) > 2 && (t = ln - b.len - 1) > -1; now.num.pop_back())
+        now = a; now.num.push_back(0);int ln;
+        for (;(t = (ln = now.num.size()) - b.len - 1) > -1; now.num.pop_back())
         {
             int q = (((ll)now.num.back() * Base + now.num[ln - 2]) * m100 + (ll)now.num[ln - 3] * m / (Base / 100)) / bb;
             if (!q) { continue; }
@@ -303,11 +296,6 @@ private:
                 if (cnt++ > 2) { std::cout << "quotient"; exit(0); }
             }
             num[t] = q - cnt;
-        }
-        if (b.len == 2)
-        {
-            ll u = now.absll(), v = ((ll)b.ptr[1] * Base + b.ptr[0]);
-            num[0] += u / v, now = u % v;
         }
         while (now.num.back() == 0 && now.num.size() > 1) { now.num.pop_back(); }
     }
@@ -395,8 +383,11 @@ public:
     }
     ll toll()const
     {
-        if (absbigger(integer(9223372036854775807), 0)) { std::cout << "toll"; exit(0); }
-        return sign * absll();
+        int ln=num.size();
+        if (ln>2) { std::cout << "toll"; exit(0); }
+        ll a=num.back();
+        if(ln>1){a=a*Base+num[0];}
+        return sign*a;
     }
     void get()
     {
