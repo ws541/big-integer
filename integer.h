@@ -1406,15 +1406,13 @@ public:
     integer add(const integer& u, const integer& v)
     {
         integer ans(u + v);
-        if (ans.sign == -1 && ans.num.back()) { ans = ans + p; }
-        else if (ans.absbigger(p, 1)) { ans = ans - p; }
+        if (ans.absbigger(p, 1)) { ans = ans - p; }
         return ans;
     }
     integer sub(const integer& u, const integer& v)
     {
         integer ans(u - v);
         if (ans.sign == -1 && ans.num.back()) { ans = ans + p; }
-        else if (ans.absbigger(p, 1)) { ans = ans - p; }
         return ans;
     }
     integer pow_exponent(const integer& u, const std::vector<int>& l, int w = 5)
@@ -1658,9 +1656,9 @@ std::vector<int> exponent(integer a, int w = 5)
 }
 integer power(const integer& x, const integer& n, const integer& p)//p>1
 {
-    int m = n.num.back();
-    if (n.num.size() == 1)
+    if (n.num.size()<3)
     {
+        ll m = n.toll();
         integer a(x % p), ans = m & 1 ? a : 1;
         while (m >>= 1)
         {
@@ -1669,7 +1667,7 @@ integer power(const integer& x, const integer& n, const integer& p)//p>1
         }
         return ans.sign == -1 && ans.num.back() ? ans + p : ans;
     }
-    mod q(p); int w = std::min((int)n.num.size(), 4) + 1;
+    mod q(p); int w = std::min((int)n.num.size(), 5) + 1;
     return q.out(q.pow_exponent(q.in(x), exponent(n, w), w));
 }
 int ctz(integer& d)//d改变
@@ -1859,7 +1857,7 @@ integer factor(const integer& n, bool& pollard)//不质数幂
         pollard = 0;
     }
     if (n.num.size() < 3) { std::cout << "pollard"; exit(0); }
-    integer d = sqroot(n);
+    if (n.num.size() >7) { std::cout << "qs too big"; exit(0); }
     mont q;
     std::vector<int>prime;
     std::vector<int>root;
@@ -1872,16 +1870,20 @@ integer factor(const integer& n, bool& pollard)//不质数幂
         equa() {};
         equa(int ns, int ps) { x.num.resize(ns), y.num.resize(ns), mask.resize(ps / 64 + (bool)(ps % 64 != 0)), x.sign = -1; }
     };
-    std::vector<equa>smooth;//qs知乎学的,e45之内保证不超过10s,超过e47时间指数增长
+    std::vector<equa>smooth;//qs知乎学的,10^47之内保证不超过10s,10^50需要大概20s
     std::vector<equa>flaw; int fs = 0;
-    integer X, Y; int ta = 0, tb = 0, tc = 0; float bound;
+    std::vector<int>index;
+    std::vector<int>pcnt;
+    std::vector<integer>montp;
+    int ta = 0, tb = 0, tc = 0; float bound;
     auto insert_lambda =
-        [&q, &prime, &smooth, &flaw, &fs, &X, &Y, &n, &ok, &ta, &tb, &tc, &bound](const integer& x, integer y) -> integer {
+        [&q, &prime, &smooth, &flaw, &fs,&n, &ok, &ta, &tb, &tc, &bound,&index,&pcnt,&montp](const integer& x, integer y) -> integer {
         int  ps = prime.size();
-        equa e; e.y = y; e.mask.assign(ps / 64 + (bool)(ps % 64 != 0), 0);
-        for (int i = 0; i < ps && (y.num.size() > 1 || y.num[0] > 1); i++)
+        equa e;e.mask.assign(ps / 64 + (bool)(ps % 64 != 0), 0);
+        int z=0;
+        for (; z < ps && (y.num.size() > 1 || y.num[0] > 1); z++)
         {
-            integer r, p = prime[i], q = y.divide(p, r);
+            integer r, p = prime[z], q = y.divide(p, r);
             int cnt = 0;
             while (!r.num.back())
             {
@@ -1889,7 +1891,7 @@ integer factor(const integer& n, bool& pollard)//不质数幂
                 std::swap(y, q);
                 q = y.divide(p, r);
             }
-            e.mask[i / 64] |= ((unsigned long long)(cnt & 1)) << (i % 64);
+            pcnt[z]=cnt;
         }
         if (y.num.size() > 1 || y.num[0] > Base / 20) { tb++; return 0; }
         int j = 0;
@@ -1899,34 +1901,35 @@ integer factor(const integer& n, bool& pollard)//不质数幂
         }
         else { ta++; }
         e.x = q.in(x);
-        if (y.num[0] > 1) { e.y = e.y / y; }
         int  c = 0, r, cend = e.mask.size() * 64;
-        for (; c < cend; c += 64)
+        for(;z<ps;z++){pcnt[z]=0;}
+        for(int i=0;i<index.size();i++){pcnt[index[i]]++;}
+        e.y=q.in(y.sign);
+        for(int i=0;i<pcnt.size();i++)
         {
-            unsigned long long ei = e.mask[c / 64];
-            for (r = 0; r < ps - c && r < 64; r++, ei >>= 1)
-            {
-                if (ei & 1) { e.y = e.y / prime[c + r]; }
+            int cnt=pcnt[i],j=cnt&1,t=cnt>>1;
+            e.mask[i / 64] |= ((unsigned long long)j) << (i % 64);
+            if(t){
+                std::vector<int>tmp;tmp.push_back(t);
+                e.y=q.out(e.y*q.pow_binary(montp[i],tmp));
             }
         }
-        e.y.sign = 1, e.y = sqroot(e.y) % n, e.y.sign = y.sign;
         if (y.num[0] > 1)
         {
             equa& s = flaw[j];
             if (s.x.sign < 0) { e.x.sign = y.num[0]; flaw[j] = e; fs++; return 0; }
             tc++;
             s.x.sign = 1; e.x = q.out(e.x * s.x); s.x.sign = y.num[0];
-            e.y = e.y * (s.y * y.num[0]);
+            e.y=q.out(q.out(e.y*s.y)*q.in(y.num[0]));
             for (c = 0; c < cend; c += 64)
             {
                 unsigned long long ei = e.mask[c / 64], si = s.mask[c / 64], u = ei & si;
                 for (r = 0; r < ps - c && r < 64; r++, u >>= 1)
                 {
-                    if (u & 1) { e.y = e.y * prime[c + r]; }
+                    if (u & 1) { e.y = q.out(e.y*montp[c + r]); }
                 }
                 e.mask[c / 64] ^= si;
             }
-            e.y = e.y % n;
         }
         for (c = 0; c < cend && !e.mask[c / 64]; c += 64);
         unsigned long long bit;
@@ -1937,32 +1940,30 @@ integer factor(const integer& n, bool& pollard)//不质数幂
             equa& s = smooth[index];
             e.x = q.out(e.x * s.x);
             int pre = c;
-            std::vector<integer>l;
+            e.y=q.out(e.y*s.y);
             for (; c < cend; c += 64)
             {
                 unsigned long long ei = e.mask[c / 64], si = s.mask[c / 64], u = ei & si;
                 for (r = 0; r < ps - c && r < 64; r++, u >>= 1)
                 {
-                    if (u & 1) { l.push_back(prime[c + r]); }
+                    if (u & 1) 
+                    { 
+                        e.y=q.out(e.y,montp[c+r]);
+                    }
                 }
                 e.mask[c / 64] ^= si;
             }
-            e.y = mul(l) % n * (e.y * s.y) % n;
             for (c = pre; c < cend && !e.mask[c / 64]; c += 64);
             if (c < cend) { for (bit = e.mask[c / 64], r = 0; r < ps - c && r < 64 && !(bit & 1); r++, bit >>= 1); }
         }
         if (index >= ps)
-        {
-            if (e.y.sign < 0)
-            {
-                if (X.num.empty()) { X = e.x, Y = e.y; return 0; }
-                e.x = q.out(e.x * X), e.y = e.y * Y;
-            }ok--;
-            return gcd(q.out(e.x) + e.y, n);
+        {   
+            ok--;
+            return gcd(q.out(e.x+e.y), n);
         }
         smooth[index] = e;
-        //std::cout << "\r    relation:" << ta + tc << " need:" << prime.size() << " |from " <<tb << " fail extract " << fs << " flaw and " << tc << " relation\r" << std::flush;
-        const int level = 4;
+        //std::cout << "\n    relation:" << ta + tc << " need:" << prime.size() << " |from " <<tb << " fail extract " << fs << " flaw and " << tc << " relation\n";
+        const int level = 3;
         if (tb > (ta << (level + 1))) { bound += 0.1; }if ((ta << level) > tb) { bound -= 0.1; }//倾向于错误多些,快
         return 0;
         };
@@ -1970,6 +1971,7 @@ integer factor(const integer& n, bool& pollard)//不质数幂
         int l = x.num.size();
         return l == 1 ? log(x.num[0]) : log((ll)x.num.back() * Base + x.num[l - 2]) + (l - 2) * log(Base);
         };
+    integer d = sqroot(n);
     B = pow(getlog(d) - 2, 1.7 + 0.1 * n.num.size());
     root.assign((B + B % 2) / 2, 1);
     for (int i = 1, a; 2 * (a = 2 * i * (i + 1)) <= B - 1; i++)
@@ -1988,34 +1990,91 @@ integer factor(const integer& n, bool& pollard)//不质数幂
         logp.push_back(log(p));
         root.push_back(shanks_sqrt(n, p).num[0]);
     }
-    d = sqroot(d * 14142 / (integer(m) * 10000));
-    d.addsmall(31 - (d % 30).num[0]);
+    d = d * 14142 / (integer(m) * 10000);
     q.p = n; q.init(1);
+    for(int p:prime){montp.push_back(q.in(p));}
+    pcnt.resize(prime.size());
     smooth.assign(prime.size(), equa(n.num.size(), prime.size()));
     flaw.assign(prime.size() << 3, equa(n.num.size(), prime.size()));
     ok = 20;
-    constexpr int z[] = { 6,4,2,4,2,4,6,2 }; int zi = 0;
-    bound = getlog(d * m) * 2 - 13;
-    while (ok > 0)
-    {
-        integer y0;
-        do { d.addsmall(z[zi]); zi = (zi + 1) % 8; } while ((d.num[0] & 3) == 1 || (((y0 = power(n, (d + 1) / 4, d)) * y0 - n) % d).num.back());
-        integer y1 = (n - y0 * y0) / d * inv(y0 * 2, d) % d;
-        if (y1.sign == -1) { y1 = y1 + d; }
-        integer a = d * d, b = y0 + y1 * d, c = (b * b - n) / a, e = b * inv(d, n) % n;
-        std::vector<float>pos(m), neg(m);
-        for (int i = 0; i < root.size(); i++)
-        {
-            int p = prime[i + 1], q = (a % p).num[0]; if (!q) { continue; }
+    bound = getlog(d)+2*log(m) - 13;
+    integer a,b;int start=30,gap=1;
+    std::vector<integer>crtbase;
+    std::vector<int>inva;inva.resize(root.size());
+    auto geta=[&a,&b,&d,&prime,&index,&start,&gap,&root,&crtbase,&inva]()->bool{
+        auto inv_fsp=[](const integer&a,int p)->int{
+            int q = (a % p).num[0];
             int h = p - 2, inva = h & 1 ? q : 1;
             while (h >>= 1)
             {
                 q = q * q % p;
                 if (h & 1) { inva = q * inva % p; }
             }
-            h = (b % p).num[0];
-            int x0 = (-h - root[i]) * inva % p;
-            int x1 = (-h + root[i]) * inva % p;
+            return inva;
+        };
+        if(start>std::min((int)prime.size(),500)){start=std::min((int)prime.size()/4,30);return 0;}
+        index.clear();crtbase.clear();
+        int i=start;
+        integer tmp=prime[i];
+        do
+        {
+            index.push_back(i);
+            i+=gap+rand()%8;
+            if(i+1>prime.size())
+            {
+                gap++;
+                if(gap>prime.size()/10){gap=1;}
+                return 0;
+            }
+            std::swap(a,tmp);
+            tmp=a*prime[i];
+        } while(d.absbigger(a*prime.back(),0));
+        int j=(d/a).num[0];if(prime.size()>100&&j<10){start++;return 0;}
+        for(i=2;i+1<prime.size()&&prime[i]<j;i++);
+        float low=(float)prime[i-1]/j,high=(float)prime[i]/j;
+        if(abs(1-low)<abs(1-high)){i--;}
+        for(j=0;j<index.size()&&index[j]!=i;j++);
+        if(j!=index.size()){start++;return 0;}
+        a=a*prime[i];
+        index.push_back(i);
+        for(i=0,b=0;i<index.size();i++)
+        {
+            integer p=prime[index[i]],mi=a/p,invi=inv_fsp(mi,p.num[0]),ti=(invi*root[index[i]-1])%p*mi%a;
+            b=b+ti;
+            crtbase.push_back(ti);
+        }b=b%a;
+        for(int i=0;i<root.size();i++)
+        {
+            inva[i]=inv_fsp(a,prime[i+1]);
+        }
+        start++;
+        return 1;
+    };
+    int cnt=0;
+    auto getb=[&a,&b,&prime,&root,&index,&cnt,&crtbase]()->bool{
+        cnt++;
+        if(cnt+1>(1<<(index.size()-1))){return 0;}//只要a-b和b中一个
+        int u=1,pos=0;
+        while((cnt&u)==0){u<<=1;pos++;}
+        u=cnt&(u<<1);
+        integer &diff=crtbase[pos];
+        if(!u){diff.sign=-1;}
+        else{diff.sign=1;}
+        b=(b+(diff+diff))%a;
+        if(b.sign<0){b=b+a;}
+        return 1;
+    };
+    while(ok>0)
+    {
+        if(!getb()){cnt=0;while(!geta());}
+        integer c=(b*b-n)/a;
+        std::vector<float>pos(m), neg(m);
+        for (int i = 0; i < root.size(); i++)
+        {
+            int invai=inva[i]; if (!invai) { continue; }
+            int p=prime[i+1],h = (b % p).num[0];
+            int x0 = (-h - root[i]) * invai % p;
+            int x1 = (-h + root[i]) * invai % p;
             if (x0 < 0) { x0 += p; }if (x1 < 0) { x1 += p; }
             const float lp = logp[i];
             for (int j = x0; j < m; j += p) { pos[j] += lp; }
@@ -2027,17 +2086,17 @@ integer factor(const integer& n, bool& pollard)//不质数幂
         {
             if (pos[i] > bound)
             {
-                g = insert_lambda(e + d * i, a * ((ll)i * i) + b * (i << 1) + c);
+                g = insert_lambda(b + a * i, (a * ((ll)i * i) + b * (i << 1) + c));
                 if (check_lambda()) { return g; }
             }
             if (neg[i] > bound)
             {
-                g = insert_lambda(e - d * i, a * ((ll)i * i) - b * (i << 1) + c);
+                g = insert_lambda(b - a * i, (a * ((ll)i * i) - b * (i << 1) + c));
                 if (check_lambda()) { return g; }
             }
         }
     }
-    std::cout << "factor"; exit(0);
+    std::cout << "factor"; exit(0);//可能是输入质数幂(qs非法输入)，或者极小概率geta产生重复的a导致
 }
 integer ppow(const integer& x)
 {
