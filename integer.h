@@ -1994,7 +1994,7 @@ integer factor(const integer& n, bool& pollard)//不质数幂
     pcnt.resize(prime.size());
     smooth.assign(prime.size(), equa(n.num.size(), prime.size()));
     flaw.assign(prime.size() << 3, equa(n.num.size(), prime.size()));
-    ok = 20;
+    ok = 40;
     bound = getlog(d)+2*log(m) - 13;
     integer a,b;int start=30,gap=1;
     std::vector<integer>crtbase;
@@ -2094,7 +2094,7 @@ integer factor(const integer& n, bool& pollard)//不质数幂
             }
         }
     }
-    std::cout << "factor"; exit(0);//可能是输入质数幂(qs非法输入)，或者极小概率geta产生重复的a导致
+    std::cout << "factor"; exit(0);//可能是输入质数幂(qs非法输入)，或者极小概率geta产生重复的a导致，或者ok正常耗尽
 }
 integer ppow(const integer& x)
 {
