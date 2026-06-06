@@ -1874,10 +1874,9 @@ integer factor(const integer& n, bool& pollard)//不质数幂
     std::vector<equa>flaw; int fs = 0;
     std::vector<int>index;
     std::vector<int>pcnt;
-    std::vector<integer>montp;
     int ta = 0, tb = 0, tc = 0; float bound;
     auto insert_lambda =
-        [&q, &prime, &smooth, &flaw, &fs,&n, &ok, &ta, &tb, &tc, &bound,&index,&pcnt,&montp](const integer& x, integer y) -> integer {
+        [&q, &prime, &smooth, &flaw, &fs,&n, &ok, &ta, &tb, &tc, &bound,&index,&pcnt](const integer& x, integer y) -> integer {
         int  ps = prime.size();
         equa e;e.mask.assign(ps / 64 + (bool)(ps % 64 != 0), 0);
         int z=0;
@@ -1904,32 +1903,31 @@ integer factor(const integer& n, bool& pollard)//不质数幂
         int  c = 0, r, cend = e.mask.size() * 64;
         for(;z<ps;z++){pcnt[z]=0;}
         for(int i=0;i<index.size();i++){pcnt[index[i]]++;}
-        e.y=q.in(y.sign);
+        e.y=y.sign;
         for(int i=0;i<pcnt.size();i++)
         {
             int cnt=pcnt[i],j=cnt&1,t=cnt>>1;
             e.mask[i / 64] |= ((unsigned long long)j) << (i % 64);
-            if(t){
-                std::vector<int>tmp;tmp.push_back(t);
-                e.y=q.out(e.y*q.pow_binary(montp[i],tmp));
-            }
+            if(t){e.y=e.y*power(prime[i],t)%n;}
         }
+        if(y.sign<0){e.y=e.y+n;}
         if (y.num[0] > 1)
         {
             equa& s = flaw[j];
             if (s.x.sign < 0) { e.x.sign = y.num[0]; flaw[j] = e; fs++; return 0; }
             tc++;
             s.x.sign = 1; e.x = q.out(e.x * s.x); s.x.sign = y.num[0];
-            e.y=q.out(q.out(e.y*s.y)*q.in(y.num[0]));
+            e.y=(e.y*y.num[0])*s.y;
             for (c = 0; c < cend; c += 64)
             {
                 unsigned long long ei = e.mask[c / 64], si = s.mask[c / 64], u = ei & si;
                 for (r = 0; r < ps - c && r < 64; r++, u >>= 1)
                 {
-                    if (u & 1) { e.y = q.out(e.y*montp[c + r]); }
+                    if (u & 1) { e.y = e.y*prime[c + r]; }
                 }
                 e.mask[c / 64] ^= si;
             }
+            e.y=e.y%n;
         }
         for (c = 0; c < cend && !e.mask[c / 64]; c += 64);
         unsigned long long bit;
@@ -1940,7 +1938,7 @@ integer factor(const integer& n, bool& pollard)//不质数幂
             equa& s = smooth[index];
             e.x = q.out(e.x * s.x);
             int pre = c;
-            e.y=q.out(e.y*s.y);
+            std::vector<integer>l;
             for (; c < cend; c += 64)
             {
                 unsigned long long ei = e.mask[c / 64], si = s.mask[c / 64], u = ei & si;
@@ -1948,18 +1946,19 @@ integer factor(const integer& n, bool& pollard)//不质数幂
                 {
                     if (u & 1) 
                     { 
-                        e.y=q.out(e.y,montp[c+r]);
+                        l.push_back(prime[c+r]);
                     }
                 }
                 e.mask[c / 64] ^= si;
             }
+            e.y=mul(l)%n*(e.y*s.y)%n;
             for (c = pre; c < cend && !e.mask[c / 64]; c += 64);
             if (c < cend) { for (bit = e.mask[c / 64], r = 0; r < ps - c && r < 64 && !(bit & 1); r++, bit >>= 1); }
         }
         if (index >= ps)
         {   
             ok--;
-            return gcd(q.out(e.x+e.y), n);
+            return gcd(q.out(e.x)+e.y, n);
         }
         smooth[index] = e;
         //std::cout << "\n    relation:" << ta + tc << " need:" << prime.size() << " |from " <<tb << " fail extract " << fs << " flaw and " << tc << " relation\n";
@@ -1992,7 +1991,6 @@ integer factor(const integer& n, bool& pollard)//不质数幂
     }
     d = d * 14142 / (integer(m) * 10000);
     q.p = n; q.init(1);
-    for(int p:prime){montp.push_back(q.in(p));}
     pcnt.resize(prime.size());
     smooth.assign(prime.size(), equa(n.num.size(), prime.size()));
     flaw.assign(prime.size() << 3, equa(n.num.size(), prime.size()));
