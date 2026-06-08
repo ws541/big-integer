@@ -583,6 +583,9 @@ public:
     }
     integer root(int m)//>1
     {
+        if(!num.back()||m==1){return *this;}
+        if(sign<1){std::cout<<"root";exit(0);}
+        if(m==2){return fsqrt();}
         int k=1;
         int f=num.size()/m+(num.size()%m!=0);
         int t=(f+k)*m;
@@ -629,12 +632,9 @@ public:
             tmp=shiftmul(tmp,*this,need,b);
             xt=(xt*(m+1)).shift(k);
             int leftshift=-(k-t+b);
-            if(tmp.num.size()>leftshift)
-            {
-                view tmpview(tmp,leftshift);
-                abssub(xt.num.data(),xt.num.size(),tmpview.ptr,tmpview.len);
-                while(xt.num.back()==0&&xt.num.size()>1){xt.num.pop_back();}
-            }
+            view tmpview(tmp,leftshift);
+            abssub(xt.num.data(),xt.num.size(),tmpview.ptr,tmpview.len);
+            while(xt.num.back()==0&&xt.num.size()>1){xt.num.pop_back();}
             xt=xt/m;
             t+=k*m;
             k=xt.num.size()-(1+(xt.num.size()>1));//更加保守
@@ -649,7 +649,8 @@ public:
             if(y.num.back()){r.addsmall(-1);}
             return r;
         }
-        if(absbigger((r.num.size()>5)?u*m+v:shiftpow(r+1,m,need,b),0)){r.addsmall(1);}
+        bool flag=r.num.size()>5;
+        if(absbigger(flag?u*m+v:shiftpow(r+1,m,need,b),!flag)){r.addsmall(1);}
         return r;
     }
     integer div_newton(const integer& that, integer& r)const//余数符号同被除数(由图像)
