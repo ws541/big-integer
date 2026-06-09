@@ -426,7 +426,7 @@ public:
         std::cin >> s;
         *this = integer(s);
     }
-    void print(int n = 10)const
+    void print(bool stdendl=1,int n = 5)const
     {
         if (sign != 1) { std::cout << "-"; }
         int l = num.size(), cnt = 0; int a[Blen];
@@ -457,7 +457,8 @@ public:
         {
             std::cout << "e" << l * Blen - cnt;
         }
-        std::cout << std::endl;
+        if(stdendl){std::cout<<"\n";}
+        else{std::cout<<" ";}
     }
     bool absbigger(const integer& that, bool equal)const
     {
@@ -532,17 +533,19 @@ public:
         xt = xt.shift(-1);
         xt.addsmall(-sign);  // 不能大于,认为最多差1
     }
-    integer fsqrt() const//不采用root方式，好处是初始值可以double预计算，坏处是可能需要/10000补偿
+    integer fsqrt() const
     {
         int k = 1;
         int ns = num.size();
-        int t = ns + 2 * k;
-        int l = 2 * (ns + 1);
-        int b = std::max(ns - (k + 2), 0);
-        integer xt = (ll)sqrt((ll)Base * Base / num.back()) * 10000, tmp = shift(-b), y;
-        while ((y = (xt * 3 - ((tmp * xt) * (xt * xt)).shift(-t + b)) / 2).num != xt.num)
+        int f=ns/2+ns%2;
+        int t = 2 *(f+k);
+        int l = 2 * (ns+ 1);
+        int b = 0;
+        int need=k+2;
+        integer xt = (ll)sqrt((ll)Base * Base / num.back()) *(ns%2?10000:1),y;
+        while ((y = (xt * 3 - (shiftmul(*this,xt,need,b) * (xt * xt)).shift(-t + b)) / 2).num != xt.num)
         {
-            std::swap(xt, y);
+            std::swap(xt, y);b=0;
         }
         int l1 = 0;
         if (l > 200)
@@ -552,11 +555,11 @@ public:
         }
         while (t < l)
         {
-            if (t + 2 * k > l) { k = (l - t + 1) / 2; }
-            else if (l1 && t + 2 * k > l1) { k = (l1 - t + 1) / 2; l1 = 0; }
-            int need = k + xt.num.size() + 2;
+            if (t + 2 * k > l) { k = (l - t) / 2; }
+            else if (l1 && t + 2 * k > l1) { k = (l1 - t) / 2; l1 = 0; }
+            need = k + xt.num.size() + 2;
             b = 0;
-            tmp = shiftmul(xt, xt, need, b);
+            integer tmp = shiftmul(xt, xt, need, b);
             tmp = shiftmul(*this, tmp, need, b);
             tmp = shiftmul(xt, tmp, need, b);
             view tmpview(tmp, -(k - t + b));
@@ -567,9 +570,8 @@ public:
             t += 2 * k;
             k = xt.num.size() - 1;
         }
-        int need = xt.num.size() + 2; b = 0;
+        need = xt.num.size() + 2; b = 0;
         integer r = shiftmul(xt, *this, need, b).shift(b - t / 2);
-        if (r.num.size() != ns / 2) { r = r / 10000; }
         integer y2 = r * r - *this;
         if (y2.num.size() > ns / 2 + 1) { std::cout << "fsqrt"; exit(0); }
         if (y2.sign == 1)
@@ -577,14 +579,14 @@ public:
             if (y2.num.back()) { r.addsmall(-1); }
             return r;
         }
-        y2 = y2 + r * 2;
+        y2 = y2 +(r+r);
         if (y2.sign == -1 && y2.num.back()) { r.addsmall(1); }
         return r;
     }
     integer root(int m)//>1
     {
         if (!num.back() || m == 1) { return *this; }
-        if (sign < 1 || m < 1) { std::cout << "root"; exit(0); }
+        if (sign < 1||m<1) { std::cout << "root"; exit(0); }
         if (m == 2) { return fsqrt(); }
         int k = 1;
         int f = num.size() / m + (num.size() % m != 0);
@@ -604,7 +606,7 @@ public:
         int b = 0;
         int need = k + 2;
         integer xt = Base, y = xt.shift(1);
-        while (y.absbigger(xt + Base / 10, 0))//必须一开始用二分法加速否则若m>500初值很慢
+        while (y.absbigger(xt + Base/10, 0))//必须一开始用二分法加速否则若m>500初值很慢
         {
             integer mid = (xt + y) / 2, tmp; b = 0;
             if ((tmp = mid * (m + 1) - shiftmul(shiftpow(mid, m + 1, need, b), *this, need, b).shift(b - t)).sign > 0 && (tmp / m).absbigger(mid, 0))
