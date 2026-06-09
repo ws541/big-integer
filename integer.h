@@ -533,7 +533,7 @@ public:
         xt = xt.shift(-1);
         xt.addsmall(-sign);  // 不能大于,认为最多差1
     }
-    integer fsqrt() const
+    integer fsqrt(bool eps=0) const//eps=1允许+-1误差
     {
         int k = 1;
         int ns = num.size();
@@ -572,6 +572,7 @@ public:
         }
         need = xt.num.size() + 2; b = 0;
         integer r = shiftmul(xt, *this, need, b).shift(b - t / 2);
+        if(eps){return r;}
         integer y2 = r * r - *this;
         if (y2.num.size() > ns / 2 + 1) { std::cout << "fsqrt"; exit(0); }
         if (y2.sign == 1)
@@ -583,11 +584,12 @@ public:
         if (y2.sign == -1 && y2.num.back()) { r.addsmall(1); }
         return r;
     }
-    integer root(int m)//>1
+    integer root(int m,bool eps=0)
+    //单纯root时间是检查的二分之一到几百分之一,m大时候很夸张,选项eps控制要不要为了+-1的误差付出代价，如果数据不是危险边界那么不推荐检查
     {
         if (!num.back() || m == 1) { return *this; }
-        if (sign < 1||m<1) { std::cout << "root"; exit(0); }
-        if (m == 2) { return fsqrt(); }
+        if (sign < 0||m<1) { std::cout << "root"; exit(0); }
+        if (m == 2) { return fsqrt(eps); }
         int k = 1;
         int f = num.size() / m + (num.size() % m != 0);
         int t = (f + k) * m;
@@ -644,6 +646,7 @@ public:
         }
         need = xt.num.size() + 2, b = 0;
         integer r = integer(1).shift(t / m) / xt;
+        if(eps){return r;}
         need = num.size() << 1;//全精度
         integer u = shiftpow(r, m - 1, need, b), v = u * r;
         y = v - *this;
