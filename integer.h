@@ -1,45 +1,5 @@
-
-/*
-integer.h：高性能大整数运算库，支持以下功能：
-
-【基础算术运算】
-- 大整数加减乘除（Karatsuba乘法、FFT乘法、Burnikel-Ziegler除法、牛顿迭代除法）
-
-【数论与模运算】
-- 模运算系统（Montgomery模运算、通用模类）
-- 模逆元计算
-- 快速模幂运算（二进制法和滑动窗口法）
-- 中国剩余定理（CRT）模合并
-
-【素数与因式分解】
-- 素数判定（Miller-Rabin确定性测试、Lucas素性测试）
-- Jacobi符号计算
-- Shanks模开方算法
-- 质因数分解（Pollard Rho算法、二次筛法QS）
-
-【组合数学】
-- 阶乘计算（高效分治乘法）
-- 排列数A(n,k)计算
-- 组合数C(n,k)计算
-
-【数论函数】
-- 欧拉函数φ(n)计算
-- 莫比乌斯函数μ(n)计算
-- 原根求解
-
-【其他功能】
-- 高精度开平方（牛顿迭代法）
-- 高精度开n次方根
-- 斐波那契数列快速计算（矩阵/二分法）
-- 最大公约数及扩展欧几里得算法（HGCD优化、Lehmer优化）
-
-【性能要求】
-- 必须使用-O2或Release模式编译
-- 建议使用MinGW编译，可链接GMP库进行对比测试
-
 //[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 //g++ a.cpp -O2 -I D:\mingw64download\mingw64\include -L D:\mingw64download\mingw64\lib -lgmp -lgmpxx -o a.exe
-*/
 #ifndef _INTEGER_H_//-O2运行
 #define _INTEGER_H_
 #include<iostream>
@@ -655,8 +615,7 @@ public:
             if (y.num.back()) { r.addsmall(-1); }
             return r;
         }
-        bool flag = r.num.size() > 5;
-        if (absbigger(flag ? u * m + v : shiftpow(r + 1, m, need, b), !flag)) { r.addsmall(1); }
+        if (absbigger(u * m + v,0)&&absbigger(shiftpow(r + 1, m, need, b),1)) { r.addsmall(1); }
         return r;
     }
     integer div_newton(const integer& that, integer& r)const//余数符号同被除数(由图像)
