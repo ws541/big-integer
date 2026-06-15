@@ -1936,7 +1936,7 @@ integer factor(const integer& n, bool& pollard)//不质数幂
         pollard = 0;
     }
     if (n.num.size() < 3) { std::cout << "pollard"; exit(0); }
-    if (n.num.size() > 7) { std::cout << "qs too big"; exit(0); }
+    if (n.num.size() > 7) { std::cout << "qs too big"; exit(0); }//qs知乎学的,10^47之内保证不超过10s
     mont q;
     std::vector<int>prime;
     std::vector<int>root;
@@ -1949,7 +1949,7 @@ integer factor(const integer& n, bool& pollard)//不质数幂
         equa() {};
         equa(int ns, int ps) { x.num.resize(ns), y.num.resize(ns), mask.resize(ps / 64 + (bool)(ps % 64 != 0)), x.sign = -1; }
     };
-    std::vector<equa>smooth;//qs知乎学的,10^47之内保证不超过10s,10^50需要大概20s
+    std::vector<equa>smooth;
     std::vector<equa>flaw; int fs = 0;
     std::vector<int>index;
     std::vector<int>pcnt;
@@ -2100,13 +2100,14 @@ integer factor(const integer& n, bool& pollard)//不质数幂
             if (i + 1 > prime.size())
             {
                 gap++;
-                if (gap > prime.size() / 10) { gap = 1; }
+                if (gap > prime.size() /10) { gap = 1; }
                 return 0;
             }
             std::swap(a, tmp);
             tmp = a * prime[i];
         } while (d.absbigger(a * prime.back(), 0));
-        int j = (d / a).num[0]; if (prime.size() > 100 && j < 10) { start++; return 0; }
+        int j = (d / a).num[0]; 
+        if (prime.size() > 200 && j < 10) { start++; return 0; }//psize太小会卡死
         for (i = 2; i + 1 < prime.size() && prime[i] < j; i++);
         float low = (float)prime[i - 1] / j, high = (float)prime[i] / j;
         if (abs(1 - low) < abs(1 - high)) { i--; }
@@ -2143,7 +2144,7 @@ integer factor(const integer& n, bool& pollard)//不质数幂
         };
     while (ok > 0)
     {
-        if (!getb()) { cnt = 0; while (!geta()); }
+        if (!getb()) { cnt = 0;while (!geta());}
         integer c = (b * b - n) / a;
         std::vector<float>pos(m), neg(m);
         for (int i = 0; i < root.size(); i++)
