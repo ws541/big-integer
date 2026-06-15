@@ -470,10 +470,10 @@ public:
         integer tmp;
         xt = div_native(integer(1).shift(3), view(num.data(), a - 2, a - 1, sign), tmp);
         int l1 = 0;
-        if (l > 200)
+        if (l > 100)
         {
             l1 = l - num.size();
-            while (l1 > 40) { l1 = (l1 + 1) / 2; }l1 += num.size();
+            while (l1 > 40) { l1 = (l1 + 2) / 2; }l1 += num.size();
         }
         while (t < l)
         {
@@ -508,10 +508,10 @@ public:
             std::swap(xt, y);b=0;
         }
         int l1 = 0;
-        if (l > 200)
+        if (l > 100)
         {
             l1 = l - ns;
-            while (l1 > 40) { l1 = (l1 + 1) / 2; }l1 += ns;
+            while (l1 > 40) { l1 = (l1 + 2) / 2; }l1 += ns;
         }
         while (t < l)
         {
@@ -582,10 +582,10 @@ public:
             std::swap(xt, y); b = 0;
         }
         int l1 = 0;
-        if (f > 120)
+        if (f > 100)
         {
             l1 = f;
-            while (l1 > 60) { l1 = (l1 + 2) / 2; }l1 = (l1 + f) * m;
+            while (l1 > 40) { l1 = (l1 + 3) / 2; }l1 = (l1 + f) * m;
         }
         while (t < l)
         {
