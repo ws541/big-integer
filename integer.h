@@ -461,7 +461,7 @@ public:
     {
         return karamul(*this, that);
     }
-    void reciprocal(integer& xt, int l) const  // xt=base^t/this,,t最终=l,对商长度和*this长度有最小值要求
+    void reciprocal(integer& xt, int l) const  // xt=base^t/this-(0或1或2),t最终=l,对商长度和*this长度有最小值要求
     {
         l++;//保护先加1
         int k = 1;
@@ -469,16 +469,14 @@ public:
         int a = num.size(), b;
         integer tmp;
         xt = div_native(integer(1).shift(3), view(num.data(), a - 2, a - 1, sign), tmp);
-        int l1 = 0;
-        if (l > 100)
-        {
-            l1 = l - num.size();
-            while (l1 > 40) { l1 = (l1 + 2) / 2; }l1 += num.size();
-        }
+        std::vector<int>xtsize;
+        int k1 =l-num.size()+1;k1+=((k1&1)==0);
+        while (k1 >5) {k1 = k1/2+1;k1+=((k1&1)==0);xtsize.push_back(k1);}
         while (t < l)
         {
             if (t + k >= l) { k = l - t; }  // 最终微调
-            else if (l1 && k + t >= l1) { k = l1 - t; l1 = 0; }//中间级微调,使得最终xt几乎充分利用
+            else if (!xtsize.empty()&&xtsize.back()>xt.num.size()&&xtsize.back()-xt.num.size()<k) 
+            { k =xtsize.back()-xt.num.size();xtsize.pop_back();}//中间级微调,使得最终xt几乎充分利用
             int need = xt.num.size() + k + 2;  // 向(xt * 2).shift(k)约xt.size+k对齐
             b = 0;
             tmp = shiftmul(xt, xt, need, b);
@@ -489,6 +487,8 @@ public:
             while (xt.num.back() == 0 && xt.num.size() > 1) { xt.num.pop_back(); }
             t += k;  // 新增k个待计算（有效数字增长一倍)
             k = xt.num.size() - 1;
+            while(!xtsize.empty()&&xt.num.size()>=xtsize.back()){xtsize.pop_back();}
+            //std::cout<<xt.num.size()<<" "<<xt.num.size()*2-1<<"\n";xt.print();
         }
         xt = xt.shift(-1);
         xt.addsmall(-sign);  // 不能大于,认为最多差1
@@ -499,7 +499,7 @@ public:
         int ns = num.size();
         int f=ns/2+ns%2;
         int t = 2 *(f+k);
-        int l = 2 * (ns+ 1);
+        int l = 2 * (f*2+ 1);
         int b = 0;
         int need=k+2;
         integer xt = (ll)sqrt((ll)Base * Base / num.back()) *(ns%2?10000:1),y;
@@ -507,16 +507,13 @@ public:
         {
             std::swap(xt, y);b=0;
         }
-        int l1 = 0;
-        if (l > 100)
-        {
-            l1 = l - ns;
-            while (l1 > 40) { l1 = (l1 + 2) / 2; }l1 += ns;
-        }
+        std::vector<int>xtsize;
+        int k1 = f+2;k1+=((k1&1)==0);
+        while (k1 >5) {k1 = k1/2+1;k1+=((k1&1)==0);xtsize.push_back(k1);}
         while (t < l)
         {
             if (t + 2 * k > l) { k = (l - t) / 2; }
-            else if (l1 && t + 2 * k > l1) { k = (l1 - t) / 2; l1 = 0; }
+            else if (!xtsize.empty()&&xtsize.back()>xt.num.size()&&xtsize.back()-xt.num.size()<k) { k =xtsize.back()-xt.num.size();xtsize.pop_back();}
             need = k + xt.num.size() + 2;
             b = 0;
             integer tmp = shiftmul(xt, xt, need, b);
@@ -529,6 +526,8 @@ public:
             xt = xt / 2;
             t += 2 * k;
             k = xt.num.size() - 1;
+            while(!xtsize.empty()&&xt.num.size()>=xtsize.back()){xtsize.pop_back();}
+            //std::cout<<xt.num.size()<<" "<<xt.num.size()*2-1<<" "<<f<<"\n";xt.print();
         }
         need = xt.num.size() + 2; b = 0;
         integer r = shiftmul(xt, *this, need, b).shift(b - t / 2);
@@ -581,17 +580,14 @@ public:
         {
             std::swap(xt, y); b = 0;
         }
-        int l1 = 0;
-        if (f > 100)
-        {
-            l1 = f;
-            while (l1 > 40) { l1 = (l1 + 3) / 2; }l1 = (l1 + f) * m;
-        }
+        std::vector<int>xtsize;
+        int k1 = f+2;k1+=((k1&1)==0);
+        while (k1 >5) {k1 = k1/2+1;k1+=((k1&1)==0);xtsize.push_back(k1);}
         while (t < l)
         {
             if (t + k * m > l) { k = (l - t) / m; }
-            else if (l1 && t + k * m > l1) { k = (l1 - t) / m; l1 = 0; }
-            need = xt.num.size() + k + 2;
+            else if (!xtsize.empty()&&xtsize.back()>xt.num.size()&&xtsize.back()-xt.num.size()<k) { k =xtsize.back()-xt.num.size();xtsize.pop_back();}
+            need = k + xt.num.size() + 2;
             b = 0;
             integer tmp = shiftpow(xt, m + 1, need, b);
             tmp = shiftmul(tmp, *this, need, b);
@@ -602,7 +598,9 @@ public:
             while (xt.num.back() == 0 && xt.num.size() > 1) { xt.num.pop_back(); }
             xt = xt / m;
             t += k * m;
-            k = xt.num.size() - (1 + (xt.num.size() > 1));//更加保守
+            k = xt.num.size() - 1;
+            while(!xtsize.empty()&&xt.num.size()>=xtsize.back()){xtsize.pop_back();}
+            //std::cout<<xt.num.size()<<" "<<xt.num.size()*2-1<<" "<<f<<"\n";xt.print();
         }
         need = xt.num.size() + 2, b = 0;
         integer r = integer(1).shift(t / m) / xt;
@@ -2259,20 +2257,22 @@ int proot(const integer& p)
         l.push_back(k[t]); k[t].sign = -1;
     }k.clear();
     for (auto& e : l) { k.push_back(x / e); }l.clear();
-    x = k[0];
+    x.num = tobinary(k[0]);
     for (int i = 1; i < k.size(); i++)
     {
-        l.push_back(k[i] - k[i - 1]);
+        integer tmp;
+        tmp.num=tobinary(k[i] - k[i - 1]);
+        l.push_back(tmp);
     }
     mont q; q.p = p; q.init(1);
     for (int a = 2;; a++)
     {
-        integer t = q.in(a), y = q.pow_binary(t, tobinary(x));
+        integer t = q.in(a), y = q.pow_binary(t,x.num);
         int s = -1;
         while (y.num != q.f.num)
         {
             if (++s == l.size()) { return a; }
-            y = q.out(y * q.pow_binary(t, tobinary(l[s])));
+            y = q.out(y * q.pow_binary(t,l[s].num));
         }
     }
 }
