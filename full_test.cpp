@@ -40,7 +40,7 @@ int main() {
     // 3. 计算 c = a / b
     t1 = high_resolution_clock::now();
     integer r;
-    integer c = a.divide(b, r);
+    integer c = a.divide(a,b, r);
     t2 = high_resolution_clock::now();
     ms = duration_cast<microseconds>(t2 - t1).count() / 1000.0;
     cout << "3. c = a / b = ";
