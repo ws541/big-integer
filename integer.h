@@ -547,6 +547,12 @@ public:
     #endif
     integer fsqrt()const//长度>2
     {
+        if(num.size()<3)
+        {
+            ll a=toll(),b=sqrt(a);
+            if(b*b>a){b--;}
+            return b;
+        }
         const bool useyk=num.size()>50;
         int k=1;
         int ns = num.size();
@@ -1405,13 +1411,7 @@ integer inv(const integer& a, const integer& p)//p>0
 integer sqroot(const integer& n, bool trust = 1)
 {
     if (n.sign == -1 && n.num.back()) { std::cout << "sqroot"; exit(0); }
-    if (n.num.size() < 3)
-    {
-        ll a = n.toll(), b = sqrt(a);
-        if (n.num.size() > 1 && b * b > a) { b -= 1; }//(Base-1)^2-1
-        return b;
-    }
-    if (trust) { return n.fsqrt(); }
+    if (n.num.size() < 3||trust) { return n.fsqrt(); }
     integer y, x;
     int a; ll t = sqrt((ll)n.num.back() * Base + n.num[n.num.size() - 2]) + 1;
     if (n.num.size() > 6)//trust=0版本慢,debug验证
