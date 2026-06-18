@@ -268,7 +268,7 @@ private:
         }
         if (k) { for (int j = i + lb; j < num.size() && ++num[j] == Base; j++) { num[j] = 0; } }
     }
-    void quotient(const view& a, const view& b, integer& now)
+     void quotient(const view& a, const view& b, integer& now)
     {
         int m = Base;
         int t = b.ptr[b.len - 1];
@@ -277,12 +277,19 @@ private:
         ll m100 = m * 100, bb = m100 * b.ptr[b.len - 1] + (ll)m * b.ptr[b.len - 2] / (Base / 100);
         now.num.reserve(a.len + 1);
         now = a; now.num.push_back(0); int ln;
+        integer prod;prod.num.resize(b.len+1);
         for (; (t = (ln = now.num.size()) - b.len - 1) > -1; now.num.pop_back())
         {
             int q = (((ll)now.num.back() * Base + now.num[ln - 2]) * m100 + (ll)now.num[ln - 3] * m / (Base / 100)) / bb;
             if (!q) { continue; }
-            integer prod = multiply(b.ptr, b.len, &q, 1, 1);
-            int s = abssub(now.num.data() + t, b.len + 1, prod.num.data(), prod.num.size());
+            ll k=0;
+            for(int i=0;i<b.len;i++)
+            {
+                k=(ll)b.ptr[i]*q+k;
+                prod.num[i]=k%Base,k/=Base;
+            }prod.num[b.len]=k;
+            view pview(prod.num.data(),0,b.len,1);
+            int s = abssub(now.num.data() + t, b.len + 1, pview.ptr, pview.len);
             int cnt = 0;
             while (s < 0)
             {
@@ -993,7 +1000,7 @@ integer integer::multiply(const int* a, int la, const int* b, int lb, int sign)/
 integer integer::karamul(view a, view b)
 {
     if (a.len < b.len) { std::swap(a, b); }
-    if (b.len < 80) return multiply(a.ptr, a.len, b.ptr, b.len, a.sign * b.sign);
+    if (b.len<80||(b.len<160&&a.len*b.len<50000)) return multiply(a.ptr, a.len, b.ptr, b.len, a.sign * b.sign);
     if (a.len + b.len <= halflen) return fftmul(a, b);
     int n = (a.len + 1) / 2;
     view a1(a.ptr, n, a.len - 1, 1);
