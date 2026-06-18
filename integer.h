@@ -204,7 +204,7 @@ public:
     };
 private:
     static integer multiply(const int* a, int la, const int* b, int lb, int sign);
-    #if ENABLE_DEPRECATED
+#if ENABLE_DEPRECATED
     int bz_init(const integer& b, integer& x, integer& y)const
     {
         int n = b.num.back(), f;
@@ -256,7 +256,7 @@ private:
         }
         return q;
     }
-    #endif
+#endif
     void shiftadd(const view& b, int i)//不pushback1
     {
         int lb = b.len, k = 0;
@@ -268,7 +268,7 @@ private:
         }
         if (k) { for (int j = i + lb; j < num.size() && ++num[j] == Base; j++) { num[j] = 0; } }
     }
-     void quotient(const view& a, const view& b, integer& now)
+    void quotient(const view& a, const view& b, integer& now)
     {
         int m = Base;
         int t = b.ptr[b.len - 1];
@@ -277,18 +277,18 @@ private:
         ll m100 = m * 100, bb = m100 * b.ptr[b.len - 1] + (ll)m * b.ptr[b.len - 2] / (Base / 100);
         now.num.reserve(a.len + 1);
         now = a; now.num.push_back(0); int ln;
-        integer prod;prod.num.resize(b.len+1);
+        integer prod; prod.num.resize(b.len + 1);
         for (; (t = (ln = now.num.size()) - b.len - 1) > -1; now.num.pop_back())
         {
             int q = (((ll)now.num.back() * Base + now.num[ln - 2]) * m100 + (ll)now.num[ln - 3] * m / (Base / 100)) / bb;
             if (!q) { continue; }
-            ll k=0;
-            for(int i=0;i<b.len;i++)
+            ll k = 0;
+            for (int i = 0; i < b.len; i++)
             {
-                k=(ll)b.ptr[i]*q+k;
-                prod.num[i]=k%Base,k/=Base;
-            }prod.num[b.len]=k;
-            view pview(prod.num.data(),0,b.len,1);
+                k = (ll)b.ptr[i] * q + k;
+                prod.num[i] = k % Base, k /= Base;
+            }prod.num[b.len] = k;
+            view pview(prod.num.data(), 0, b.len, 1);
             int s = abssub(now.num.data() + t, b.len + 1, pview.ptr, pview.len);
             int cnt = 0;
             while (s < 0)
@@ -396,7 +396,7 @@ public:
         std::cin >> s;
         *this = integer(s);
     }
-    void print(bool stdendl=1,int n = 5)const
+    void print(bool stdendl = 1, int n = 5)const
     {
         if (sign != 1) { std::cout << "-"; }
         int l = num.size(), cnt = 0; int a[Blen];
@@ -427,8 +427,8 @@ public:
         {
             std::cout << "e" << l * Blen - cnt;
         }
-        if(stdendl){std::cout<<"\n";}
-        else{std::cout<<" ";}
+        if (stdendl) { std::cout << "\n"; }
+        else { std::cout << " "; }
     }
     bool absbigger(const integer& that, bool equal)const
     {
@@ -500,28 +500,28 @@ public:
         xt = xt.shift(-1);
         xt.addsmall(-n.sign);
     }
-    #if ENABLE_DEPRECATED
-    integer fsqrt_old(bool eps=0) const//eps=1允许+-1误差
+#if ENABLE_DEPRECATED
+    integer fsqrt_old(bool eps = 0) const//eps=1允许+-1误差
     {
         int k = 1;
         int ns = num.size();
-        int f=ns/2+ns%2;
-        int t = 2 *(f+k);
-        int l = 2 * (f*2+ 1);
+        int f = ns / 2 + ns % 2;
+        int t = 2 * (f + k);
+        int l = 2 * (f * 2 + 1);
         int b = 0;
-        int need=k+2;
-        integer xt = (ll)sqrt((ll)Base * Base / num.back()) *(ns%2?10000:1),y;
-        while ((y = (xt * 3 - (shiftmul(*this,xt,need,b) * (xt * xt)).shift(-t + b)) / 2).num != xt.num)
+        int need = k + 2;
+        integer xt = (ll)sqrt((ll)Base * Base / num.back()) * (ns % 2 ? 10000 : 1), y;
+        while ((y = (xt * 3 - (shiftmul(*this, xt, need, b) * (xt * xt)).shift(-t + b)) / 2).num != xt.num)
         {
-            std::swap(xt, y);b=0;
+            std::swap(xt, y); b = 0;
         }
         std::vector<int>xtsize;
-        int k1 = f+2;k1+=((k1&1)==0);
-        while (k1 >5) {k1 = k1/2+1;k1+=((k1&1)==0);xtsize.push_back(k1);}
+        int k1 = f + 2; k1 += ((k1 & 1) == 0);
+        while (k1 > 5) { k1 = k1 / 2 + 1; k1 += ((k1 & 1) == 0); xtsize.push_back(k1); }
         while (t < l)
         {
             if (t + 2 * k > l) { k = (l - t) / 2; }
-            else if (!xtsize.empty()&&xtsize.back()>xt.num.size()&&xtsize.back()-xt.num.size()<k) { k =xtsize.back()-xt.num.size();xtsize.pop_back();}
+            else if (!xtsize.empty() && xtsize.back() > xt.num.size() && xtsize.back() - xt.num.size() < k) { k = xtsize.back() - xt.num.size(); xtsize.pop_back(); }
             need = k + xt.num.size() + 2;
             b = 0;
             integer tmp = shiftmul(xt, xt, need, b);
@@ -534,12 +534,12 @@ public:
             xt = xt / 2;
             t += 2 * k;
             k = xt.num.size() - 1;
-            while(!xtsize.empty()&&xt.num.size()>=xtsize.back()){xtsize.pop_back();}
+            while (!xtsize.empty() && xt.num.size() >= xtsize.back()) { xtsize.pop_back(); }
             //std::cout<<xt.num.size()<<" "<<xt.num.size()*2-1<<" "<<f<<"\n";xt.print();
         }
         need = xt.num.size() + 2; b = 0;
         integer r = shiftmul(xt, *this, need, b).shift(b - t / 2);
-        if(eps){return r;}
+        if (eps) { return r; }
         integer y2 = r * r - *this;
         if (y2.num.size() > ns / 2 + 1) { std::cout << "fsqrt"; exit(0); }
         if (y2.sign == 1)
@@ -547,102 +547,104 @@ public:
             if (y2.num.back()) { r.addsmall(-1); }
             return r;
         }
-        y2 = y2 +(r+r);
+        y2 = y2 + (r + r);
         if (y2.sign == -1 && y2.num.back()) { r.addsmall(1); }
         return r;
     }
-    #endif
+#endif
     integer fsqrt()const//长度>2
     {
-        if(num.size()<3)
+        if (num.size() < 3)
         {
-            ll a=toll(),b=sqrt(a);
-            if(b*b>a){b--;}
+            ll a = toll(), b = sqrt(a);
+            if (b * b > a) { b--; }
             return b;
         }
-        const bool useyk=num.size()>50;
-        int k=1;
+        const bool useyk = num.size() > 50;
+        int k = 1;
         int ns = num.size();
-        int end=ns/2+ns%2;
-        int need,b;
+        int end = ns / 2 + ns % 2;
+        int need, b;
         integer xt;
-        ll t=(ll)num.back() * Base + num[ns - 2];
-        if(ns%2)
+        ll t = (ll)num.back() * Base + num[ns - 2];
+        if (ns % 2)
         {
-            xt=(ll)sqrt((double)t*Base+num[ns-3])+1;
+            xt = (ll)sqrt((double)t * Base + num[ns - 3]) + 1;
         }
         else
         {
-            xt=sqrt(t)+1;xt=xt.shift(1);
-            integer tmp=shift(4-ns),y;
-            while(xt.absbigger(y=(xt+tmp/xt)/2,0)){std::swap(xt,y);}
+            xt = sqrt(t) + 1; xt = xt.shift(1);
+            integer tmp = shift(4 - ns), y;
+            while (xt.absbigger(y = (xt + tmp / xt) / 2, 0)) { std::swap(xt, y); }
             xt.addsmall(1);
         }
-        integer yt;int l,yk=0;
+        integer yt; int l, yk = 0;
         std::vector<int>xtsize;
-        int k1 =end;k1+=((k1&1)==0);
-        while (k1 >4) {k1 = k1/2+1;k1+=((k1&1)==0);xtsize.push_back(k1);}
-        while(xt.num.size()<end)
+        int k1 = end; k1 += ((k1 & 1) == 0);
+        while (k1 > 4) { k1 = k1 / 2 + 1; k1 += ((k1 & 1) == 0); xtsize.push_back(k1); }
+        while (xt.num.size() < end)
         {
-            if(xt.num.size()+k>end){k=end-xt.num.size();}
-            else if (!xtsize.empty()&&xtsize.back()>xt.num.size()&&xtsize.back()-xt.num.size()<k) 
-            { k =xtsize.back()-xt.num.size();xtsize.pop_back();}
-            need=xt.num.size()+k+2,b=0;
-            integer tmp=shiftmul(xt,xt,need,b).shift(k+b);
-            view nview(*this,ns-tmp.num.size());
-            int check=abssub(tmp.num.data(),tmp.num.size(),nview.ptr,nview.len);
-            if(check<0){std::cout<<"fsqrt";exit(0);}
-            while(tmp.num.size()>1&&tmp.num.back()==0){tmp.num.pop_back();}
-            integer q;
-            if(useyk)
+            if (xt.num.size() + k > end) { k = end - xt.num.size(); }
+            else if (!xtsize.empty() && xtsize.back() > xt.num.size() && xtsize.back() - xt.num.size() < k)
             {
-                if(yt.num.empty())
+                k = xtsize.back() - xt.num.size(); xtsize.pop_back();
+            }
+            need = xt.num.size() + k + 2, b = 0;
+            integer tmp = shiftmul(xt, xt, need, b).shift(k + b);
+            view nview(*this, ns - tmp.num.size());
+            int check = abssub(tmp.num.data(), tmp.num.size(), nview.ptr, nview.len);
+            if (check < 0) { std::cout << "fsqrt"; exit(0); }
+            while (tmp.num.size() > 1 && tmp.num.back() == 0) { tmp.num.pop_back(); }
+            integer q;
+            if (useyk)
+            {
+                if (yt.num.empty())
                 {
-                    l=2*xt.num.size();
-                    yt=integer(1).shift(l)/xt;
+                    l = 2 * xt.num.size();
+                    yt = integer(1).shift(l) / xt;
                 }
                 else
                 {
-                    yk=(int)xt.num.size()-(int)yt.num.size();
-                    need=yt.num.size()+yk+2,b=0;
-                    integer ytmp=shiftmul(yt,yt,need,b);
-                    ytmp=shiftmul(xt,ytmp,need,b);
+                    yk = (int)xt.num.size() - (int)yt.num.size();
+                    need = yt.num.size() + yk + 2, b = 0;
+                    integer ytmp = shiftmul(yt, yt, need, b);
+                    ytmp = shiftmul(xt, ytmp, need, b);
                     view ytmpview(ytmp, -(yk - l + b));
-                    yt = (yt+yt).shift(yk);
+                    yt = (yt + yt).shift(yk);
                     abssub(yt.num.data(), yt.num.size(), ytmpview.ptr, ytmpview.len);
                     while (yt.num.back() == 0 && yt.num.size() > 1) { yt.num.pop_back(); }
-                    l+=yk;
+                    l += yk;
                 }
-                need=tmp.num.size()-xt.num.size()+2,b=0;
-                q=shiftmul(tmp,yt-1,need,b);
-                view qview(q,l-b);
-                integer prod=karamul(qview,xt);
-                check=abssub(tmp.num.data(),tmp.num.size(),prod.num.data(),prod.num.size());
-                if(check<0||yk<0){std::cout<<"fsqrt yt";exit(0);}
-                while(tmp.num.back()==0&&tmp.num.size()>1){tmp.num.pop_back();}
+                need = tmp.num.size() - xt.num.size() + 2, b = 0;
+                q = shiftmul(tmp, yt - 1, need, b);
+                view qview(q, l - b);
+                integer prod = karamul(qview, xt);
+                check = abssub(tmp.num.data(), tmp.num.size(), prod.num.data(), prod.num.size());
+                if (check < 0 || yk < 0) { std::cout << "fsqrt yt"; exit(0); }
+                while (tmp.num.back() == 0 && tmp.num.size() > 1) { tmp.num.pop_back(); }
                 //std::cout<<tmp.num.size()<<" "<<xt.num.size()<<"\n";
-                tmp=tmp/xt;
-                q=addorsub(qview.ptr,qview.len,qview.sign,tmp.num.data(),tmp.num.size(),tmp.sign,1);
-                q=q/2;
+                tmp = tmp / xt;
+                q = addorsub(qview.ptr, qview.len, qview.sign, tmp.num.data(), tmp.num.size(), tmp.sign, 1);
+                q = q / 2;
             }
             else
             {
-                q=(tmp/xt)/2;
+                q = (tmp / xt) / 2;
             }
-            xt=xt.shift(k);
-            abssub(xt.num.data(),xt.num.size(),q.num.data(),q.num.size());
-            while(xt.num.size()>1&&xt.num.back()==0){xt.num.pop_back();}
-            l+=k;
-            k=xt.num.size()-1;
-            while(!xtsize.empty()&&xt.num.size()>=xtsize.back()){xtsize.pop_back();}
+            xt = xt.shift(k);
+            abssub(xt.num.data(), xt.num.size(), q.num.data(), q.num.size());
+            while (xt.num.size() > 1 && xt.num.back() == 0) { xt.num.pop_back(); }
+            l += k;
+            k = xt.num.size() - 1;
+            while (!xtsize.empty() && xt.num.size() >= xtsize.back()) { xtsize.pop_back(); }
         }
-        integer prod=xt*xt;
-        if(prod.absbigger(*this,0))
+        integer prod = xt * xt;
+        if (prod.absbigger(*this, 0))
         {
-            prod=prod-(xt+xt)+1;
-            xt.addsmall(-(1+ (prod.absbigger(*this,0)) ));
+            prod = prod - (xt + xt) + 1;
+            xt.addsmall(-(1 + (prod.absbigger(*this, 0))));
         }
-        return xt;   
+        return xt;
     }
     static integer shiftpow(const integer& x, int n, int need, int& b)
     {
@@ -656,11 +658,11 @@ public:
         }
         return ans;
     }
-    integer root(int m,bool eps=0)
-    //单纯root时间是检查的二分之一到几百分之一,m大时候很夸张,选项eps控制要不要为了+-1的误差付出代价，如果数据不是危险边界那么不推荐检查
+    integer root(int m, bool eps = 0)
+        //单纯root时间是检查的二分之一到几百分之一,m大时候很夸张,选项eps控制要不要为了+-1的误差付出代价，如果数据不是危险边界那么不推荐检查
     {
         if (!num.back() || m == 1) { return *this; }
-        if (sign < 0||m<1) { std::cout << "root"; exit(0); }
+        if (sign < 0 || m < 1) { std::cout << "root"; exit(0); }
         if (m == 2) { return fsqrt(); }
         int k = 1;
         int f = num.size() / m + (num.size() % m != 0);
@@ -669,7 +671,7 @@ public:
         int b = 0;
         int need = k + 2;
         integer xt = Base, y = xt.shift(1);
-        while (y.absbigger(xt + Base/10, 0))//必须一开始用二分法加速否则若m>500初值很慢
+        while (y.absbigger(xt + Base / 10, 0))//必须一开始用二分法加速否则若m>500初值很慢
         {
             integer mid = (xt + y) / 2, tmp; b = 0;
             if ((tmp = mid * (m + 1) - shiftmul(shiftpow(mid, m + 1, need, b), *this, need, b).shift(b - t)).sign > 0 && (tmp / m).absbigger(mid, 0))
@@ -683,12 +685,12 @@ public:
             std::swap(xt, y); b = 0;
         }
         std::vector<int>xtsize;
-        int k1 = f+2;k1+=((k1&1)==0);
-        while (k1 >5) {k1 = k1/2+1;k1+=((k1&1)==0);xtsize.push_back(k1);}
+        int k1 = f + 2; k1 += ((k1 & 1) == 0);
+        while (k1 > 5) { k1 = k1 / 2 + 1; k1 += ((k1 & 1) == 0); xtsize.push_back(k1); }
         while (t < l)
         {
             if (t + k * m > l) { k = (l - t) / m; }
-            else if (!xtsize.empty()&&xtsize.back()>xt.num.size()&&xtsize.back()-xt.num.size()<k) { k =xtsize.back()-xt.num.size();xtsize.pop_back();}
+            else if (!xtsize.empty() && xtsize.back() > xt.num.size() && xtsize.back() - xt.num.size() < k) { k = xtsize.back() - xt.num.size(); xtsize.pop_back(); }
             need = k + xt.num.size() + 2;
             b = 0;
             integer tmp = shiftpow(xt, m + 1, need, b);
@@ -701,12 +703,12 @@ public:
             xt = xt / m;
             t += k * m;
             k = xt.num.size() - 1;
-            while(!xtsize.empty()&&xt.num.size()>=xtsize.back()){xtsize.pop_back();}
+            while (!xtsize.empty() && xt.num.size() >= xtsize.back()) { xtsize.pop_back(); }
             //std::cout<<xt.num.size()<<" "<<xt.num.size()*2-1<<" "<<f<<"\n";xt.print();
         }
         need = xt.num.size() + 2, b = 0;
         integer r = integer(1).shift(t / m) / xt;
-        if(eps){return r;}
+        if (eps) { return r; }
         need = num.size() << 1;//全精度
         integer u = shiftpow(r, m - 1, need, b), v = u * r;
         y = v - *this;
@@ -715,7 +717,7 @@ public:
             if (y.num.back()) { r.addsmall(-1); }
             return r;
         }
-        if (absbigger(u * m + v,0)&&absbigger(shiftpow(r + 1, m, need, b),1)) { r.addsmall(1); }
+        if (absbigger(u * m + v, 0) && absbigger(shiftpow(r + 1, m, need, b), 1)) { r.addsmall(1); }
         return r;
     }
     static integer div_newton(const view& a, const view& b, integer& r)
@@ -757,7 +759,7 @@ public:
         }
         return div_native(a, b, r);
     }
-    #if ENABLE_DEPRECATED
+#if ENABLE_DEPRECATED
     integer div_bz(const integer& b, integer& r) const//不如牛顿迭代法快,同样有最小长度要求
     {
         integer y;
@@ -785,16 +787,16 @@ public:
         r.sign = sign;
         return q;
     }
-    #endif
+#endif
     integer operator/(const integer& that)const
     {
         integer r;
-        return divide(*this,that, r);
+        return divide(*this, that, r);
     }
     integer operator%(const integer& that)const
     {
         integer r;
-        divide(*this,that, r);
+        divide(*this, that, r);
         return r;
     }
     integer shift(int n)const
@@ -1000,7 +1002,7 @@ integer integer::multiply(const int* a, int la, const int* b, int lb, int sign)/
 integer integer::karamul(view a, view b)
 {
     if (a.len < b.len) { std::swap(a, b); }
-    if (b.len<80||(b.len<160&&a.len*b.len<50000)) return multiply(a.ptr, a.len, b.ptr, b.len, a.sign * b.sign);
+    if (b.len < 80 || (b.len < 160 && a.len * b.len < 38000)) return multiply(a.ptr, a.len, b.ptr, b.len, a.sign * b.sign);
     if (a.len + b.len <= halflen) return fftmul(a, b);
     int n = (a.len + 1) / 2;
     view a1(a.ptr, n, a.len - 1, 1);
@@ -1311,7 +1313,7 @@ void hgcd(const integer::view& x, const integer::view& y, integer& a, integer& b
             int l = yn.num.size();
             if (!(l > m && xn.num.size() < l + 2 && lehmer(xn, yn, &a, &b, &c, &d)))
             {
-                integer r, q = integer::divide(xn,yn, r);
+                integer r, q = integer::divide(xn, yn, r);
                 gcdshift(a, b, q);
                 gcdshift(c, d, q);
                 std::swap(xn, yn); std::swap(yn, r);
@@ -1325,7 +1327,7 @@ void hgcd(const integer::view& x, const integer::view& y, integer& a, integer& b
     gcdshift2(a, b, c, d, A, B, C, D);
     if (!yn.num.back() || yn.num.size() - 1 < m) { return; }
     integer r;
-    A = 0, B = C = 1, D = integer::divide(xn,yn, r);D.sign=-D.sign;
+    A = 0, B = C = 1, D = integer::divide(xn, yn, r); D.sign = -D.sign;
     if (yn.num.size() >= 2 * m) { std::cout << "hgcd"; exit(0); }
     if (r.num.back() && r.num.size() > m)
     {
@@ -1351,7 +1353,7 @@ integer gcd(const integer& m, const integer& n)
             int l = x.num.size();
             if (!(l > 1 && l < y.num.size() + 2 && lehmer(x, y, 0, 0, 0, 0)))
             {
-                integer r; integer::divide(x,y, r);
+                integer r; integer::divide(x, y, r);
                 std::swap(x, y); std::swap(y, r);
             }
         }
@@ -1377,7 +1379,7 @@ integer euclid(const integer& m, const integer& n, integer& a, integer& c)
         }
         if (y.num.size() > 550)
         {
-            integer r, q = integer::divide(x,y, r);
+            integer r, q = integer::divide(x, y, r);
             gcdshift(a, b, q);
             gcdshift(c, d, q);
             std::swap(x, y); std::swap(y, r);
@@ -1391,7 +1393,7 @@ integer euclid(const integer& m, const integer& n, integer& a, integer& c)
             int l = x.num.size();
             if (!(l > 1 && l < y.num.size() + 2 && lehmer(x, y, &A, &B, &C, &D)))
             {
-                integer r, q = integer::divide(x,y, r);
+                integer r, q = integer::divide(x, y, r);
                 gcdshift(A, B, q);
                 gcdshift(C, D, q);
                 std::swap(x, y); std::swap(y, r);
@@ -1418,7 +1420,7 @@ integer inv(const integer& a, const integer& p)//p>0
 integer sqroot(const integer& n, bool trust = 1)
 {
     if (n.sign == -1 && n.num.back()) { std::cout << "sqroot"; exit(0); }
-    if (n.num.size() < 3||trust) { return n.fsqrt(); }
+    if (n.num.size() < 3 || trust) { return n.fsqrt(); }
     integer y, x;
     int a; ll t = sqrt((ll)n.num.back() * Base + n.num[n.num.size() - 2]) + 1;
     if (n.num.size() > 6)//trust=0版本慢,debug验证
@@ -1785,11 +1787,11 @@ public:
 };
 std::vector<int>tobinary(const integer& n)
 {
-    integer b(1 << 26), r, a =integer::div_native(n,b, r);
+    integer b(1 << 26), r, a = integer::div_native(n, b, r);
     std::vector<int>l; l.push_back(r.num[0]);
     while (a.num.back())
     {
-        a = integer::div_native(a,b, r);
+        a = integer::div_native(a, b, r);
         l.push_back(r.num[0]);
     }
     return l;
@@ -1801,7 +1803,7 @@ std::vector<int> exponent(integer a, int w = 5)
     std::vector<int>l;
     while (a.num.back())
     {
-        a = integer::div_native(a,c, r);
+        a = integer::div_native(a, c, r);
         int m = r.num[0];
         for (int i = 0; i < 26 && (a.num.back() || m); i++, m >>= 1)
         {
@@ -1849,7 +1851,7 @@ int ctz(integer& d)//d改变
     int m;
     while (x.num.back())
     {
-        x = integer::div_native(x,b, r);
+        x = integer::div_native(x, b, r);
         if (m = r.num[0]) { break; }
         s++;
     }
@@ -2056,13 +2058,13 @@ integer factor(const integer& n, bool& pollard)//不质数幂
         int z = 0;
         for (; z < ps && (y.num.size() > 1 || y.num[0] > 1); z++)
         {
-            integer r, p = prime[z], q = integer::div_native(y,p, r);
+            integer r, p = prime[z], q = integer::div_native(y, p, r);
             int cnt = 0;
             while (!r.num.back())
             {
                 cnt++;
                 std::swap(y, q);
-                q = integer::div_native(y,p, r);
+                q = integer::div_native(y, p, r);
             }
             pcnt[z] = cnt;
         }
@@ -2195,13 +2197,13 @@ integer factor(const integer& n, bool& pollard)//不质数幂
             if (i + 1 > prime.size())
             {
                 gap++;
-                if (gap > prime.size() /10) { gap = 1; }
+                if (gap > prime.size() / 10) { gap = 1; }
                 return 0;
             }
             std::swap(a, tmp);
             tmp = a * prime[i];
         } while (d.absbigger(a * prime.back(), 0));
-        int j = (d / a).num[0]; 
+        int j = (d / a).num[0];
         if (prime.size() > 200 && j < 10) { start++; return 0; }//psize太小会卡死
         for (i = 2; i + 1 < prime.size() && prime[i] < j; i++);
         float low = (float)prime[i - 1] / j, high = (float)prime[i] / j;
@@ -2239,7 +2241,7 @@ integer factor(const integer& n, bool& pollard)//不质数幂
         };
     while (ok > 0)
     {
-        if (!getb()) { cnt = 0;while (!geta());}
+        if (!getb()) { cnt = 0; while (!geta()); }
         integer c = (b * b - n) / a;
         std::vector<float>pos(m), neg(m);
         for (int i = 0; i < root.size(); i++)
@@ -2296,7 +2298,7 @@ integer ppow(const integer& x)
     do
     {
         integer r;
-        p = integer::div_native(p,l.back(), r);
+        p = integer::div_native(p, l.back(), r);
         if (r.num.back()) { return 0; }
         while (l.back().absbigger(p, 0))
         {
@@ -2358,18 +2360,18 @@ int proot(const integer& p)
     for (int i = 1; i < k.size(); i++)
     {
         integer tmp;
-        tmp.num=tobinary(k[i] - k[i - 1]);
+        tmp.num = tobinary(k[i] - k[i - 1]);
         l.push_back(tmp);
     }
     mont q; q.p = p; q.init(1);
     for (int a = 2;; a++)
     {
-        integer t = q.in(a), y = q.pow_binary(t,x.num);
+        integer t = q.in(a), y = q.pow_binary(t, x.num);
         int s = -1;
         while (y.num != q.f.num)
         {
             if (++s == l.size()) { return a; }
-            y = q.out(y * q.pow_binary(t,l[s].num));
+            y = q.out(y * q.pow_binary(t, l[s].num));
         }
     }
 }
