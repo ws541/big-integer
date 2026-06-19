@@ -39,19 +39,18 @@ int main() {
     cout << "   (" << format_time(ms) << ")\n\n";
     // 3. 计算 c = a / b
     t1 = high_resolution_clock::now();
-    integer r;
-    integer c = a.divide(a,b, r);
+    integer c = a/b;
     t2 = high_resolution_clock::now();
     ms = duration_cast<microseconds>(t2 - t1).count() / 1000.0;
     cout << "3. c = a / b = ";
     c.print();
     cout << "   (" << format_time(ms) << ")\n\n";
-    // 4. 计算 d = sqroot(a)
+    // 4. 计算 d = sqrt(a)
     t1 = high_resolution_clock::now();
-    integer d = sqroot(a);
+    integer d = a.fsqrt();
     t2 = high_resolution_clock::now();
     ms = duration_cast<microseconds>(t2 - t1).count() / 1000.0;
-    cout << "4. d = sqroot(a) = ";
+    cout << "4. d = sqrt(a) = ";
     d.print();
     cout << "   (" << format_time(ms) << ")\n\n";
     // 5. 计算 e = a 的 67 次方根
