@@ -580,7 +580,7 @@ public:
         }
         std::vector<int>xtsize;
         int k1 = f + 2; k1 += ((k1 & 1) == 1);
-        while (k1 > 5) { k1 = k1 / 2; k1 += ((k1 & 1) == 1); xtsize.push_back(k1); }
+        while (k1 > 5) { k1 = k1 / 2+1; k1 += ((k1 & 1) == 1); xtsize.push_back(k1); }
         while (t < l)
         {
             if (t + k * m > l) { k = (l - t) / m; }
@@ -754,10 +754,11 @@ if(f>1)
         integer yt; int l,yk=0;
         std::vector<int>kplan;
         int k1 = f; k1 += ((k1 & 1) == 1);
-        while (k1 > 5) { k1 = k1 / 2; k1 += ((k1 & 1) == 1); kplan.push_back(k1); }
+        while (k1 > 5) { k1 = k1 / 2+1; k1 += ((k1 & 1) == 1); kplan.push_back(k1); }
         int cnt=0;//小数字必须修正,相当于reci..函数的l++保护
         while (k<f||cnt<2)
         {
+            //std::cout<<k<<"\n";
             cnt++;
             if (p+ k >f) { p=f-k; }
             else if (!kplan.empty() && kplan.back() > k&& kplan.back() - k <p) { p = kplan.back() - k; kplan.pop_back(); }
@@ -802,6 +803,7 @@ if(f>1)
                     integer prod = karamul(qview,tmp);
                     tmp1.sign= abssub(tmp1.num.data(), tmp1.num.size(), prod.num.data(), prod.num.size());
                     while (tmp1.num.back() == 0 && tmp1.num.size() > 1) { tmp1.num.pop_back(); }
+                    //std::cout<<tmp.num.size()<<" "<<tmp1.num.size()<<"\n";
                     integer r;
                     tmp = divide(tmp1,tmp,r);
                     q = addorsub(qview.ptr, qview.len, qview.sign, tmp.num.data(), tmp.num.size(), tmp.sign, 1);
