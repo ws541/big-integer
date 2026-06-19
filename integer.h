@@ -561,7 +561,7 @@ public:
             if (b * b > a) { b--; }
             return b;
         }
-        const bool useyk = num.size() > 50;
+        const bool useyk = num.size() > 100;
         int k = 2;
         int ns = num.size();
         int f=ns/2+(ns%2!=0);
@@ -618,7 +618,7 @@ public:
                     l += yk;
                 }
                 need = tmp.num.size() - xt.num.size() + 2, b = 0;
-                if(need>10)
+                if(need>7)
                 {
                     q = shiftmul(tmp, yt - 1,need, b);
                     view qview(q, l - b);
