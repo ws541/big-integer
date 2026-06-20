@@ -300,8 +300,8 @@ private:
         }
         while (now.num.back() == 0 && now.num.size() > 1) { now.num.pop_back(); }
     }
-    static int abssub(int* a, int la, const int* b, int lb);
 public:
+    static int abssub(int* a, int la, const int* b, int lb);
     static integer div_native(const view& a, const view& b, integer& r)
     {
         if (!b.ptr[b.len - 1]) { std::cout << "div0"; exit(0); }
@@ -557,7 +557,7 @@ public:
     {
         if (!num.back() || m == 1) { return *this; }
         if (sign < 0 || m < 1) { std::cout << "root"; exit(0); }
-        if (m == 2) { return fsqrt(); }
+        if (m == 2) { return fsqrt_old(); }
         int k = 1;
         int f = num.size() / m + (num.size() % m != 0);
         int t = (f + k) * m;
@@ -623,10 +623,10 @@ public:
             if (b * b > a) { b--; }
             return b;
         }
-        const bool useyk = num.size() > 100;
         int k = 2;
         int ns = num.size();
         int f=ns/2+(ns%2!=0);
+        const bool useyk = f > 100;
         int need, b;
         integer xt;
         ll t = (ll)num.back() * Base + num[ns - 2];
@@ -914,10 +914,23 @@ if(f>1)
         integer r;
         return divide(*this, that, r);
     }
-    integer operator%(const integer& that)const
+    integer operator%(const integer& that)const//符号同被除数
     {
         integer r;
         divide(*this, that, r);
+        return r;
+    }
+    integer mod_positive(const integer&b)const//返回非负
+    {
+        integer r;
+        divide(*this,b, r);
+        if(r.sign<0&&r.num.back())
+        {
+            r.num.resize(b.num.size());//在divide已经reserve足够空间
+            abssub(r.num.data(),r.num.size(),b.num.data(),b.num.size());
+            while(r.num.back()==0&&r.num.size()>1){r.num.pop_back();}
+            r.sign=1;
+        }
         return r;
     }
     integer shift(int n)const
@@ -1116,14 +1129,14 @@ integer integer::multiply(const int* a, int la, const int* b, int lb, int sign)/
         c.num[i] = k % Base;
         k = k / Base;
     }
-    c.num[l] = k;
-    while (c.num.size() > 1 && c.num.back() == 0) { c.num.pop_back(); }
+    if(k){c.num[l] = k;}
+    else{ c.num.pop_back(); }
     return c;
 }
 integer integer::karamul(view a, view b)
 {
     if (a.len < b.len) { std::swap(a, b); }
-    if (b.len < 80 || (b.len < 160 && a.len * b.len < 38000)) return multiply(a.ptr, a.len, b.ptr, b.len, a.sign * b.sign);
+    if (b.len < 80 || (b.len < 160 && a.len * b.len < 30000)) return multiply(a.ptr, a.len, b.ptr, b.len, a.sign * b.sign);
     if (a.len + b.len <= halflen) return fftmul(a, b);
     int n = (a.len + 1) / 2;
     view a1(a.ptr, n, a.len - 1, 1);
@@ -1489,6 +1502,7 @@ integer euclid(const integer& m, const integer& n, integer& a, integer& c)
     if (y.absbigger(x, 0)) { std::swap(x, y); change = 1; }
     a = 1, c = 0;
     integer b(0), d(1);
+    const bool big=y.num.size()>550;
     while (y.num.size() > 550)
     {
         while (10 * y.num.size() > 9 * x.num.size())
@@ -1520,7 +1534,8 @@ integer euclid(const integer& m, const integer& n, integer& a, integer& c)
                 std::swap(x, y); std::swap(y, r);
             }
         }
-        gcdshift2(a, b, c, d, A, B, C, D);
+        if(big){a=a*A+b*C,c=c*A+d*C;}
+        else{std::swap(a,A),std::swap(c,C);}
     }
     if (x.sign == -1)
     {
@@ -1535,8 +1550,7 @@ integer inv(const integer& a, const integer& p)//p>0
 {
     integer s, t, g = euclid(p, a, s, t);
     if (!(g.num.size() == 1 && g.num[0] == 1) || !t.num.back()) { return 0; }
-    if (t.sign == 1) { return t % p; }
-    return t % p + p;
+    return t.mod_positive(p);
 }
 class mont
 {
@@ -1626,13 +1640,16 @@ public:
     integer out(const integer& x)
     {
         integer t = fastdiv(x + p * fastmod(fastmod(x) * a));
-        if (t.absbigger(p, 1)) { return t - p; }
+        if (t.absbigger(p, 1)) 
+        { 
+            integer::abssub(t.num.data(),t.num.size(),p.num.data(),p.num.size());
+            while(t.num.size()>1&&t.num.back()==0){t.num.pop_back();} 
+        }
         return t;
     }
     integer in(const integer& x)
     {
-        integer tmp = x * b % p;
-        return out(tmp.sign > 0 || tmp.num.back() == 0 ? tmp : tmp + p);
+        return out((x * b).mod_positive(p));
     }
     integer inv_inside(const integer& x)
     {
@@ -1663,13 +1680,20 @@ public:
     integer add(const integer& u, const integer& v)
     {
         integer ans(u + v);
-        if (ans.absbigger(p, 1)) { ans = ans - p; }
+        if (ans.absbigger(p, 1)) 
+        { 
+            integer::abssub(ans.num.data(),ans.num.size(),p.num.data(),p.num.size());
+            while(ans.num.size()>1&&ans.num.back()==0){ans.num.pop_back();} 
+        }
         return ans;
     }
     integer sub(const integer& u, const integer& v)
     {
-        integer ans(u - v);
-        if (ans.sign == -1 && ans.num.back()) { ans = ans + p; }
+        integer ans;
+        if(u.absbigger(v,1)){ans=u;}
+        else{ans=u+p;}
+        integer::abssub(ans.num.data(),ans.num.size(),v.num.data(),v.num.size());
+        while(ans.num.size()>1&&ans.num.back()==0){ans.num.pop_back();} 
         return ans;
     }
     integer pow_exponent(const integer& u, const std::vector<int>& l, int w = 5)
@@ -1743,11 +1767,11 @@ public:
         pairs ans;
         if (a1)
         {
-            ans.f = a.in(x % a.p);
+            ans.f = a.in(x);
         }
         if (b1)
         {
-            ans.s = b.in(x % b.p);
+            ans.s = b.in(x);
         }
         return ans;
     }
@@ -1795,9 +1819,7 @@ public:
         if (!a1) { return  b.out(u.s); }
         integer x = a.out(u.f);
         if (!b1) { return x; }
-        integer tmp = (b.out(u.s) - x) * key % b.p;
-        if (tmp.num.back() && tmp.sign == -1) { tmp = tmp + b.p; }
-        return x + a.p * tmp;
+        return x + a.p * ((b.out(u.s) - x) * key).mod_positive(b.p);
     }
     pairs one()
     {
@@ -1916,13 +1938,13 @@ integer power(const integer& x, const integer& n, const integer& p)//p>1
     if (n.num.size() < 3)
     {
         ll m = n.toll();
-        integer a(x % p), ans = m & 1 ? a : 1;
+        integer a(x.mod_positive(p)), ans = m & 1 ? a : 1;
         while (m >>= 1)
         {
             a = a * a % p;
             if (m & 1) { ans = ans * a % p; }
         }
-        return ans.sign == -1 && ans.num.back() ? ans + p : ans;
+        return ans;
     }
     mod q(p); int w = std::min((int)n.num.size(), 4) + 1;
     return q.out(q.pow_exponent(q.in(x), exponent(n, w), w));
@@ -1956,7 +1978,7 @@ bool miller(const integer& n, const std::initializer_list<int> t = { 2, 3, 5, 7,
     integer d(n - 1);
     int s = ctz(d);
     mont q; q.p = n; q.init(1);
-    integer flag = q.p - q.f;
+    const integer flag = q.p - q.f;
     int w = n.num.size();
     w = 1 + (w > 1) + (w > 2) + (w > 3) + (w > 4);
     std::vector<int> l = exponent(d, w);
@@ -1977,8 +1999,7 @@ bool miller(const integer& n, const std::initializer_list<int> t = { 2, 3, 5, 7,
 int jacobi(const integer& a, const integer& b)
 {
     if (b.num[0] % 2 == 0 || b.sign == -1) { std::cout << "jacobi"; exit(0); }
-    integer x(a % b), y(b);
-    if (x.sign == -1 && x.num.back()) { x = x + y; }
+    integer x(a.mod_positive(b)), y(b);
     int m = 1;
     while (x.num.back())
     {
