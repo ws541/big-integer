@@ -603,7 +603,7 @@ public:
                     while (yt.num.back() == 0 && yt.num.size() > 1) { yt.num.pop_back(); }
                     l += yk;
                 }
-                need = tmp.num.size() - xt.num.size() + 2, b = 0;
+                need = tmp.num.size() - xt.num.size() + 1, b = 0;
                 if(need>7)
                 {
                     q = shiftmul(tmp, yt,need, b);
@@ -644,12 +644,16 @@ public:
         int ns = num.size();
         int f=ns/m+(ns%m!=0);
         const bool useyk =f>100;
-        int k=1+(f>1),need=k+2, b,b1;
-        integer xt=integer(1).shift(k),q=integer(1);
-        int gap=f>1?Base/10:2;
+        int k=1+(f>1),need=k+1, b,b1;
+        view h(*this,m*(f-k));
+        double guess=h.len== 1 ? log(h.ptr[0]) : log(((ll)h.ptr[h.len-1]<<Blen) + h.ptr[h.len- 2]) + (h.len- 2) * log(Base);
+        integer target=exp(guess/m);
+        integer xt=integer(1).shift(k),q=integer(1).shift(k-1);
+        int gap=f>1?Base/10:1;
         while(xt.absbigger(q+gap,0))
         {
             integer mid=(xt+q)/2;
+            if(target.absbigger(q,0)&&xt.absbigger(target,0)){mid=(target*7+mid)/8;}
             b=0;
             integer tmp=shiftpow(mid,m,need,b);
             int leftshift=m*(f-k)+b;
@@ -668,11 +672,9 @@ if(f>1)
             b1=0;
             integer tmp1=shiftmul(xt,tmp,need,b1).shift(b1);
             int leftshift=m*(f-k)+b;
-            if(leftshift<ns){
             view nview(*this,leftshift);
             abssub(tmp1.num.data(),tmp1.num.size(),nview.ptr,nview.len);
             while(tmp1.num.size()>1&&tmp1.num.back()==0){tmp1.num.pop_back();}
-            }
             q=tmp1/(tmp*m);
         } while(q.sign>0&&q.num.back()&&(xt=xt-q).num.back());
         int p=k-1;
@@ -680,8 +682,8 @@ if(f>1)
         std::vector<int>kplan;
         int k1 = f; k1 += ((k1 & 1) == 1);
         while (k1 > 5) { k1 = k1 / 2+1; k1 += ((k1 & 1) == 1); kplan.push_back(k1); }
-        int cnt=0;//小数字必须修正,相当于reci..函数的l++保护
-        while (k<f||cnt<2)
+        int cnt=0;//必须保护第一轮
+        while (k<f||cnt==1)
         {
             //std::cout<<k<<"\n";
             cnt++;
@@ -691,12 +693,10 @@ if(f>1)
             integer tmp=shiftpow(xt,m-1,need,b);
             integer tmp1=shiftmul(xt,tmp,need,b1).shift(b1+p);
             int leftshift=m*(f-k)+b-p;
-            if(leftshift<ns){
             view nview(*this,leftshift);
             int check = abssub(tmp1.num.data(), tmp1.num.size(), nview.ptr, nview.len);
             if (check < 0) { std::cout << "root"; exit(0); }
             while (tmp1.num.size() > 1 && tmp1.num.back() == 0) { tmp1.num.pop_back(); }
-            }
             bool flag=useyk;
             if (useyk)
             {
@@ -720,7 +720,7 @@ if(f>1)
                     while (yt.num.back() == 0 && yt.num.size() > 1) { yt.num.pop_back(); }
                     l += yk;
                 }
-                need = tmp1.num.size() -tmp.num.size() + 2, b = 0;
+                need = tmp1.num.size() -tmp.num.size() + 1, b = 0;
                 if(need>7)
                 {
                     q = shiftmul(tmp1, yt,need, b);
