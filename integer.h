@@ -1382,10 +1382,17 @@ bool lehmer(integer& x, integer& y, integer* a, integer* b, integer* c, integer*
 {
     if (a) { a->sign *= x.sign; c->sign *= x.sign; b->sign *= y.sign; d->sign *= y.sign; }
     x.sign = y.sign = 1;
-    ll xh = (ll)x.num.back() * Base + x.num[x.num.size() - 2], yh = y.num.back();
-    if (x.num.size() == y.num.size() && y.num.size() > 1) { yh = yh * Base + y.num[y.num.size() - 2]; }
-    ll A = 1, B = 0, C = 0, D = 1, q, u, v;
-    while ((u = yh + B) && (v = yh + D) && (q = (xh + A) / u) == (xh + C) / v)
+    ll xh=x.num.back(),yh=y.num.back();
+    if(x.num.size()>1)
+    {
+        xh=xh*Base+x.num[x.num.size() - 2];
+        if(x.num.size()==y.num.size())
+        {
+            yh = yh*Base + y.num[y.num.size() - 2];
+        }
+    }
+    ll A = 1, B = 0, C = 0, D = 1, q, u, v,check;
+    while ((u = yh + B) && (v = yh + D) && (check=xh+C-(q = (xh + A) / u)*v)>-1&&check<v)
     {
         u = A, A = B, B = u - B * q;
         u = C, C = D, D = u - C * q;
@@ -1484,8 +1491,7 @@ integer gcd(const integer& m, const integer& n)
         }
         if (y.num.back())
         {
-            int l = x.num.size();
-            if (!(l > 1 && l < y.num.size() + 2 && lehmer(x, y, 0, 0, 0, 0)))
+            if (!(x.num.size()< y.num.size() + 2 && lehmer(x, y, 0, 0, 0, 0)))
             {
                 integer r; integer::divide(x, y, r);
                 std::swap(x, y); std::swap(y, r);
@@ -1525,8 +1531,7 @@ integer euclid(const integer& m, const integer& n, integer& a, integer& c)
         integer A(1), B(0), C(0), D(1);
         while (y.num.back())
         {
-            int l = x.num.size();
-            if (!(l > 1 && l < y.num.size() + 2 && lehmer(x, y, &A, &B, &C, &D)))
+            if (!(x.num.size()< y.num.size() + 2 && lehmer(x, y, &A, &B, &C, &D)))
             {
                 integer r, q = integer::divide(x, y, r);
                 gcdshift(A, B, q);
@@ -1639,7 +1644,7 @@ public:
     }
     integer out(const integer& x)
     {
-        integer t = fastdiv(x + p * fastmod(fastmod(x) * a));
+        integer t = fastdiv(x + p * fastmod(fastmod(x)* a));
         if (t.absbigger(p, 1)) 
         { 
             integer::abssub(t.num.data(),t.num.size(),p.num.data(),p.num.size());
@@ -2402,7 +2407,7 @@ integer ppow(const integer& x)
     do
     {
         integer r;
-        p = integer::div_native(p, l.back(), r);
+        p = integer::divide(p, l.back(), r);
         if (r.num.back()) { return 0; }
         while (l.back().absbigger(p, 0))
         {
