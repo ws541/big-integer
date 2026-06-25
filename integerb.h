@@ -7,7 +7,7 @@
 #include<vector>
 #include<cmath>
 #include<complex>
-#define more 0//展示扩展部分算法
+#define more 1//展示扩展部分算法
 typedef long long ll;
 typedef unsigned long long ull;
 typedef std::complex<double> cd;
@@ -799,7 +799,7 @@ if(f>1)
     static integer divide(const view& a, const view& b, integer& r)
     {
         int la = a.len, lb = b.len, c = la - lb;
-        if (la>200&&lb > 100 && c >0&&lb * c > 10000)
+        if (la>200&&lb > 100 && c >0&&(ll)lb * c > 10000)//必须用ll
         {
             return div_newton(a, b, r);
         }
