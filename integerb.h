@@ -803,7 +803,7 @@ if(f>1)
     static integer divide(const view& a, const view& b, integer& r)
     {
         int la = a.len, lb = b.len, c = la - lb;
-        if (la>200&&lb > 100 && c >0&&(ll)lb * c > 10000)//必须用ll
+        if (la>200&&lb > 100 && c >15&&(c>100||lb * c > 10000))
         {
             return div_newton(a, b, r);
         }
@@ -862,7 +862,7 @@ if(f>1)
         {
             int h=num[start]>>n;
             if(h){num[i]=h;}
-            else{i--;}
+            else{i-=i>0;}
         }
         num.resize(i+1);
     }
