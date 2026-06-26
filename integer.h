@@ -730,7 +730,7 @@ public:
         while(xt.absbigger(q+gap,0))
         {
             integer mid=(xt+q)/2;
-            if(target.absbigger(q,0)&&xt.absbigger(target,0)){mid=(target*7+mid)/8;}
+            if(target.absbigger(q,0)&&xt.absbigger(target,0)){mid=(target*15+mid)/16;}
             b=0;
             integer tmp=shiftpow(mid,m,need,b);
             int leftshift=m*(f-k)+b;
@@ -749,9 +749,11 @@ if(f>1)
             b1=0;
             integer tmp1=shiftmul(xt,tmp,need,b1).shift(b1);
             int leftshift=m*(f-k)+b;
+            if(ns>leftshift){
             view nview(*this,leftshift);
             abssub(tmp1.num.data(),tmp1.num.size(),nview.ptr,nview.len);
             while(tmp1.num.size()>1&&tmp1.num.back()==0){tmp1.num.pop_back();}
+            }
             q=tmp1/(tmp*m);
         } while(q.sign>0&&q.num.back()&&(xt=xt-q).num.back());
         int p=k-1;
@@ -770,10 +772,12 @@ if(f>1)
             integer tmp=shiftpow(xt,m-1,need,b);
             integer tmp1=shiftmul(xt,tmp,need,b1).shift(b1+p);
             int leftshift=m*(f-k)+b-p;
+            if(ns>leftshift){
             view nview(*this,leftshift);
             int check = abssub(tmp1.num.data(), tmp1.num.size(), nview.ptr, nview.len);
             if (check < 0) { std::cout << "root"; exit(0); }
             while (tmp1.num.size() > 1 && tmp1.num.back() == 0) { tmp1.num.pop_back(); }
+            }
             bool flag=useyk;
             if (useyk)
             {
