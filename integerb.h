@@ -554,17 +554,24 @@ public:
         const bool useyk = f > 100;
         int need, b;
         integer xt;
-        ll t = (ll)num.back() * Base + num[ns - 2];
+        double guess= (double)((ll)num.back() * Base + num[ns - 2])*Base+num[ns-3];
         if (ns % 2)
         {
-            xt = (ll)sqrt((double)t * Base + num[ns - 3]) + 1;
+            xt = sqrt(guess)+1;
         }
         else
         {
-            xt = sqrt(t) + 1; xt = xt.shift(1);
-            integer tmp = shift(4 - ns), y;
-            while (xt.absbigger(y = (xt + tmp / xt) / 2, 0)) { std::swap(xt, y); }
-            xt.addsmall(1);
+            xt = sqrt(guess*Base+num[ns-4])+1000;
+            integer q;need=k+1;
+            do
+            {
+                b=0;
+                integer tmp=shiftmul(xt,xt,need,b).shift(b);
+                view nview(*this,2*(f-k));
+                abssub(tmp.num.data(),tmp.num.size(),nview.ptr,nview.len);
+                while(tmp.num.size()>1&&tmp.num.back()==0){tmp.num.pop_back();}
+                q=tmp/xt;q.div2pow(1);
+            } while(q.sign>0&&q.num.back()&&(xt=xt-q).num.back());
         }
         int p=1;
         integer yt; int l,yk=0;
@@ -616,13 +623,13 @@ public:
                     tmp = divide(tmp,xt,r);
                     q = addorsub(qview.ptr, qview.len, qview.sign, tmp.num.data(), tmp.num.size(), tmp.sign, 1);
                     if(tmp.sign==-1&&r.num.back()){q.addsmall(-1);}
-                    q = q / 2;
                 }else{flag=0;}
             }
             if(!flag)
             {
-                q = (tmp / xt) / 2;
+                q = tmp / xt;
             }
+            q.div2pow(1);
             xt = xt.shift(p);
             abssub(xt.num.data(), xt.num.size(), q.num.data(), q.num.size());
             while (xt.num.size() > 1 && xt.num.back() == 0) { xt.num.pop_back(); }
@@ -653,7 +660,7 @@ public:
         while(xt.absbigger(q+gap,0))
         {
             integer mid=(xt+q)/2;
-            if(target.absbigger(q,0)&&xt.absbigger(target,0)){mid=(target*15+mid)/16;}
+            if(target.absbigger(q,0)&&xt.absbigger(target,0)){mid=(target*9999+mid)/10000;}
             b=0;
             integer tmp=shiftpow(mid,m,need,b);
             int leftshift=m*(f-k)+b;
@@ -862,7 +869,7 @@ if(f>1)
         {
             int h=num[start]>>n;
             if(h){num[i]=h;}
-            else{i-=i>0;}
+            else{num[i]=0;i-=i>0;}
         }
         num.resize(i+1);
     }
@@ -925,6 +932,7 @@ if(f>1)
         {
             s2 = s / 2;
             std::vector<integer> nextlevel;
+            nextlevel.reserve(level.size());
             for (int k = 0; k < s2; k++)
             {
                 integer& a = level[k];
@@ -1279,7 +1287,7 @@ integer mul(std::vector<integer>& level)
 integer A_core(int e, int s, int& zeros)//s<=e
 {
     if (s > 10000 && (e >> 2) < s) { return C_core(e, e - s, 0, zeros); }
-    std::vector<integer> level;
+    std::vector<integer> level;level.reserve(s/2+10);
     for (s = e - s + 1; s < e; s += 2)
     {
         level.push_back((ll)s * (s + 1));
