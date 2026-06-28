@@ -657,18 +657,27 @@ public:
         integer target=exp(guess/m);
         integer xt=integer(1).shift(k),q=integer(1).shift(k-1);
         int gap=f>1?Base/10:1;
+        ll rate=(ll)1<<50;
+        if(q.absbigger(target,1)){target=q+1;rate>>=10;}
+        else if(target.absbigger(xt,1)){target=xt-1;rate>>=10;}
         while(xt.absbigger(q+gap,0))
         {
             integer mid=(xt+q)/2;
-            if(target.absbigger(q,0)&&xt.absbigger(target,0)){mid=(target*9999+mid)/10000;}
+            if(rate<2){rate=2;}
+            mid=(target*(rate-1)+mid)/rate;
             b=0;
             integer tmp=shiftpow(mid,m,need,b);
             int leftshift=m*(f-k)+b;
             if(leftshift<ns&&!tmp.absbigger(view(*this,leftshift),0))
             {
                 q=mid;
+                if(q.absbigger(target,1)){target=q+1;rate>>=10;}
             }
-            else{xt=mid;}
+            else
+            {
+                xt=mid;
+                if(target.absbigger(xt,1)){target=xt-1;rate>>=10;}
+            }
         }
 if(f>1)
 {
