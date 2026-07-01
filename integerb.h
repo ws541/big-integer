@@ -2033,7 +2033,7 @@ integer factor(const integer& n, bool& pollard)//不质数幂
             }
             pcnt[z] = cnt;
         }
-        if (y.num.size() > 1 || (y.num[0]>>24)) { tb++; return 0; }
+        if (y.num.size() > 1 || (y.num[0]>(Base>>4))) { tb++; return 0; }
         int j = 0;
         if (y.num[0] > 1)
         {
@@ -2112,7 +2112,7 @@ integer factor(const integer& n, bool& pollard)//不质数幂
         return l == 1 ? log(x.num[0]) : log((ll)x.num.back() * Base + x.num[l - 2]) + (l - 2) * log(Base);
         };
     integer d = n.fsqrt();
-    B = pow(getlog(d) - 2, 1.7 + 0.1 * n.num.size());
+    B = pow(getlog(d) - 2, 1.67 + 0.106* n.num.size());
     root.assign((B + B % 2) / 2, 1);
     for (int i = 1, a; 2 * (a = 2 * i * (i + 1)) <= B - 1; i++)
     {
