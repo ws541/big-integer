@@ -206,6 +206,99 @@ public:
     };
 private:
     static integer multiply(const int* a, int la, const int* b, int lb, int sign);
+    static void div32(int*a,int bh,int bl,int&q)
+    {
+        ull p0=(ull)bl*q,p1=(ull)bh*q;
+        a[0]-=p0&Bmask;
+        bool carry=a[0]<0;
+        a[0]+=carry<<Blen;
+        a[1]-=(p0>>Blen)+(p1&Bmask)+carry;
+        carry=a[1]<0;
+        a[1]+=carry<<Blen;
+        a[2]-=(p1>>Blen)+carry+(a[1]<0);
+        a[1]+=(a[1]<0)<<Blen;
+        while(a[2]<0)
+        {
+            q--;
+            a[0]+=bl;
+            carry=a[0]>=Base;
+            a[0]-=carry<<Blen;
+            a[1]+=bh+carry;
+            carry=a[1]>=Base;
+            a[1]-=carry<<Blen;
+            a[2]+=carry;
+        }
+    }
+    void quotient(const view& a, const view& b, integer& now)
+    {
+        int m =1,t = b.ptr[b.len - 1];
+        while((t<<m)<Base){m++;}m-=1;
+        int m_5=m+5;
+        ull bb = ((ull)b.ptr[b.len - 1]<<m_5) + ( ((ull)b.ptr[b.len - 2]<<m)>>(Blen-5) );
+        now.num.reserve(a.len + 1);
+        now = a; now.num.push_back(0); int ln;
+        integer prod; prod.num.resize(b.len + 2);
+        if(a.len>b.len+30&&b.len>10)//朴素除法受进制影响极大,这里略微缓解，但是还是慢
+        {
+            int h=Blen-m,hmask=(1<<h)-1,bh=(b.ptr[b.len-1]<<m)|(b.ptr[b.len-2]>>h),
+            bl=((b.ptr[b.len-2]&hmask)<<m)|(b.ptr[b.len-3]>>h);
+            for (int tmp[4];(t = (ln = now.num.size())- b.len - 1) >10; now.num.pop_back())
+            {
+                int q = (((((ull)now.num.back()<<Blen) + now.num[ln - 2])<<m_5) + ( ((ull)now.num[ln - 3]<<m)>>(Blen-5) )) / bb;
+                if (!q) { continue; }
+                for(int i=3;i>-1;i--)
+                {
+                    tmp[i]=((now.num[ln-4+i]&hmask)<<m)|(now.num[ln-5+i]>>h);
+                }
+                div32(tmp+1,bh,bl,q);
+                int q1=(((ull)tmp[2]<<Blen)+tmp[1])/bh;
+                div32(tmp,bh,bl,q1);
+                ull k=(ull)b.ptr[0] * q1;
+                prod.num[0] = k&Bmask,k>>=Blen;
+                for (int i = 1; i < b.len; i++)
+                {
+                    k = (ull)b.ptr[i] * q1+(ull)b.ptr[i-1]*q+ k;
+                    prod.num[i] = k&Bmask,k>>=Blen;
+                }
+                k=(ull)b.ptr[b.len-1]*q+k;
+                prod.num[b.len] = k&Bmask,k>>=Blen;
+                prod.num[b.len+1] = k;
+                view pview(prod.num.data(), 0, b.len+1, 1);
+                int s = abssub(now.num.data() + t-1, b.len + 2, pview.ptr, pview.len);
+                int cnt = 0;
+                while (s < 0)
+                {
+                    s = -abssub(now.num.data() + t-1, b.len +2, b.ptr, b.len);
+                    if (cnt++ > 2) {std::cout << "quotient1"; exit(0); }
+                }
+                ull q2=(((ull)q<<Blen)|q1)-cnt;
+                num[t]=q2>>Blen;
+                num[t-1]=q2&Bmask;
+                now.num.pop_back();
+            }
+        }
+        for (; (t = (ln = now.num.size()) - b.len - 1) > -1; now.num.pop_back())
+        {
+            int q = (((((ull)now.num.back() << Blen) + now.num[ln - 2]) << m_5) + (((ull)now.num[ln - 3] << m) >> (Blen - 5))) / bb;
+            if (!q) { continue; }
+            ull k = 0;
+            for (int i = 0; i < b.len; i++)
+            {
+                k = (ull)b.ptr[i] * q + k;
+                prod.num[i] = k & Bmask, k >>= Blen;
+            }prod.num[b.len] = k;
+            view pview(prod.num.data(), 0, b.len, 1);
+            int s = abssub(now.num.data() + t, b.len + 1, pview.ptr, pview.len);
+            int cnt = 0;
+            while (s < 0)
+            {
+                s = -abssub(now.num.data() + t, b.len + 1, b.ptr, b.len);
+                if (cnt++> 2) { std::cout << "quotient2 ";exit(0); }
+            }
+            num[t] = q - cnt;
+        }
+        while (now.num.back() == 0 && now.num.size() > 1) { now.num.pop_back(); }
+    }
     void shiftadd(const view& b, int i)//不pushback1
     {
         int lb = b.len, k = 0;
@@ -216,37 +309,6 @@ private:
             else { k = 0; }
         }
         if (k) { for (int j = i + lb; j < num.size() && ++num[j] == Base; j++) { num[j] = 0; } }
-    }
-    void quotient(const view& a, const view& b, integer& now)
-    {
-        int m =1,t = b.ptr[b.len - 1];
-        while((t<<m)<Base){m++;}m-=1;
-        int m_5=m+5;
-        ull bb = ((ull)b.ptr[b.len - 1]<<m_5) + ( ((ull)b.ptr[b.len - 2]<<m)>>(Blen-5) );
-        now.num.reserve(a.len + 1);
-        now = a; now.num.push_back(0); int ln;
-        integer prod; prod.num.resize(b.len + 1);
-        for (; (t = (ln = now.num.size()) - b.len - 1) > -1; now.num.pop_back())
-        {
-            int q = (((((ull)now.num.back()<<Blen) + now.num[ln - 2])<<m_5) + ( ((ull)now.num[ln - 3]<<m)>>(Blen-5) )) / bb;
-            if (!q) { continue; }
-            ull k = 0;
-            for (int i = 0; i < b.len; i++)
-            {
-                k = (ull)b.ptr[i] * q + k;
-                prod.num[i] = k&Bmask,k>>=Blen;
-            }prod.num[b.len] = k;
-            view pview(prod.num.data(), 0, b.len, 1);
-            int s = abssub(now.num.data() + t, b.len + 1, pview.ptr, pview.len);
-            int cnt = 0;
-            while (s < 0)
-            {
-                s = -abssub(now.num.data() + t, b.len + 1, b.ptr, b.len);
-                if (cnt++ > 2) { std::cout << "quotient"; exit(0); }
-            }
-            num[t] = q - cnt;
-        }
-        while (now.num.back() == 0 && now.num.size() > 1) { now.num.pop_back(); }
     }
 public:
     static int abssub(int* a, int la, const int* b, int lb);
@@ -805,11 +867,11 @@ if(f>1)
             integer p = shiftmul(xt, cutview, need, b_shift);
             view pview(p, l - b_shift);
             integer now = karamul(b, pview);
-            if (abssub(res.num.data() + start, std::min(l, lr), now.num.data(), now.num.size()) < 0) { std::cout << "div_newton"; exit(0); }
+            if (abssub(res.num.data() + start, std::min(l, lr), now.num.data(), now.num.size()) < 0) { std::cout << "div_newton1"; exit(0); }
             q.shiftadd(pview, start);
             while (!res.num.back() && res.num.size() > 1) { res.num.pop_back(); }
         }
-        if (res.num.size() > lb + 4) { std::cout << "div_newton"; exit(0); }
+        if (res.num.size() > lb + 4) { std::cout << "div_newton2"; exit(0); }
         q.shiftadd(div_native(res, b, r), 0);
         while (q.num.size() > 1 && q.num.back() == 0) { q.num.pop_back(); }
         q.sign = a.sign * b.sign;
@@ -819,7 +881,7 @@ if(f>1)
     static integer divide(const view& a, const view& b, integer& r)
     {
         int la = a.len, lb = b.len, c = la - lb;
-        if (la>200&&lb > 100 && c >15&&(c>100||lb * c > 10000))
+        if (la>200&&lb>50&&c >20&&(c>100||lb * c >10000))
         {
             return div_newton(a, b, r);
         }
