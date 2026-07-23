@@ -2649,7 +2649,7 @@ public:
             }
             dlogp[i] = tmp + ppp * cnt;
             //if(q.pow_binary(r,dlogp[i]).num!=end.num){std::cout<<"bad";exit(0);}
-        }bound-=2;
+        }
     }
     integer dlogr(const integer& x)//不要传0
     {
