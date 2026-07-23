@@ -2517,7 +2517,8 @@ public:
     void init(integer r)
     {
         bound = q.p.getlog();//bound<45保证8s内
-        if(bound>46||bound<20){std::cout<<"indexcalculus reject";exit(0);}
+        if(bound>50||bound<20){std::cout<<"indexcalculus reject";exit(0);}
+        //作为边界测试p = 1124000727777607680031(bound=48.47)建立需要30s,这不是2*q+1质数但是ic一样的
         int B=(15-bound*0.2)*pow(1.135,bound);
         flag.assign((B + B % 2) / 2, 1);
         for (int i = 1, a; 2 * (a = 2 * i * (i + 1)) <= B - 1; i++)
@@ -2681,7 +2682,7 @@ public:
         std::cout << "dlogr"; exit(0);
     }
 };
-class dlsolver//算上初始化在光华数字比sympy慢,但是单次求解快,而如果p-1含有巨大质因子,快很多
+class dlsolver
 {
 private:
     std::vector<integer>k;
