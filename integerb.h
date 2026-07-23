@@ -2480,7 +2480,6 @@ private:
     std::vector<integer>dlogp;
     std::vector<int>flag;
     std::vector<float>logp;
-    int m;
     float bound;
     bool smooth(integer tmp,std::vector<int>&right)
     {
@@ -2510,13 +2509,12 @@ public:
     indexcalculus(const integer& p0,integer r,const integer&cutoff=1)
     //传入质数p0,原根r,系统计算logr(pi)mod ((p0-1)/cutoff)
     //p-1的质因子不能太多,否则使用dlsolver
-    //对于绝大部分质数不需要使用dlsolver,而且dlsolver更加保守可能慢一点，除非p-1没有调用ic
     {
         q.p=p0,pp=(q.p-1)/cutoff;init(r);
     }
     void init(integer r)
     {
-        bound = q.p.getlog();//bound<45保证8s内
+        bound = q.p.getlog();//bound<42保证7s内
         if(bound>50||bound<20){std::cout<<"indexcalculus reject";exit(0);}
         //作为边界测试p = 1124000727777607680031(bound=48.47)建立需要30s,这不是2*q+1质数但是ic一样的
         int B=(15-bound*0.2)*pow(1.135,bound);
@@ -2533,7 +2531,7 @@ public:
         for (int i = 0; i < prime.size(); i++) { flag[i] = inv_fsp((q.p % prime[i]).num[0], prime[i]); }
         logp.resize(prime.size());
         for (int i = 0; i < prime.size(); i++) { logp[i] = log(prime[i]); }
-        m = 1 <<(12+q.p.num.size());
+        int m = 1 <<(12+q.p.num.size());
         int ps = prime.size();
         struct equa
         {
@@ -2654,12 +2652,24 @@ public:
     }
     integer dlogr(const integer& x)//不要传0
     {
-        std::vector<float>pos(m, 0);
         std::vector<int>right;
         integer x0=x.mod_positive(q.p);
-        for (int k = 0; k < prime.size(); k++)
+        if(smooth(x0,right))
         {
-            integer u = x0 * prime[k];
+            integer tmp = 0;
+            for (int j = 0; j < right.size(); j += 2)
+            {
+                tmp = tmp + dlogp[right[j]] * right[j + 1];
+            }
+            return  tmp.mod_positive(pp);
+        }
+        int start=0,m=1<<(q.p.num.size()+7);
+        std::vector<float>pos(m, 0);
+        while(1)
+        {
+            int next=(start+1+rand()%8)%prime.size();
+            integer u=x0*((ll)prime[start]*prime[next]);
+            integer left=dlogp[start]+dlogp[next];left.sign=-1;
             for (int i = 0; i < prime.size(); i++)
             {
                 int pi = prime[i];
@@ -2669,7 +2679,7 @@ public:
             {
                 if (pos[i] > bound && smooth(u + q.p * i,right))
                 {
-                    integer tmp = dlogp[k]; tmp.sign = -1;
+                    integer tmp = left;
                     for (int j = 0; j < right.size(); j += 2)
                     {
                         tmp = tmp + dlogp[right[j]] * right[j + 1];
@@ -2678,8 +2688,8 @@ public:
                 }
                 pos[i] = 0;
             }
+            start = (start + 1) % (prime.size());
         }
-        std::cout << "dlogr"; exit(0);
     }
 };
 class dlsolver
@@ -2734,13 +2744,13 @@ private:
         return u.mod_positive(o);
     }
 public:
-    dlsolver(integer p)
+    dlsolver(integer p,int small=1000000)
     {
         ic.q.p=p;p.addsmall(-1);
         euler(p,&k);
         for(auto&e:k)
         {
-            if(e.num.size()==1)//确保是int
+            if(e.num.size()==1&&e.num[0]<small)
             {
                 int cnt=0;
                 integer r,q=integer::div_native(p,e,r);
@@ -2759,7 +2769,7 @@ public:
         }
         else{ic.q.init();}
     }
-    integer ord(const integer&a,std::vector<int>*s=0)
+    integer ord(const integer&a,std::vector<int>*s=0)//不要传0
     {
         integer a0=s?a:ic.q.in(a),o=s?(ic.q.p-1)/ic.pp:ic.q.p-1;
         for(int i=0;i<l.size();i+=2)
