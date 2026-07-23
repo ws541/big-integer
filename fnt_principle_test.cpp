@@ -17,6 +17,7 @@ w^(2m)=1得(w^(2^(m-1)-1)*(w^(2^(m-1)+1)=0得w^(2^(m-1))+1=0
 而n=2^a,(2^a)*x+(2^(2^a)+1)*y=1,可以x=-2^(2^a-a),y=1,
 所以n逆元是mod-2^(2^a-a)
 */
+//请使用integer_old.h运行
 #include"integer.h"
 using namespace std;
 integer N,MOD;
