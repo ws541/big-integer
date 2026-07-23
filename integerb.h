@@ -2480,6 +2480,7 @@ private:
     std::vector<integer>dlogp;
     std::vector<int>flag;
     std::vector<float>logp;
+    int m;
     float bound;
     bool smooth(integer tmp,std::vector<int>&right)
     {
@@ -2531,7 +2532,7 @@ public:
         for (int i = 0; i < prime.size(); i++) { flag[i] = inv_fsp((q.p % prime[i]).num[0], prime[i]); }
         logp.resize(prime.size());
         for (int i = 0; i < prime.size(); i++) { logp[i] = log(prime[i]); }
-        int m = 1 <<(12+q.p.num.size());
+        m = 1 <<(12+q.p.num.size());
         int ps = prime.size();
         struct equa
         {
@@ -2663,7 +2664,7 @@ public:
             }
             return  tmp.mod_positive(pp);
         }
-        int start=0,m=1<<(q.p.num.size()+7);
+        int start=0;
         std::vector<float>pos(m, 0);
         while(1)
         {
