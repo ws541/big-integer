@@ -113,7 +113,7 @@ int main() {
 
 
 
-#include"integer.h"
+#include"integerb.h"
 #include<chrono>
 #include<iostream>
 int main()
@@ -315,6 +315,7 @@ int main() {
 }
 
 
+
 #include "integerb.h"
 #include <chrono>
 #include <iostream>
@@ -323,7 +324,7 @@ int main()
     std::cout << "\n========== Index Calculus 离散对数求解 ==========\n" << std::endl;
     
     // 生成大质数 p (20! 附近的最小质数)
-    integer p = fac(20);
+    integer p = fac(18)*7;
     while(!isprime(p)) p.addsmall(1);
     
     // 底数 b = 13!
@@ -336,7 +337,7 @@ int main()
     // ===== 阶段1: Index Calculus 预计算 =====
     std::cout << "[1] Index Calculus 预计算..." << std::endl;
     auto t1 = std::chrono::high_resolution_clock::now();
-    integer g = primeroot(p);
+    int g = primeroot(p);
     indexcalculus solver(p,g);
     auto t2 = std::chrono::high_resolution_clock::now();
     auto init_ms = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count() / 1000.0;
@@ -358,7 +359,7 @@ int main()
     auto t6 = std::chrono::high_resolution_clock::now();
     auto verify_ms = std::chrono::duration_cast<std::chrono::microseconds>(t6 - t5).count() / 1000.0;
     
-    std::cout << "    原根 g = " << g.tostring() << std::endl;
+    std::cout << "    原根 g = " << g << std::endl;
     std::cout << "    验证: " << (verify.num == b.num ? "✓ 通过" : "✗ 失败") << std::endl;
     std::cout << "    耗时: " << verify_ms << " ms" << std::endl << std::endl;
     
@@ -370,9 +371,10 @@ int main()
     std::cout << "  总时间:                " << init_ms + solve_ms + verify_ms << " ms" << std::endl;
     std::cout << "===================================" << std::endl;
     
-    std::cout << "\n结果: log_" << g.tostring() << "(" << b.tostring() << ") = " << logb.tostring() << std::endl;
-    std::cout << "验证: " << g.tostring() << "^" << logb.tostring() << " ≡ " << b.tostring() << " (mod " << p.tostring() << ")" << std::endl;
+    std::cout << "\n结果: log_" << g << "(" << b.tostring() << ") = " << logb.tostring() << std::endl;
+    std::cout << "验证: " << g << "^" << logb.tostring() << " ≡ " << b.tostring() << " (mod " << p.tostring() << ")" << std::endl;
     
     return 0;
 }
+
 
