@@ -1411,11 +1411,26 @@ void gcdshift2(integer& a, integer& b, integer& c, integer& d,
     std::swap(u, a); a = u * A + b * C; b = u * B + b * D;
     std::swap(v, c); c = v * A + d * C; d = v * B + d * D;
 }
-bool lehmer(integer& x, integer& y, integer* a, integer* b, integer* c, integer* d)
+void gcdshift1_inplace(integer&x,integer&y,ll A,ll B,ll C,ll D)
 {
-    if (a) { a->sign *= x.sign; c->sign *= x.sign; b->sign *= y.sign; d->sign *= y.sign; }
-    x.sign = y.sign = 1;
-    ll xh = x.num.back(), yh = y.num.back();
+    int i = 0; ll kx = 0, ky = 0;
+    for (; i < y.num.size(); i++) {
+        int xi = x.num[i], yi = y.num[i];
+        kx += A * xi + C * yi;
+        ky += B * xi + D * yi;
+        x.num[i] = kx & Bmask; kx >>= Blen;//kx负数也行
+        y.num[i] = ky & Bmask; ky >>= Blen;
+    }
+    for (; i < x.num.size(); i++) {
+        kx += A * x.num[i];
+        x.num[i] = kx & Bmask; kx >>= Blen;
+    }
+    while (x.num.size() > 1 && x.num.back() == 0) x.num.pop_back();
+    while (y.num.size() > 1 && y.num.back() == 0) y.num.pop_back();
+}
+void gethigh(integer&x,integer&y,ll&xh,ll&yh)
+{
+    xh = x.num.back(), yh = y.num.back();
     if (x.num.size() > 1)
     {
         xh = (xh << Blen) + x.num[x.num.size() - 2];
@@ -1424,6 +1439,12 @@ bool lehmer(integer& x, integer& y, integer* a, integer* b, integer* c, integer*
             yh = (yh << Blen) + y.num[y.num.size() - 2];
         }
     }
+}
+bool lehmer(integer& x, integer& y, integer* a, integer* b, integer* c, integer* d)
+{
+    if (a) { a->sign *= x.sign; c->sign *= x.sign; b->sign *= y.sign; d->sign *= y.sign; }
+    x.sign = y.sign = 1;
+    ll xh,yh;gethigh(x,y,xh,yh);
     ll A = 1, B = 0, C = 0, D = 1, q, u, v, check;
     while ((u = yh + B) && (v = yh + D) && (check = xh + C - (q = (xh + A) / u) * v) > -1 && check < v)
     {
@@ -1433,21 +1454,8 @@ bool lehmer(integer& x, integer& y, integer* a, integer* b, integer* c, integer*
     }
     if (B)
     {
-        int i = 0; ll kx = 0, ky = 0;
-        for (; i < y.num.size(); i++) {
-            int xi = x.num[i], yi = y.num[i];
-            kx += A * xi + C * yi;
-            ky += B * xi + D * yi;
-            x.num[i] = kx & Bmask; kx >>= Blen;//kx负数也行
-            y.num[i] = ky & Bmask; ky >>= Blen;
-        }
-        for (; i < x.num.size(); i++) {
-            kx += A * x.num[i];
-            x.num[i] = kx & Bmask; kx >>= Blen;
-        }
-        while (x.num.size() > 1 && x.num.back() == 0) x.num.pop_back();
-        while (y.num.size() > 1 && y.num.back() == 0) y.num.pop_back();
-        auto shift2 = [](integer& a, integer& b, ll A, ll B, ll C, ll D) {
+        gcdshift1_inplace(x,y,A,B,C,D);
+        auto shift2 = [](integer& a, integer& b, ll A, ll B, ll C, ll D) {//一半的gcdshift2
             int i = 0; ll ka = 0, kb = 0;
             if (!b.num.back()) b.sign = -a.sign;
             for (; i < a.num.size(); i++) {
@@ -1471,6 +1479,53 @@ bool lehmer(integer& x, integer& y, integer* a, integer* b, integer* c, integer*
         if (a) shift2(*a, *b, A, B, C, D), shift2(*c, *d, A, B, C, D);
     }
     return B;
+}
+int jacobi(const integer& a, const integer& b)
+{
+    if (b.num[0] % 2 == 0 || b.sign == -1) { std::cout << "jacobi"; exit(0); }
+    integer y(a.mod_positive(b)), x(b);
+    int m = 1;
+    while (y.num.back())
+    {
+        if (y.num[0] % 2 == 0)
+        {
+            int k = y.ctz();
+            y.div2pow(k);
+            int j = x.num[0] % 8;
+            int s = (j == 1 || j == 7) ? 1 : -1;
+            if (s == -1 && k % 2) { m = -m; }
+        }
+        if (y.num.size() == 1 && y.num[0] == 1) { return m; }
+        ll xl=x.num[0]&3,yl=y.num[0]&3;
+        if(x.num.size()<y.num.size()+2)
+        {
+            ll xh,yh;
+            gethigh(x,y,xh,yh);
+            ll A = 1, B = 0, C = 0, D = 1, q, u, v, check;
+            while ((u = yh + B) && (v = yh + D) && (check = xh + C - (q = (xh + A) / u) * v) > -1 &&check < v)
+            {
+                bool odd=q&1;
+                if(odd){if(v>(check<<1)||u>((xh+A-q*u)<<1)){break;}q++;}
+                int turn1=xl%4,turn2=yl%4;
+                if((turn1==-1||turn1==3)&&(turn2==-1||turn2==3)){m=-m;}
+                u = A, A = B, B = u - B * q;
+                u = C, C = D, D = u - C * q;
+                u = xh, xh = yh, yh = u - yh * q;
+                u = xl, xl = yl, yl = u - yl * q;
+                if(odd)
+                {
+                    B=-B,D=-D,yh=-yh,yl=-yl;
+                    int turn=xl%4;
+                    if(turn==3||turn==-1){m=-m;}
+                }
+            }
+            if(B){gcdshift1_inplace(x,y,A,B,C,D);continue;}
+        }
+        if(xl==3&&yl==3){m=-m;}
+        x = x % y;
+        std::swap(x, y);
+    }
+    return 0;
 }
 void hgcd(const integer::view& x, const integer::view& y, integer& a, integer& b, integer& c, integer& d)//多项式版本粗暴映射
 {
@@ -1931,29 +1986,6 @@ bool miller(const integer& n, const std::initializer_list<int> t = { 2, 3, 5, 7,
         if (k == s) { return 0; }
     }
     return 1;
-}
-int jacobi(const integer& a, const integer& b)
-{
-    if (b.num[0] % 2 == 0 || b.sign == -1) { std::cout << "jacobi"; exit(0); }
-    integer x(a.mod_positive(b)), y(b);
-    int m = 1;
-    while (x.num.back())
-    {
-        int j = y.num[0] % 8;
-        if (x.num[0] % 2 == 0)
-        {
-            int k = x.ctz();
-            x.div2pow(k);
-            int s = (j == 1 || j == 7) ? 1 : -1;
-            if (s == -1 && k % 2) { m = -m; }
-        }
-        if (x.num.size() == 1 && x.num[0] == 1) { return m; }
-        int i = x.num[0] % 4;
-        if (i == 3 && j % 4 == 3) { m = -m; }
-        std::swap(x, y);
-        x = x % y;
-    }
-    return 0;
 }
 bool lucas(const integer& x)
 {
@@ -2503,17 +2535,18 @@ private:
         return j < ps;
     }
 public:
+    int pr; 
     integer pp;
     std::vector<int>prime;
     mont q;
     indexcalculus(){};
-    indexcalculus(const integer& p0,integer r,const integer&cutoff=1)
+    indexcalculus(const integer& p0,int r0,const integer&cutoff=1)
     //传入质数p0,原根r,系统计算logr(pi)mod ((p0-1)/cutoff)
     //p-1的质因子不能太多,否则使用dlsolver
     {
-        q.p=p0,pp=(q.p-1)/cutoff;init(r);
+        q.p=p0,pp=(q.p-1)/cutoff;init(r0);
     }
-    void init(integer r)
+    void init(int r0)
     {
         bound = q.p.getlog();//bound<42保证7s内
         if(bound>50||bound<20){std::cout<<"indexcalculus reject";exit(0);}
@@ -2606,7 +2639,7 @@ public:
             ll h = prime[indexb]; left.push_back(indexb);
             if (index < ps) { h = h * prime[index]; left.push_back(index); }
             else if (indexbb < index) { h = h * prime[indexbb]; left.push_back(indexbb); }
-            integer u = r * h; start = (start + 1) % (prime.size());
+            integer u = h*r0; start = (start + 1) % (prime.size());
             for (int j = 0, i = start; j < 3; j++)
             {
                 u = u * prime[i];
@@ -2629,8 +2662,8 @@ public:
             }
         }
         q.init();
-        integer cutoff=(q.p-1)/pp;
-        r=q.pow_binary(q.in(r),cutoff);
+        integer cutoff=(q.p-1)/pp;pr=r0;
+        integer r=q.pow_binary(q.in(r0),cutoff);
         dlogp.assign(ps, pp);
         for (int i = ps - 1; i > -1; i--)
         {
@@ -2664,23 +2697,21 @@ public:
             }
             return  tmp.mod_positive(pp);
         }
-        int start=0;
+        int cnt=1;
         std::vector<float>pos(m, 0);
         while(1)
         {
-            int next=(start+1+rand()%8)%prime.size();
-            integer u=x0*((ll)prime[start]*prime[next]);
-            integer left=dlogp[start]+dlogp[next];left.sign=-1;
+            x0=(x0*pr)%q.p;
             for (int i = 0; i < prime.size(); i++)
             {
                 int pi = prime[i];
-                for (int j = pi - ((ll)flag[i] * (u % pi).num[0] % pi); j < m; j += pi) { pos[j] += logp[i]; }
+                for (int j = pi - ((ll)flag[i] * (x0 % pi).num[0] % pi); j < m; j += pi) { pos[j] += logp[i]; }
             }
             for (int i = 1; i < m; i++)
             {
-                if (pos[i] > bound && smooth(u + q.p * i,right))
+                if (pos[i] > bound && smooth(x0 + q.p * i,right))
                 {
-                    integer tmp = left;
+                    integer tmp = cnt;tmp.sign=-1;
                     for (int j = 0; j < right.size(); j += 2)
                     {
                         tmp = tmp + dlogp[right[j]] * right[j + 1];
@@ -2688,12 +2719,11 @@ public:
                     return  tmp.mod_positive(pp);
                 }
                 pos[i] = 0;
-            }
-            start = (start + 1) % (prime.size());
+            }cnt++;
         }
     }
 };
-class dlsolver
+class dlsolver//本系统不接受0输入
 {
 private:
     std::vector<integer>k;
@@ -2704,16 +2734,17 @@ private:
         if(b.num==ic.q.f.num){return 0;}
         if(a.num==b.num){return 1;}
         integer c=ic.q.pow_binary(a,m),now=c;
-        std::vector<integer>t(m,ic.q.p);
+        std::vector<int>t(m);
         for(int j=0;j<m;j++)
         {
-            t[j]=now;now=ic.q.out(now*c);
+            t[j]=now.num[0];now=ic.q.out(now*c);
         }now=b;
         for(int i=0;i<m;i++)
         {
-            int j=0;
-            for(;j<m&&t[j].num!=now.num;j++);
-            if(j<m){return (j+1)*m-i;}
+            for(int j=0;j<m;j++)
+            {
+                if(t[j]==now.num[0]&&ic.q.pow_binary(c,j+1).num==now.num){return (j+1)*m-i;}
+            }
             now=ic.q.out(now*a);
         }
         std::cout<<"bsgs";exit(0);
@@ -2770,7 +2801,7 @@ public:
         }
         else{ic.q.init();}
     }
-    integer ord(const integer&a,std::vector<int>*s=0)//不要传0
+    integer ord(const integer&a,std::vector<int>*s=0)
     {
         integer a0=s?a:ic.q.in(a),o=s?(ic.q.p-1)/ic.pp:ic.q.p-1;
         for(int i=0;i<l.size();i+=2)
@@ -2787,7 +2818,7 @@ public:
         }
         return o;
     }
-    integer dlogp(const integer&a,const integer&b)//a^x=b,不要传0
+    integer dlogp(const integer&a,const integer&b)//a^x=b
     {
         if(ic.q.pow_binary(ic.q.in(b),ord(a)).num!=ic.q.f.num){return -1;}
         if(ic.prime.empty()){return hellman(a,b);}
