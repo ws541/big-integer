@@ -1496,7 +1496,7 @@ int jacobi(const integer& a, const integer& b)
             if (s == -1 && k % 2) { m = -m; }
         }
         if (y.num.size() == 1 && y.num[0] == 1) { return m; }
-        ll xl=x.num[0]&3,yl=y.num[0]&3;
+        int xl=x.num[0]&3,yl=y.num[0]&3;
         if(x.num.size()<y.num.size()+2)
         {
             ll xh,yh;
@@ -1505,18 +1505,16 @@ int jacobi(const integer& a, const integer& b)
             while ((u = yh + B) && (v = yh + D) && (check = xh + C - (q = (xh + A) / u) * v) > -1 &&check < v)
             {
                 bool odd=q&1;
-                if(odd){if(v>(check<<1)||u>((xh+A-q*u)<<1)){break;}q++;}
-                int turn1=xl%4,turn2=yl%4;
-                if((turn1==-1||turn1==3)&&(turn2==-1||turn2==3)){m=-m;}
+                if(odd){q++;}
+                if(xl==3&&yl==3){m=-m;}
                 u = A, A = B, B = u - B * q;
                 u = C, C = D, D = u - C * q;
                 u = xh, xh = yh, yh = u - yh * q;
-                u = xl, xl = yl, yl = u - yl * q;
+                u = xl, xl = yl, yl = (u - yl * (q&3))&3;
                 if(odd)
                 {
-                    B=-B,D=-D,yh=-yh,yl=-yl;
-                    int turn=xl%4;
-                    if(turn==3||turn==-1){m=-m;}
+                    B=-B,D=-D,yh=-yh,yl=4-yl;
+                    if(xl==3){m=-m;}
                 }
             }
             if(B){gcdshift1_inplace(x,y,A,B,C,D);continue;}
