@@ -4,7 +4,7 @@
 # 支持快速乘法(karatsuba和FFT),高效除法(牛顿迭代法和原生除法),组合数学函数(阶乘、排列、组合计算),模运算系统(Montgomery模运算和通用模类),高精度开平方,高精度开n次方,最大公约数(hgcd、lehmer包含扩展欧几里得算法),模逆元,快速模幂运算,素数判定(Miller-Rabin和Lucas测试),jacobi,shanks模开方,质因数分解(Pollard Rho和二次筛法),欧拉函数,莫比乌斯函数计算以及原根求解,斐波那契数列,离散对数求解(bsgs+hellman+indexcalculus)
 
 #速度比专业库慢3到13倍,超大数字渐进行为良好，以下是部分测试结果
-
+/*
 测试代码见full_test.cpp
 === integer Euclid vs GMP exGCD (Fibonacci) ===
 n               size            integer(us)     GMP(us)         GMP快几倍
@@ -33,5 +33,6 @@ tostring        219             67              3.27x
 construct       59              30              1.97x
 --------------------------------------------------------
 total           317             115             2.76x
+*/
 
 #数论方面函数因为小数字heavy慢,二次筛法和指标及算法进一步因为没有线性代数支持光滑界保守,差距可达100倍
