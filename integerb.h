@@ -1505,7 +1505,7 @@ int jacobi(const integer& a, const integer& b)
             while ((u = yh + B) && (v = yh + D) && (check = xh + C - (q = (xh + A) / u) * v) > -1 &&check < v)
             {
                 bool odd=q&1;
-                if(odd){q++;}
+                if(odd){if(check<<6<yh){break;}q++;}//如果余数很小那么不要修正
                 if(xl==3&&yl==3){m=-m;}
                 u = A, A = B, B = u - B * q;
                 u = C, C = D, D = u - C * q;
@@ -2504,7 +2504,7 @@ pairs fib(int n)
     else { ans.f = b, ans.s = a; }
     return ans;
 }
-class indexcalculus
+class indexcalculus//由于高斯消元是瓶颈,采用一次多项式构造版本u=u+p*i mod p
 {
 private:
     std::vector<integer>dlogp;
