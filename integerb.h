@@ -2205,7 +2205,9 @@ integer factor(const integer& n, bool& pollard)//不质数幂
         pollard = 0;
     }
     if (n.num.size() < 3) { std::cout << "pollard"; exit(0); }
-    if (n.num.size() > 7) { std::cout << "qs too big"; exit(0); }//qs知乎学的,10^47之内保证不超过10s
+    if (n.num.size() > 7) { std::cout << "qs too big"; exit(0); }
+    //qs知乎学的,10^47之内保证不超过10s
+    //11111111111111111111111111122332231111111111111117791这个需要26s,通过euler的参数l调用,不要直接调用factor
     mont q;
     std::vector<int>prime;
     std::vector<int>root;
@@ -2504,7 +2506,7 @@ pairs fib(int n)
     else { ans.f = b, ans.s = a; }
     return ans;
 }
-class indexcalculus//由于高斯消元是瓶颈,采用一次多项式构造版本u=u+p*i mod p
+class indexcalculus
 {
 private:
     std::vector<integer>dlogp;
@@ -2546,9 +2548,19 @@ public:
     }
     void init(int r0)
     {
-        bound = q.p.getlog();//bound<42保证7s内
-        if(bound>50||bound<20){std::cout<<"indexcalculus reject";exit(0);}
-        //作为边界测试p = 1124000727777607680031(bound=48.47)建立需要30s,这不是2*q+1质数但是ic一样的
+        bound = q.p.getlog();//lnp<42保证7s内
+        if(bound<20||bound>63){std::cout<<"indexcalculus reject";exit(0);}
+        //作为边界测试p =  1566632214376429584384000043(lnp约62)建立需要965s
+        if(bound>40){
+            std::cout << "\nestimate ic init time :" << 0.2423 * exp(0.2427 *bound) / 1000.0 << " s\n";
+        }
+        //此预测误差8%,拟合非常准确
+        //   Performance models (empirical, error <5%):
+        //   integerb.h:  T ≈ 0.2423 * exp(0.2427*ln(p)) ms
+        //   GP/PARI: T ≈ exp(0.127*ln(p)) ms
+        //   => GP/PARI is ~300x faster at ln(p)=62
+        //   gp指数系数减半,是比快integerb.h快几百倍原因
+        //   integerb.h由于高斯消元是瓶颈,采用一次多项式构造版本u=u+p*i mod p
         int B=(15-bound*0.2)*pow(1.135,bound);
         flag.assign((B + B % 2) / 2, 1);
         for (int i = 1, a; 2 * (a = 2 * i * (i + 1)) <= B - 1; i++)
