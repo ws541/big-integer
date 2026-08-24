@@ -325,7 +325,7 @@ public:
                 c.num[i] = now / n;//(now*base+numi)/n<((n-1)*base+numi)/n<n*base/n=base
                 now %= n;
             }
-            r = now;
+            r.num.resize(1),r.num[0]= now;
         }
         else
         {
@@ -2093,13 +2093,13 @@ void qsinit(integer&d,const integer&n,std::vector<int>&prime,std::vector<int>&ro
     bound = d.getlog() + 2 * log(m) - 13;
     q.p = n; q.init();
 }
-bool qsgeta(int from, std::vector<int>& index, std::vector<int>& prime,std::vector<int>&inva,
+bool qsgeta(std::vector<int>& index, std::vector<int>& prime,std::vector<int>&inva,
     std::vector<int>&root,int&start,int&gap,std::vector<integer>&crtbase,integer&a,integer&d,integer&b)
 {
     if (start > std::min((int)prime.size(), 500)) { start = std::min((int)prime.size() / 4, 30); }
     index.clear(); crtbase.clear();
     int i = start;
-    integer tmp = (ll)from * prime[i];
+    integer tmp;tmp.num.push_back(prime[i]);
     do
     {
         index.push_back(i);
@@ -2331,7 +2331,7 @@ integer factor(const integer& n, bool& pollard)//不质数幂
     std::vector<float>pos(m,0), neg(m,0);
     while (ok > 0)
     {
-        if (!qsgetb(cnt,index,crtbase,a,b)) { cnt = 0; while (!qsgeta(1,index,prime,inva,root,start,gap,crtbase,a,d,b));}
+        if (!qsgetb(cnt,index,crtbase,a,b)) { cnt = 0; while (!qsgeta(index,prime,inva,root,start,gap,crtbase,a,d,b));}
         integer c = (b * b - n) / a;
         qsseive(root, inva, prime, logp, pos, neg, b, m);
         for (int i = 0; i < m; i++)
@@ -2534,28 +2534,15 @@ private:
         }
         return j < ps;
     }
-public:
-    int pr; 
-    integer pp;
-    std::vector<int>prime;
-    mont q;
-    indexcalculus(){};
-    indexcalculus(const integer& p0,int r0,const integer&cutoff=1)
-    //传入质数p0,原根r,系统计算logr(pi)mod ((p0-1)/cutoff)
-    //p-1的质因子不能太多,否则使用dlsolver
-    {
-        q.p=p0,pp=(q.p-1)/cutoff;init(r0);
-    }
-    void init(int r0)
+    void prepare()
     {
         bound = q.p.getlog();//lnp<42保证7s内
-        if(bound<20||bound>63){std::cout<<"indexcalculus reject";exit(0);}
+        if(bound<20||bound>50){std::cout<<"indexcalculus reject";exit(0);}
         //作为边界测试p =  1566632214376429584384000043(lnp约62)建立需要965s
         if(bound>40){
-            std::cout << "\nestimate ic init time :" << 0.2423 * exp(0.2427 *bound) / 1000.0 << " s\n";
+            std::cout << "\nif mingw64 -O2,ic init time :" << 0.2423 * exp(0.2427 *bound) / 1000.0 << " s\n";
         }
-        //此预测误差8%,拟合非常准确
-        //   Performance models (empirical, error <5%):
+        //   Performance models (-O2,empirical, error <5%):
         //   integerb.h:  T ≈ 0.2423 * exp(0.2427*ln(p)) ms
         //   GP/PARI: T ≈ exp(0.127*ln(p)) ms
         //   => GP/PARI is ~300x faster at ln(p)=62
@@ -2576,6 +2563,22 @@ public:
         logp.resize(prime.size());
         for (int i = 0; i < prime.size(); i++) { logp[i] = log(prime[i]); }
         m = 1 <<(12+q.p.num.size());
+    }
+public:
+    int pr; 
+    integer pp;
+    std::vector<int>prime;
+    mont q;
+    indexcalculus(){};
+    indexcalculus(const integer& p0,int r0,const integer&cutoff=1)
+    //传入质数p0,原根r,系统计算logr(pi)mod ((p0-1)/cutoff)
+    //p-1的质因子不能太多,否则使用dlsolver
+    {
+        q.p=p0,pp=(q.p-1)/cutoff;init(r0);
+    }
+    void init(int r0)
+    {
+        prepare();
         int ps = prime.size();
         struct equa
         {
@@ -2589,9 +2592,10 @@ public:
         std::vector<bool>need(ps, 1); int index = 0;
         std::vector<bool>needb(ps, 1); int indexb = 0, indexbb = 1, indexbbb = ps - 1;
         std::vector<int>left,right;
-        int maxtry = 24*q.p.num.size()+20,ok=prime.size()<<1;
+        int maxtry = 24*q.p.num.size()+20,ok=ps+40;
         equa a(ps, pp);
-        auto insert_lambda = [&a,&matrix, &ps, &need, &index, &needb, &indexb, &indexbb, &indexbbb, &maxtry, &left,&right,&ok](const  integer& pp)->void {
+        bool needr=1;
+        auto insert_lambda = [&a,&needr,&matrix, &ps, &need, &index, &needb, &indexb, &indexbb, &indexbbb, &maxtry, &left,&right,&ok](const  integer& pp)->void {
             if(--ok<0){std::cout<<"p-1 too many factors,use dlsolver";exit(0);}
             for (int i = 0; i < right.size(); i += 2)
             {
@@ -2601,7 +2605,7 @@ public:
             {
                 a.h[left[i]].addsmall(-1);
             }
-            a.h[ps] = 1;
+            a.h[ps] = needr;needr=0;
             int first = 0;
             while (a.h[first].num.back() == 0 && first < ps) { first++; }
             while (index==ps?first <= indexbbb:(first < ps && !need[first]))
@@ -2641,6 +2645,7 @@ public:
             for (; indexbbb > indexb + 1 && !needb[indexbbb]; indexbbb--);
             a.clear();
             };
+        if(smooth(r0,right)){insert_lambda(pp);needr=0;}
         std::vector<float>pos(m, 0); int start = 0;
         while (indexb < ps)
         {
@@ -2649,12 +2654,12 @@ public:
             ll h = prime[indexb]; left.push_back(indexb);
             if (index < ps) { h = h * prime[index]; left.push_back(index); }
             else if (indexbb < index) { h = h * prime[indexbb]; left.push_back(indexbb); }
-            integer u = h*r0; start = (start + 1) % (prime.size());
+            integer u = needr?h*r0:h; start = (start + 1) % ps;
             for (int j = 0, i = start; j < 3; j++)
             {
                 u = u * prime[i];
                 left.push_back(i);
-                i = (i + 1 + rand() % 8) % prime.size();
+                i = (i + 1 + rand() % 8) % ps;
             }
             for (int i = 0; i < ps; i++)
             {
@@ -2786,10 +2791,12 @@ private:
         return u.mod_positive(o);
     }
 public:
-    dlsolver(integer p,int small=1000000)
+    dlsolver(integer p)
     {
+        int small=1000000;
         ic.q.p=p;p.addsmall(-1);
         euler(p,&k);
+        if(p.num.size()>2){small=Bmask;}
         for(auto&e:k)
         {
             if(e.num.size()==1&&e.num[0]<small)
