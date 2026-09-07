@@ -1,6 +1,105 @@
 
 //[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 //g++ a.cpp -O2 -I D:\mingw64download\mingw64\include -L D:\mingw64download\mingw64\lib -lgmp -lgmpxx -o a.exe
+//不需要gmp,上一行只是为了方便复制常用指令
+/*
+ * ============================================================
+ * integerb.h 高级功能完整列表
+ * ============================================================
+ *
+ * 一、大整数核心运算
+ * ------------------------------------------------------------
+ *   operator+     加法（支持符号处理）
+ *   operator-     减法（支持符号处理）
+ *   operator*     乘法（自动选择算法）
+ *   operator/     除法（自动选择算法）
+ *   operator%     取模（符号同被除数）
+ *   mod_positive() 取模（返回非负余数）
+ *   operator-()   取反
+ *
+ * 二、乘法算法族
+ * ------------------------------------------------------------
+ *   multiply()    朴素乘法（b.len < 80 或 a.len*b.len < 30000）
+ *   karamul()     Karatsuba 乘法（中等规模）
+ *   fftmul()      FFT 乘法（a.len+b.len <= halflen）
+ *   shiftmul()    分块移位乘法（牛顿迭代内部使用）
+ *
+ * 三、除法算法族
+ * ------------------------------------------------------------
+ *   div_native()  朴素除法（小规模）
+ *   div_newton()  牛顿除法（大规模）
+ *   divide()      自动选择切换
+ *
+ * 四、开方与根运算
+ * ------------------------------------------------------------
+ *   fsqrt()       整数平方根
+ *   root(int m)   n次方根（支持任意次）
+ *   (x.fsqrt()*x.fsqrt()).num == x.num  平方检测
+ *
+ * 五、移位操作
+ * ------------------------------------------------------------
+ *   shift(int n)     返回 x * Base^n（正）或 x / Base^n（负）
+ *   mul2pow(int n)   乘以 2^n（原位）
+ *   div2pow(int n)   除以 2^n（原位）
+ *   mod2pow(int n)   模 2^n（原位）
+ *   ctz()            尾随零计数（2-adic 阶）
+ *
+ * 六、比较与转换
+ * ------------------------------------------------------------
+ *   absbigger()   绝对值比较
+ *   toll()        转 long long（仅限 2 limbs 以内）
+ *   tostring(int m) 转字符串（支持科学计数法）
+ *   print()       带格式输出
+ *   getlog()      取近似对数
+ *
+ * 七、数论函数
+ * ------------------------------------------------------------
+ *   fac(n)        阶乘
+ *   C(e, s)       组合数
+ *   A(e, s)       排列数
+ *   power()       幂运算
+ *   gcd()         最大公约数（含 Lehmer 优化）
+ *   euclid()      扩展欧几里得（返回系数）
+ *   inv()         模逆元
+ *   jacobi()      雅可比符号
+ *
+ * 八、素数相关
+ * ------------------------------------------------------------
+ *   isprime()         Miller-Rabin + Lucas 确定性测试
+ *   miller()         Miller-Rabin 素性测试
+ *   lucas()          Lucas 素性测试
+ *   primepow()       检测是否为素数幂
+ *   primeroot()      求原根
+ *   order()          求阶
+ *
+ * 九、因式分解
+ * ------------------------------------------------------------
+ *   factor()         Pollard Rho + QS 混合
+ *   euler()          Euler φ 函数（含因式分解）
+ *   mobius()         Möbius 函数
+ *
+ * 十、模运算加速
+ * ------------------------------------------------------------
+ *   mont             Montgomery 模乘类（蒙哥马利约减）
+ *   mod              中国剩余定理（CRT）组合类
+ *
+ * 十一、离散对数（DLSolver 类）
+ * ------------------------------------------------------------
+ *   indexcalculus    Index Calculus 算法
+ *   dlsolver         通用离散对数求解器
+ *   bsgs             Baby-step Giant-step
+ *   hellman          Pohlig-Hellman 算法
+ *
+ * 十二、高性能工具
+ * ------------------------------------------------------------
+ *   mul_core()       分治批量乘法（树形乘法）
+ *   reciprocal()     牛顿倒数（用于加速除法/开方）
+ *   shiftpow()       移位幂运算
+ *   exponent()       滑动窗口指数编码
+ *   getw()           自适应窗口大小
+ *
+ * ============================================================
+ */
 #ifndef _INTEGERB_H_
 #define _INTEGERB_H_
 #include<iostream>
@@ -298,6 +397,7 @@ private:
         }
         while (now.num.back() == 0 && now.num.size() > 1) { now.num.pop_back(); }
     }
+public:
     void shiftadd(const view& b, int i)//不pushback1
     {
         int lb = b.len, k = 0;
@@ -309,7 +409,6 @@ private:
         }
         if (k) { for (int j = i + lb; j < num.size() && ++num[j] == Base; j++) { num[j] = 0; } }
     }
-public:
     static int abssub(int* a, int la, const int* b, int lb);
     static integer div_native(const view& a, const view& b, integer& r)
     {
@@ -861,8 +960,9 @@ public:
         r.num.clear();
         int la = a.len, lb = b.len;
         int n = std::min(24, la / lb);
-        int l = (la - lb) / n + 3;
-        while (l >= 512) { l >>= 1; }n += l < 285 && l > 255;
+        int l = (la - lb) / n + 3,l0=(la - lb) / (n+1) + 3;
+        while (l >= 512) { l >>= 1;l0>>=1;}
+        if(l>255&&l0<256){n++;}//增加分段数改善fft仅仅刚跳变,这非常重要因为所有乘法都是按照need约(la - lb) / n截断的
         l = (la - lb) / n + lb + 1;
         integer xt; reciprocal(b, xt, l);
         integer res(a);
@@ -889,7 +989,7 @@ public:
     static integer divide(const view& a, const view& b, integer& r)
     {
         int la = a.len, lb = b.len, c = la - lb;
-        if (la > 200 && lb > 50 && c > 20 && (c > 100 || lb * c > 10000))
+        if (la > 200 && lb > 50 && c > 20 && (c > 200 || lb * c > 60000))
         {
             return div_newton(a, b, r);
         }
