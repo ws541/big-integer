@@ -1,105 +1,39 @@
-
+/**
+ * @file integerb.h
+ * @brief 高精度整数运算库 (Big Integer Library)
+ * 
+ * 本库提供了一个功能完备的高精度整数类 `integer`，支持任意精度的整数运算，
+ * 并集成了多种高级数论算法。核心特性包括：
+ * 
+ * 【核心运算】
+ * - 四则运算：加、减、乘、除（含取余），支持 Karatsuba 乘法与 FFT 加速
+ * - 位运算：左移、右移、按位与/或（通过 2 的幂次乘除实现）
+ * - 进制转换：支持从十进制字符串构造，以及高精度转字符串输出（支持科学计数法）
+ * 
+ * 【数论算法】
+ * - 最大公约数：Lehmer 加速 GCD、Half-GCD (HGCD)
+ * - 扩展欧几里得：求解线性同余方程、模逆元
+ * - 素性检测：Miller-Rabin 强伪素数测试、Lucas 素性证明
+ * - 因数分解：Pollard Rho 算法、二次筛法 (QS)
+ * - 模幂运算：Montgomery 约减、滑动窗口指数算法
+ * - 离散对数：指数演算 (Index Calculus)、Pohlig-Hellman、BSGS
+ * - 原根与阶：计算模素数原根、元素阶
+ * - 特殊函数：Jacobi 符号、Shanks 平方根、Euler 函数、Mobius 函数
+ * 
+ * 【数学常数与级数】
+ * - 阶乘/组合数：支持大数阶乘、排列组合数快速计算
+ * - Fibonacci 数列：快速倍增法
+ * - 开方/开 n 次方：Newton 迭代法高精度开方
+ * 
+ * 【性能优化】
+ * - 28 位压位存储（基数 2^28），减少内存占用与运算次数
+ * - 循环分裂基 FFT 乘法（rrii 布局），复数打包优化
+ * - 模运算采用 Montgomery 表示，避免除法
+ * - 大数除法支持 Newton 倒数法与 Burnikel-Ziegler 分块算法
+ */
 //[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 //g++ a.cpp -O2 -I D:\mingw64download\mingw64\include -L D:\mingw64download\mingw64\lib -lgmp -lgmpxx -o a.exe
 //不需要gmp,上一行只是为了方便复制常用指令
-/*
- * ============================================================
- * integerb.h 高级功能完整列表
- * ============================================================
- *
- * 一、大整数核心运算
- * ------------------------------------------------------------
- *   operator+     加法（支持符号处理）
- *   operator-     减法（支持符号处理）
- *   operator*     乘法（自动选择算法）
- *   operator/     除法（自动选择算法）
- *   operator%     取模（符号同被除数）
- *   mod_positive() 取模（返回非负余数）
- *   operator-()   取反
- *
- * 二、乘法算法族
- * ------------------------------------------------------------
- *   multiply()    朴素乘法（b.len < 80 或 a.len*b.len < 30000）
- *   karamul()     Karatsuba 乘法（中等规模）
- *   fftmul()      FFT 乘法（a.len+b.len <= halflen）
- *   shiftmul()    分块移位乘法（牛顿迭代内部使用）
- *
- * 三、除法算法族
- * ------------------------------------------------------------
- *   div_native()  朴素除法（小规模）
- *   div_newton()  牛顿除法（大规模）
- *   divide()      自动选择切换
- *
- * 四、开方与根运算
- * ------------------------------------------------------------
- *   fsqrt()       整数平方根
- *   root(int m)   n次方根（支持任意次）
- *   (x.fsqrt()*x.fsqrt()).num == x.num  平方检测
- *
- * 五、移位操作
- * ------------------------------------------------------------
- *   shift(int n)     返回 x * Base^n（正）或 x / Base^n（负）
- *   mul2pow(int n)   乘以 2^n（原位）
- *   div2pow(int n)   除以 2^n（原位）
- *   mod2pow(int n)   模 2^n（原位）
- *   ctz()            尾随零计数（2-adic 阶）
- *
- * 六、比较与转换
- * ------------------------------------------------------------
- *   absbigger()   绝对值比较
- *   toll()        转 long long（仅限 2 limbs 以内）
- *   tostring(int m) 转字符串（支持科学计数法）
- *   print()       带格式输出
- *   getlog()      取近似对数
- *
- * 七、数论函数
- * ------------------------------------------------------------
- *   fac(n)        阶乘
- *   C(e, s)       组合数
- *   A(e, s)       排列数
- *   power()       幂运算
- *   gcd()         最大公约数（含 Lehmer 优化）
- *   euclid()      扩展欧几里得（返回系数）
- *   inv()         模逆元
- *   jacobi()      雅可比符号
- *
- * 八、素数相关
- * ------------------------------------------------------------
- *   isprime()         Miller-Rabin + Lucas 确定性测试
- *   miller()         Miller-Rabin 素性测试
- *   lucas()          Lucas 素性测试
- *   primepow()       检测是否为素数幂
- *   primeroot()      求原根
- *   order()          求阶
- *
- * 九、因式分解
- * ------------------------------------------------------------
- *   factor()         Pollard Rho + QS 混合
- *   euler()          Euler φ 函数（含因式分解）
- *   mobius()         Möbius 函数
- *
- * 十、模运算加速
- * ------------------------------------------------------------
- *   mont             Montgomery 模乘类（蒙哥马利约减）
- *   mod              中国剩余定理（CRT）组合类
- *
- * 十一、离散对数（DLSolver 类）
- * ------------------------------------------------------------
- *   indexcalculus    Index Calculus 算法
- *   dlsolver         通用离散对数求解器
- *   bsgs             Baby-step Giant-step
- *   hellman          Pohlig-Hellman 算法
- *
- * 十二、高性能工具
- * ------------------------------------------------------------
- *   mul_core()       分治批量乘法（树形乘法）
- *   reciprocal()     牛顿倒数（用于加速除法/开方）
- *   shiftpow()       移位幂运算
- *   exponent()       滑动窗口指数编码
- *   getw()           自适应窗口大小
- *
- * ============================================================
- */
 #ifndef _INTEGERB_H_
 #define _INTEGERB_H_
 #include<iostream>
@@ -397,8 +331,57 @@ private:
         }
         while (now.num.back() == 0 && now.num.size() > 1) { now.num.pop_back(); }
     }
-public:
+    static void div_short(int*anum,int alen,const int*bnum,int blen,integer&q,int qstart)
+    {
+        integer r;
+        q.shiftadd(div_native(view(anum,0,alen-1,1),view(bnum,0,blen-1,1),r),qstart);
+        int i=0;
+        for(;i<r.num.size();i++){anum[i]=r.num[i];}
+        for(;i<alen;i++){anum[i]=0;}
+    }
+    static void div_4n_2n(int*anum,int alen,const int*bnum,int blen,integer&q,int qstart)
+    {
+        int qlen=alen-blen;
+        if(qlen<40||blen<40){div_short(anum,alen,bnum,blen,q,qstart);return;}
+        int qlen1=qlen>>1,alen1=blen+qlen1,ashift1=alen-alen1;
+        div_3n_2n(anum+ashift1,alen1,bnum,blen,q,qstart+ashift1);
+        alen-=qlen1;
+        while(alen>1&&anum[alen-1]==0){alen--;}
+        div_3n_2n(anum,alen,bnum,blen,q,qstart);
+    }
+    static void div_3n_2n(int*anum,int alen,const int*bnum,int blen,integer&q,int qstart)
+    {
+        int qlen=alen-blen;
+        if(qlen<40||blen<40){div_short(anum,alen,bnum,blen,q,qstart);return;}
+        int shift=blen-qlen;
+        div_4n_2n(anum+shift,alen-shift,bnum+shift,blen-shift,q,qstart);
+        //知乎学的这种原地操作办法
+        //假设4n/2n是朴素除法
+        //(ah*shift+al)-q*(bh*shift+bl)在4n/2n已完成res=(ah-q*bh)*shift
+        //此时需要res+al-q*bl修正
+        //cnt++到res+al-q*bl+cnt*b刚好为正
+        //用res+al+cnt*b和q*bl比较
+        //而q由于从左到右依次生成并且不进位所以保存在切片中
+        //若aback>bback(长除法第一次),a必须pushback0从而保证切片长度qlen(见div_bz)
+        view qview(q.num.data(),qstart,qstart+qlen-1,1);
+        view bview(bnum,0,blen-1,1);
+        view blview(bnum,0,shift-1,1);
+        integer prod=karamul(qview,blview);
+        int cnt=0;
+        while(prod.absbigger(view(anum,0,alen-1,1),0))
+        {
+            shiftadd(anum,alen,bview,0);//由于alen,blen差大不会进位
+            if(cnt++>2){std::cout<<"div_3n_2n ";exit(0);}
+        }
+        if(cnt){abssub(q.num.data()+qstart,qlen,&cnt,1);}
+        abssub(anum,alen,prod.num.data(),prod.num.size());
+    }
     void shiftadd(const view& b, int i)//不pushback1
+    {
+        shiftadd(num.data(),num.size(),b,i);
+    }
+public:
+    static void shiftadd(int*num,int len,const view& b, int i)//num足够大
     {
         int lb = b.len, k = 0;
         for (int j = 0; j < lb; j++)
@@ -407,7 +390,7 @@ public:
             if (num[i + j] >= Base) { num[i + j] -= Base; k = 1; }
             else { k = 0; }
         }
-        if (k) { for (int j = i + lb; j < num.size() && ++num[j] == Base; j++) { num[j] = 0; } }
+        if (k) { for (int j = i + lb; j <len&& ++num[j] == Base; j++) { num[j] = 0; } }
     }
     static int abssub(int* a, int la, const int* b, int lb);
     static integer div_native(const view& a, const view& b, integer& r)
@@ -673,14 +656,13 @@ public:
     {
         return karamul(*this, that);
     }
-    static void reciprocal(const view& n, integer& xt, int l)//xt=base^t/*this
+    static integer reciprocal(const view& n,int l)//xt=base^t/*this
     {
         l++;
         int k = 1;
         int t = n.len + k;
         int b;
-        integer tmp;
-        xt = div_native(integer(1).shift(3), view(n.ptr, n.len - 2, n.len - 1, n.sign), tmp);
+        integer tmp,xt = div_native(integer(1).shift(3), view(n.ptr, n.len - 2, n.len - 1, n.sign), tmp);
         std::vector<int>xtsize;
         int k1 = l - xt.num.size() + 1; k1 += ((k1 & 1) == 0);
         while (k1 > 5) { k1 = k1 / 2 + 1; k1 += ((k1 & 1) == 0); xtsize.push_back(k1); }
@@ -700,10 +682,11 @@ public:
             k = xt.num.size() - 1;
             while (!xtsize.empty() && xt.num.size() >= xtsize.back()) { xtsize.pop_back(); }
         }
-        xt = xt.shift(-1);
+        xt.div2pow(Blen);
         xt.addsmall(-n.sign);
+        return xt;
     }
-    integer fsqrt()const//xt=sqrt(*this/base^(2f-2k))
+    integer fsqrt(bool fix=1)const//xt=sqrt(*this/base^(2f-2k))
     {
         int ns = num.size();
         if (ns < 3)
@@ -807,15 +790,14 @@ public:
             while (!kplan.empty() && k >= kplan.back()) { kplan.pop_back(); }
         }
         xt.addsmall(-1);
-        integer prod = xt * xt;
-        if (prod.absbigger(*this, 0)) { xt.addsmall(-1); }
+        if (fix&&(xt * xt).absbigger(*this, 0)) { xt.addsmall(-1); }
         return xt;
     }
-    integer root(int m)const
+    integer root(int m,bool fix=1)const
     {
         if (!num.back() || m == 1) { return *this; }
-        if (sign < 0 || m < 1) { std::cout << "root"; exit(0); }
-        if (m == 2) { return fsqrt(); }
+        if (m < 1) { std::cout << "root"; exit(0); }
+        if (m == 2) { return fsqrt(fix); }
         int ns = num.size();
         int f = ns / m + (ns % m != 0);
         const bool useyk = f > 100;
@@ -940,7 +922,8 @@ public:
         }
         xt.addsmall(-1);
         need = num.size() << 1;//全精度
-        if (shiftpow(xt, m, need, b).absbigger(*this, 0)) { xt.addsmall(-1); }
+        if (fix&&shiftpow(xt, m, need, b).absbigger(*this, 0)) { xt.addsmall(-1); }
+        //修正对于高次根时间占比可高达99%
         return xt;
     }
     static integer shiftpow(const integer& x, int n, int need, int& b)
@@ -964,7 +947,7 @@ public:
         while (l >= 512) { l >>= 1;l0>>=1;}
         if(l>255&&l0<256){n++;}//增加分段数改善fft仅仅刚跳变,这非常重要因为所有乘法都是按照need约(la - lb) / n截断的
         l = (la - lb) / n + lb + 1;
-        integer xt; reciprocal(b, xt, l);
+        integer xt=reciprocal(b,l);
         integer res(a);
         integer q; q.num.assign(la - lb + 1, 0);
         for (int i = 0; i < n && res.num.size() > lb + 4; i++) {
@@ -986,11 +969,38 @@ public:
         r.sign = a.sign;
         return q;
     }
+    static integer div_bz(const view& a, const view& b, integer& r)
+    {
+        int m=1,back=b.ptr[b.len-1];
+        while(Base>(back<<m)){m++;}m--;
+        r.num.reserve(a.len+1);r=a;r.mul2pow(m);
+        if(r.num.size()==a.len){r.num.push_back(0);}
+        integer bb=b;bb.mul2pow(m);
+        int bblen=bb.num.size(),bblen2=bblen<<1;
+        integer q;q.num.resize(r.num.size()-bblen+1);
+        int i=r.num.size()-bblen2;
+        while(i>-1)
+        {
+            div_4n_2n(r.num.data()+i,bblen2,bb.num.data(),bblen,q,i);
+            i-=bblen;
+            while(i>-1&&r.num[i+bblen]==0){i--;}
+        }
+        i+=bblen2;
+        div_4n_2n(r.num.data(),i,bb.num.data(),bblen,q,0);
+        r.num.resize(i-bblen);
+        while(r.num.size()>1&&r.num.back()==0){r.num.pop_back();}
+        while(q.num.size()>1&&q.num.back()==0){q.num.pop_back();}
+        r.div2pow(m);
+        r.sign=a.sign;
+        q.sign=a.sign*b.sign;
+        return q;
+    }
     static integer divide(const view& a, const view& b, integer& r)
     {
         int la = a.len, lb = b.len, c = la - lb;
         if (la > 200 && lb > 50 && c > 20 && (c > 200 || lb * c > 60000))
         {
+            if(c>70&&lb>160&&lb<250-(float)(la<<3)/lb){return div_bz(a,b,r);}//仅仅略微改善
             return div_newton(a, b, r);
         }
         return div_native(a, b, r);
