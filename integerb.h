@@ -983,7 +983,7 @@ public:
         {
             div_4n_2n(r.num.data()+i,bblen2,bb.num.data(),bblen,q,i);
             i-=bblen;
-            while(i>-1&&r.num[i+bblen]==0){i--;}
+            while(i>-1&&r.num[i+bblen2-1]==0){i--;}
         }
         i+=bblen2;
         div_4n_2n(r.num.data(),i,bb.num.data(),bblen,q,0);
