@@ -1040,6 +1040,7 @@ public:
     }
     int ctz()const
     {
+        if(!num.back()){std::cout<<"ctz";exit(0);}
         int i = 0;
         for (; i < num.size() - 1 && num[i] == 0; i++);
         int h = num[i]; i *= Blen;
