@@ -1,5 +1,5 @@
 
-测试代码见full_test.cpp
+测试代码见full_test.cpp，建议去除验证逻辑再计时，不然时间浮动
 PS D:\cpp\.vscode\biginteger> ./a
 === integer Euclid vs GMP exGCD (Fibonacci) ===
 n               size            integer(us)     GMP(us)         GMP快几倍
