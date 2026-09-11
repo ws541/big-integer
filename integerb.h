@@ -267,8 +267,10 @@ private:
         while ((t << m) < Base) { m++; }m -= 1;
         int m_5 = m + 5;
         ull bb = ((ull)b.ptr[b.len - 1] << m_5) + (((ull)b.ptr[b.len - 2] << m) >> (Blen - 5));
+        bool needcopy=now.num.data()!=a.ptr||now.num.size()!=a.len;
         now.num.reserve(a.len + 1);
-        now = a; now.num.push_back(0); int ln;
+        if(needcopy){now = a;}//必须提前判断不然reserve改变num.data
+        now.num.push_back(0); int ln;
         integer prod; prod.num.resize(b.len + 2);
         if (a.len > b.len + 30 && b.len > 10)//朴素除法受进制影响极大,这里略微缓解，但是还是慢
         {
@@ -293,8 +295,8 @@ private:
                     prod.num[i] = k & Bmask, k >>= Blen;
                 }
                 k = (ull)b.ptr[b.len - 1] * q + k;
-                prod.num[b.len] = k & Bmask, k >>= Blen;
-                prod.num[b.len + 1] = k;
+                prod.num[b.len] = k & Bmask;
+                prod.num[b.len + 1] = k>>Blen;
                 view pview(prod.num.data(), 0, b.len + 1, 1);
                 int s = abssub(now.num.data() + t - 1, b.len + 2, pview.ptr, pview.len);
                 int cnt = 0;
@@ -948,22 +950,22 @@ public:
         if(l>255&&l0<256){n++;}//增加分段数改善fft仅仅刚跳变,这非常重要因为所有乘法都是按照need约(la - lb) / n截断的
         l = (la - lb) / n + lb + 1;
         integer xt=reciprocal(b,l);
-        integer res(a);
+        if(r.num.data()!=a.ptr||r.num.size()!=a.len){r=a;}
         integer q; q.num.assign(la - lb + 1, 0);
-        for (int i = 0; i < n && res.num.size() > lb + 4; i++) {
-            int lr = res.num.size(), start = lr - l;
+        for (int i = 0; i < n && r.num.size() > lb + 4; i++) {
+            int lr = r.num.size(), start = lr - l;
             if (start < 0) { start = 0; }
-            view cutview(res.num.data(), start, lr - 1, res.sign);
+            view cutview(r.num.data(), start, lr - 1, r.sign);
             int need = cutview.len - lb + 2, b_shift = 0;
             integer p = shiftmul(xt, cutview, need, b_shift);
             view pview(p, l - b_shift);
             integer now = karamul(b, pview);
-            if (abssub(res.num.data() + start, std::min(l, lr), now.num.data(), now.num.size()) < 0) { std::cout << "div_newton1"; exit(0); }
+            if (abssub(r.num.data() + start, std::min(l, lr), now.num.data(), now.num.size()) < 0) { std::cout << "div_newton1"; exit(0); }
             q.shiftadd(pview, start);
-            while (!res.num.back() && res.num.size() > 1) { res.num.pop_back(); }
+            while (!r.num.back() && r.num.size() > 1) { r.num.pop_back(); }
         }
-        if (res.num.size() > lb + 4) { std::cout << "div_newton2"; exit(0); }
-        q.shiftadd(div_native(res, b, r), 0);
+        if (r.num.size() > lb + 4) { std::cout << "div_newton2"; exit(0); }
+        q.shiftadd(div_native(r, b, r), 0);
         while (q.num.size() > 1 && q.num.back() == 0) { q.num.pop_back(); }
         q.sign = a.sign * b.sign;
         r.sign = a.sign;
@@ -973,7 +975,10 @@ public:
     {
         int m=1,back=b.ptr[b.len-1];
         while(Base>(back<<m)){m++;}m--;
-        r.num.reserve(a.len+1);r=a;r.mul2pow(m);
+        bool needcopy=r.num.data()!=a.ptr||r.num.size()!=a.len;
+        r.num.reserve(a.len+1);
+        if(needcopy){r=a;}
+        r.mul2pow(m);
         if(r.num.size()==a.len){r.num.push_back(0);}
         integer bb=b;bb.mul2pow(m);
         int bblen=bb.num.size(),bblen2=bblen<<1;
@@ -987,7 +992,7 @@ public:
         }
         i+=bblen2;
         div_4n_2n(r.num.data(),i,bb.num.data(),bblen,q,0);
-        r.num.resize(i-bblen);
+        r.num.resize(bblen);
         while(r.num.size()>1&&r.num.back()==0){r.num.pop_back();}
         while(q.num.size()>1&&q.num.back()==0){q.num.pop_back();}
         r.div2pow(m);
@@ -1000,7 +1005,7 @@ public:
         int la = a.len, lb = b.len, c = la - lb;
         if (la > 200 && lb > 50 && c > 20 && (c > 200 || lb * c > 60000))
         {
-            if(c>70&&lb>160&&lb<250-(float)(la<<3)/lb){return div_bz(a,b,r);}//仅仅略微改善
+            if(c>70&&lb>160&&lb<300-(float)(la<<4)/lb){return div_bz(a,b,r);}//仅仅略微改善
             return div_newton(a, b, r);
         }
         return div_native(a, b, r);
@@ -1015,6 +1020,10 @@ public:
         integer r;
         divide(*this, that, r);
         return r;
+    }
+    void operator%=(const integer& that)//符号同被除数
+    {
+        divide(*this, that,*this);
     }
     integer mod_positive(const integer& b)const//返回非负
     {
@@ -1630,7 +1639,7 @@ int jacobi(const integer& a, const integer& b)
             if(B){gcdshift1_inplace(x,y,A,B,C,D);continue;}
         }
         if(xl==3&&yl==3){m=-m;}
-        x = x % y;
+        x %=y;
         std::swap(x, y);
     }
     return 0;
@@ -1646,10 +1655,10 @@ void hgcd(const integer::view& x, const integer::view& y, integer& a, integer& b
             int l = yn.num.size();
             if (!(l > m && xn.num.size() < l + 2 && lehmer(xn, yn, &a, &b, &c, &d)))
             {
-                integer r, q = integer::divide(xn, yn, r);
+                integer q = integer::divide(xn, yn, xn);
                 gcdshift(a, b, q);
                 gcdshift(c, d, q);
-                std::swap(xn, yn); std::swap(yn, r);
+                std::swap(xn, yn);
             }
         }return;
     }
@@ -1659,13 +1668,12 @@ void hgcd(const integer::view& x, const integer::view& y, integer& a, integer& b
     gcdshift1(xn, yn, A, B, C, D);
     gcdshift2(a, b, c, d, A, B, C, D);
     if (!yn.num.back() || yn.num.size() - 1 < m) { return; }
-    integer r;
-    A = 0, B = C = 1, D = integer::divide(xn, yn, r); D.sign = -D.sign;
+    A = 0, B = C = 1, D = integer::divide(xn, yn, xn); D.sign = -D.sign;
     if (yn.num.size() >= 2 * m) { std::cout << "hgcd"; exit(0); }
-    if (r.num.back() && r.num.size() > m)
+    if (xn.num.back() && xn.num.size() > m)
     {
         int k = 2 * m - yn.num.size();
-        hgcd(integer::view(yn.num.data(), k, yn.num.size() - 1, yn.sign), integer::view(r.num.data(), k, r.num.size() - 1, r.sign), A, B, C, D);
+        hgcd(integer::view(yn.num.data(), k, yn.num.size() - 1, yn.sign), integer::view(xn.num.data(), k, xn.num.size() - 1, xn.sign), A, B, C, D);
     }
     gcdshift2(a, b, c, d, A, B, C, D);
 }
@@ -1685,8 +1693,8 @@ integer gcd(const integer& m, const integer& n)
         {
             if (!(x.num.size() < y.num.size() + 2 && lehmer(x, y, 0, 0, 0, 0)))
             {
-                integer r; integer::divide(x, y, r);
-                std::swap(x, y); std::swap(y, r);
+                integer::divide(x, y, x);
+                std::swap(x, y);
             }
         }
     }
@@ -1712,10 +1720,10 @@ integer euclid(const integer& m, const integer& n, integer& a, integer& c)
         }
         if (y.num.size() > 900)
         {
-            integer r, q = integer::divide(x, y, r);
+            integer q=integer::divide(x,y,x);
             gcdshift(a, b, q);
             gcdshift(c, d, q);
-            std::swap(x, y); std::swap(y, r);
+            std::swap(x, y);
         }
     }
     if (y.num.back())
@@ -1725,10 +1733,10 @@ integer euclid(const integer& m, const integer& n, integer& a, integer& c)
         {
             if (!(x.num.size() < y.num.size() + 2 && lehmer(x, y, &A, &B, &C, &D)))
             {
-                integer r, q = integer::divide(x, y, r);
+                integer q=integer::divide(x,y,x);
                 gcdshift(A, B, q);
                 gcdshift(C, D, q);
-                std::swap(x, y); std::swap(y, r);
+                std::swap(x, y);
             }
         }
         if (big) { a = a * A + b * C, c = c * A + d * C; }
