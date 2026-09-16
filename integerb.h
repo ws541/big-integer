@@ -789,7 +789,7 @@ public:
 		if (fix&&(xt * xt).absbigger(*this, 0)) { xt.addsmall(-1); }
 		return xt;
 	}
-	integer root(int m,bool fix=1)const
+	integer root(int m,bool fix=1)const//不fix可能大1
 	{
 		if (!num.back() || m == 1) { return *this; }
 		if (m < 1) { std::cout << "root"; exit(0); }
@@ -936,7 +936,6 @@ public:
 	}
 	static integer div_newton(const view& a, const view& b, integer& r)
 	{
-		r.num.clear();
 		int la = a.len, lb = b.len;
 		int n = std::min(24, la / lb);
 		int l = (la - lb) / n + 3,l0=(la - lb) / (n+1) + 3;
@@ -1034,6 +1033,7 @@ public:
 	}
 	int ctz()const
 	{
+		if(!num.back()){std::cout<<"ctz";exit(0);}
 		int i = 0;
 		for (; i < num.size() - 1 && num[i] == 0; i++);
 		int h = num[i]; i *= Blen;
