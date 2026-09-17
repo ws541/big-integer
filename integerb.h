@@ -348,27 +348,45 @@ private:
 		int qlen1=qlen>>1,alen1=blen+qlen1,ashift1=alen-alen1;
 		div_3n_2n(anum+ashift1,alen1,bnum,blen,q,qstart+ashift1);
 		alen-=qlen1;
-		while(alen>1&&anum[alen-1]==0){alen--;}
-		if(anum[alen-1]>=bnum[blen-1]){alen++;}
+		int j=alen;
+		while(j>1&&anum[j-1]==0){j--;}
+		if(j!=alen){alen=j+(anum[j-1]>=bnum[blen-1]);}
 		div_3n_2n(anum,alen,bnum,blen,q,qstart);
 	}
-    static void div_3n_2n(int*anum,int alen,const int*bnum,int blen,integer&q,int qstart)
+	static bool qlen_overflow(int*anum,int alen,const int*bnum,int blen,integer&q,int qstart)
+	{
+		int i=blen-1,qlen=alen-blen;
+		while(i>-1&&anum[i+qlen]==bnum[i]){i--;}
+		if(i<0)
+		{
+			for(i=0;i<qlen;i++)
+			{
+				q.num[qstart+i]=Bmask;
+			}
+			return 1;
+		}
+		return 0;
+	}
+	static void div_3n_2n(int*anum,int alen,const int*bnum,int blen,integer&q,int qstart)
+	//知乎学的这种原地操作办法
+	//假设4n/2n是朴素除法
+	//(ah*shift+al)-q*(bh*shift+bl)在4n/2n已完成res=(ah-q*bh)*shift
+	//此时需要res+al-q*bl修正
+	//cnt++到res+al-q*bl+cnt*b刚好为正
+	//而q由于从左到右依次生成并且不进位所以保存在切片中
+	//若aback>=bback(长除法第一次或者跳0窗口造成的),a必须pushback0从而保证切片长度qlen
+	//例如554/56用55/5估是11,估商长度超过qlen=1,不在切片中,需要特殊处理
+	//abssub必须特殊处理过0
 	{
 		int qlen=alen-blen;
 		if(qlen<40||blen<40){div_short(anum,alen,bnum,blen,q,qstart);return;}
 		int shift=blen-qlen;
-		div_4n_2n(anum+shift,alen-shift,bnum+shift,blen-shift,q,qstart);
-		//知乎学的这种原地操作办法
-		//假设4n/2n是朴素除法
-		//(ah*shift+al)-q*(bh*shift+bl)在4n/2n已完成res=(ah-q*bh)*shift
-		//此时需要res+al-q*bl修正
-		//cnt++到res+al-q*bl+cnt*b刚好为正
-		//而q由于从左到右依次生成并且不进位所以保存在切片中
-		//若aback>=bback(长除法第一次或者跳0窗口造成的),a必须pushback0从而保证切片长度qlen
+		bool flag=qlen_overflow(anum+shift,alen-shift,bnum+shift,blen-shift,q,qstart);
+		if(!flag){div_4n_2n(anum+shift,alen-shift,bnum+shift,blen-shift,q,qstart);}
 		view qview(q.num.data(),qstart,qstart+qlen-1,1);
-		view bview(bnum,0,blen-1,1);
-		view blview(bnum,0,shift-1,1);
-		integer prod=karamul(qview,blview);
+		//view bview(bnum,0,blen-1,1);
+		//view blview(bnum,0,shift-1,1);
+		integer prod=karamul(qview,view(bnum,0,(flag?blen:shift)-1,1));
 		int cnt=0,s=abssub(anum,alen,prod.num.data(),prod.num.size());
 		while(s<0)
 		{
@@ -378,7 +396,7 @@ private:
 		if(cnt){abssub(q.num.data()+qstart,qlen,&cnt,1);}
 	}
 public:
-    void shiftadd(const view& b, int i)//不pushback1
+	void shiftadd(const view& b, int i)//不pushback1
 	{
 		int lb = b.len, k = 0;
 		for (int j = 0; j < lb; j++)
@@ -982,8 +1000,9 @@ public:
 		{
 			div_4n_2n(r.num.data()+i,bblen2,bb.num.data(),bblen,q,i);
 			i-=bblen;
-			while(i>-2&&r.num[i+bblen2-1]==0){i--;}
-			if(r.num[i+bblen2-1]>=bb.num.back()){i++;}
+			int j=i;
+			while(j>-2&&r.num[j+bblen2-1]==0){j--;}
+			if(i!=j){i=j+(r.num[i+bblen2-1]>=bb.num.back());}//i至少减少bblen否则qlen切片被污染
 		}
 		i+=bblen2;
 		div_4n_2n(r.num.data(),i,bb.num.data(),bblen,q,0);
@@ -1152,6 +1171,7 @@ int integer::abssub(int* a, int la, const int* b, int lb)
 		a[i] -= b[i];
 	}
 	while (a[la - 1] == 0 && la > 1) { la--; }
+	if(a[la-1]==0){return 0;}
 	int s; bool k = 0;
 	if (a[la - 1] < 0)
 	{
@@ -1210,7 +1230,7 @@ integer integer::addorsub(const int* a, int la, int asign, const int* b, int lb,
 	}
 	else
 	{
-		result.sign *= abssub(result.num.data(), result.num.size(), b, lb);
+		if(abssub(result.num.data(), result.num.size(), b, lb)<0){result.sign*=-1;}
 		while (result.num.back() == 0 && result.num.size() > 1) { result.num.pop_back(); }
 	}
 	if (!add) { result.sign *= change; }
