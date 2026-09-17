@@ -349,6 +349,7 @@ private:
 		div_3n_2n(anum+ashift1,alen1,bnum,blen,q,qstart+ashift1);
 		alen-=qlen1;
 		while(alen>1&&anum[alen-1]==0){alen--;}
+		if(anum[alen-1]>=bnum[blen-1]){alen++;}
 		div_3n_2n(anum,alen,bnum,blen,q,qstart);
 	}
     static void div_3n_2n(int*anum,int alen,const int*bnum,int blen,integer&q,int qstart)
@@ -363,7 +364,7 @@ private:
 		//此时需要res+al-q*bl修正
 		//cnt++到res+al-q*bl+cnt*b刚好为正
 		//而q由于从左到右依次生成并且不进位所以保存在切片中
-		//若aback>bback(长除法第一次),a必须pushback0从而保证切片长度qlen(见div_bz)
+		//若aback>=bback(长除法第一次或者跳0窗口造成的),a必须pushback0从而保证切片长度qlen
 		view qview(q.num.data(),qstart,qstart+qlen-1,1);
 		view bview(bnum,0,blen-1,1);
 		view blview(bnum,0,shift-1,1);
@@ -981,7 +982,8 @@ public:
 		{
 			div_4n_2n(r.num.data()+i,bblen2,bb.num.data(),bblen,q,i);
 			i-=bblen;
-			while(i>-1&&r.num[i+bblen2-1]==0){i--;}
+			while(i>-2&&r.num[i+bblen2-1]==0){i--;}
+			if(r.num[i+bblen2-1]>=bb.num.back()){i++;}
 		}
 		i+=bblen2;
 		div_4n_2n(r.num.data(),i,bb.num.data(),bblen,q,0);
