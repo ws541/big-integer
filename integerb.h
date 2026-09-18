@@ -374,8 +374,8 @@ private:
 	//此时需要res+al-q*bl修正
 	//cnt++到res+al-q*bl+cnt*b刚好为正
 	//而q由于从左到右依次生成并且不进位所以保存在切片中
-	//若aback>=bback(长除法第一次或者跳0窗口造成的),a必须pushback0从而保证切片长度qlen
-	//例如554/56用55/5估是11,估商长度超过qlen=1,不在切片中,需要特殊处理
+	//若真实商长度>qlen(长除法第一次或者跳0窗口造成的),a必须pushback0从而保证切片长度qlen
+	//例如554/56用55/5估是11,若估商长度超过qlen=1,不在切片中,置于全Base-1
 	//abssub必须特殊处理过0
 	{
 		int qlen=alen-blen;
@@ -1001,8 +1001,8 @@ public:
 			div_4n_2n(r.num.data()+i,bblen2,bb.num.data(),bblen,q,i);
 			i-=bblen;
 			int j=i;
-			while(j>-2&&r.num[j+bblen2-1]==0){j--;}
-			if(i!=j){i=j+(r.num[i+bblen2-1]>=bb.num.back());}//i至少减少bblen否则qlen切片被污染
+			while(j+bblen2>0&&r.num[j+bblen2-1]==0){j--;}
+			if(i!=j){i=j+(r.num[i+bblen2-1]>=bb.num.back());}//i至少减少bblen否则qlen切片混叠
 		}
 		i+=bblen2;
 		div_4n_2n(r.num.data(),i,bb.num.data(),bblen,q,0);
@@ -2953,7 +2953,7 @@ public:
 		}
 		else{ic.q.init();}
 	}
-	integer ord(const integer&a,std::vector<int>*s=0)
+	integer ord(const integer&a,std::vector<int>*s=0)//不要使用s
 	{
 		integer a0=s?a:ic.q.in(a),o=s?(ic.q.p-1)/ic.pp:ic.q.p-1;
 		for(int i=0;i<l.size();i+=2)
