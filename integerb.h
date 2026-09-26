@@ -960,7 +960,6 @@ public:
 	//取m是fft能力边缘,k=m/2-1
 	//点乘用实数下按照sqrt(base)分块做mod x^(2m)+1的负循环卷积
 	//用浮点fft折半法做加权负循环卷积
-	//已正确,常数大,待进一步更新
 	{
 		int l=a.len+b.len;
 		if(l>>26){std::cout<<"nttmul reject";exit(0);}
@@ -1726,27 +1725,26 @@ integer integer::karamul(view a, view b)
 	if (b.len < 80 || (b.len < 160 && a.len * b.len < 30000)) { return multiply(a.ptr, a.len, b.ptr, b.len, a.sign * b.sign); }
 	if (a.len + b.len <= halflen) { return fftmul(a, b); }
 	int n = (a.len + 1) / 2;
-	if(n*2+2>halflen){return nttmul(a,b);}
+	if(a.len+b.len>halflen*1.8){return nttmul(a,b);}
 	view a1(a.ptr, n, a.len - 1, 1);
 	view a0(a.ptr, 0, n - 1, 1);
 	integer ans;
 	if (b.len <= n)
 	{
 		view bb = b; bb.sign = 1;
-		ans = fftmul(a0, bb);
+		ans = karamul(a0, bb);
 		ans.num.resize(a.len + b.len);
-		ans.shiftadd(fftmul(a1, bb), n);
+		ans.shiftadd(karamul(a1, bb), n);
 	}
 	else
 	{
 		view b1(b.ptr, n, b.len - 1, 1);
 		view b0(b.ptr, 0, n - 1, 1);
-		integer c1 = fftmul(a1, b1);
-		integer c0 = fftmul(a0, b0);
+		integer c1 = karamul(a1, b1);
+		integer c0 = karamul(a0, b0);
 		ans.num = c0.num;
 		ans.num.resize(a.len + b.len);
-		integer tmp = fftmul(addorsub(a0.ptr, a0.len, 1, a1.ptr, a1.len, 1, 1), addorsub(b0.ptr, b0.len, 1, b1.ptr, b1.len, 1, 1));
-		//此处长度<=n+1+n+1=2n+2<=halflen
+		integer tmp = karamul(addorsub(a0.ptr, a0.len, 1, a1.ptr, a1.len, 1, 1), addorsub(b0.ptr, b0.len, 1, b1.ptr, b1.len, 1, 1));
 		abssub(tmp.num.data(), tmp.num.size(), c0.num.data(), c0.num.size());
 		abssub(tmp.num.data(), tmp.num.size(), c1.num.data(), c1.num.size());
 		while (tmp.num.back() == 0 && tmp.num.size() > 1) { tmp.num.pop_back(); }
