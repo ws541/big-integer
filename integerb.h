@@ -68,7 +68,7 @@ public:
 	c2(const cd& x, const cd& y) { r.a = real(x), i.a = imag(x), r.b = real(y), i.b = imag(y); }
 	c2 operator+(const c2& t) { return c2(r + t.r, i + t.i); }
 	c2 operator-(const c2& t) { return c2(r - t.r, i - t.i); }
-	c2 mul(double t) { return c2(r * t, i * t); }
+	c2 mul(const double&t) { return c2(r * t, i * t); }
 	c2 mul(const c2& t)
 	{
 		return c2(r * t.r - i * t.i, i * t.r + r * t.i);
@@ -143,6 +143,15 @@ std::vector<double> table(int f)
 	return l;
 }
 std::vector<double>table1 = table(1), table3 = table(3);
+std::vector<cd> unit = []() {
+	std::vector<cd> l;
+	for (int i = 0; i < log2lenmax-1; i++) {
+		double t = -(double)3.1415926535897932384626433832795 / (1 <<(i+1));
+		l.push_back(cd(cos(t), sin(t)));
+	}
+	return l;
+}();
+cd tb[log2lenmax];
 void fft(c2* x, int n)
 {
 	for (int len = n; len > 2; len >>= 1)
@@ -212,6 +221,40 @@ void ifft(c2* x, int n)
 	}
 	double inv = 0.5L / n;
 	for (int i = 0; i < n; i++) { x[i] = x[i].mul(inv); }
+}
+inline void middle(c2*xx,c2*yy,int n4)
+{
+	xx[0].first(yy[0]); xx[1].second(yy[1]);
+	int l = 0,m = n4<<1;
+	while (!(m & 1)) { m >>= 1, l++; }
+	int  lk=l -3;
+	int index;
+	auto next = [&index, &n4](int& k)->cd {
+		int bit = n4, cnt = 0;
+		while (k & bit) { k ^= bit, bit >>= 1; cnt++; }k ^= bit;
+		index -= cnt; tb[index + 1] = tb[index] * unit[cnt];
+		return tb[++index];
+	};
+	for (int len = 2; len < n4; len <<= 1, lk--)
+	{
+		int k = 1 << lk; index = 0, tb[0] = unit[l-1 - lk];
+		c2 w(tb[0], next(k));
+		for (int s = len, e = (len << 1) - 1;;)
+		{
+			c2 w2 = w.mul(0.5);
+			c2 u = xx[s], v = xx[e]; v.swapabconj();
+			c2 xa = (u + v).mul(0.5), xb = (u - v).mul(w2); xb.mulj();
+			u = yy[s], v = yy[e]; v.swapabconj();
+			c2 ya = (u + v).mul(0.5), yb = (u - v).mul(w2); yb.mulj();
+			u = xa.mul(ya) + xb.mul(yb), v = (xa.mul(yb) + xb.mul(ya)).mulconj(w); v.mulnegj();
+			xx[s] = u + v, xx[e] = u - v; xx[e].swapabconj();
+			if (--e > ++s)
+			{
+				cd t = next(k); w = c2(t, next(k));
+			}
+			else { break; }
+		}
+	}
 }
 class integer
 {
@@ -394,6 +437,246 @@ private:
 			if(cnt++>2){std::cout<<"div_3n_2n ";exit(0);}
 		}
 		if(cnt){abssub(q.num.data()+qstart,qlen,&cnt,1);}
+	}
+		static  void transform2_fermat(int*a,int*b,int m)
+		{
+			bool bm=b[m];
+			if(a[m]&&bm)
+			{
+				for(int i=0;i<m;i++){a[i]=Bmask;}
+				a[m]=b[m]=0;
+				return;
+			}
+			int kadd=0;
+			bool ksub=0;
+			for(int i=0;i<m;i++)
+			{
+				kadd+=a[i]+b[i];
+				b[i]=a[i]-b[i]-ksub;
+				a[i]=kadd&Bmask;
+				kadd>>=Blen;
+				ksub=b[i]<0;
+				b[i]+=ksub<<Blen;
+			}
+			b[m]=a[m]-b[m]-ksub;
+			if(kadd||bm||a[m])
+			{
+				int i=0;
+				for(;i<m&&a[i]==0;i++);
+				if(i!=m)
+				{
+					for(int j=0;j<i;j++){a[j]=Bmask;}
+					a[i]--,a[m]=0;
+				}
+				else{a[m]=1;}
+			}
+			if(b[m]<0)
+			{
+				b[m]=0;
+				int j=0;
+				for(;j<m&&b[j]==Bmask;j++){b[j]=0;}
+				b[j]++;
+			}    
+		}
+	static void  neg_fermat(int*a,int*out,int m)
+	{
+		if(a[m])
+		{
+			out[0]=1;
+			for(int i=1;i<=m;i++){out[i]=0;}
+			return;
+		}
+		int k=2;//即(Base^m-1-in)+2,in=0后续处理
+		for(int i=0;i<m;i++)
+		{
+			k+=Bmask-a[i];
+			out[i]=k&Bmask;
+			k>>=Blen;
+		}
+		out[m]=k;
+		if(out[m]&&out[0])
+		{
+			out[m]=out[0]=0;
+		}
+	}
+	static void mulBasepowmod_fermat(int*a,int q,int r,int m,int*tmp)
+	{
+		if(!r){if(q&1){neg_fermat(a,a,m);}return;}
+		if(q&1)
+		{
+			neg_fermat(a,tmp,m);
+		}
+		else
+		{
+			for(int i=0;i<=m;i++){tmp[i]=a[i];}
+		}
+		int i=0;
+		for(;i<r&&tmp[i+m-r]==0;i++){a[i]=0;}
+		bool k=(i!=r);
+		if(k)
+		{
+			a[i]=Base-tmp[i+m-r];i++;
+			for(;i<r;i++){a[i]=Bmask-tmp[i+m-r];}
+		}
+		a[r]=tmp[0]-tmp[m]-k;
+		k=a[r]<0;
+		a[r]+=k<<Blen;i++;
+		if(k)
+		{
+			for(;i<m&&tmp[i-r]==0;i++){a[i]=Bmask;}
+			if(i==m)
+			{
+				a[m]=0;
+				int j=0;
+				for(;j<m&&a[j]==Bmask;j++){a[j]=0;}
+				a[j]++;
+				return;
+			}
+			a[i]=tmp[i-r]-1;i++;
+		}
+		for(;i<m;i++){a[i]=tmp[i-r];}
+		a[i]=0;
+	}
+	static void mod_fermat(int*in,int*out,int m,int lb)
+	{
+		int*a=in,*b=in+m;
+		bool k=0;
+		int i=0;
+		for(;i<lb;i++)
+		{
+			out[i]=a[i]-b[i]-k;
+			k=out[i]<0;
+			out[i]+=k<<Blen;
+		}
+		if(k)
+		{
+			for(;i<m&&a[i]==0;i++){out[i]=Bmask;}
+			if(i==m)
+			{
+				out[m]=0;
+				int j=0;
+				for(;j<m&&out[j]==Bmask;j++){out[j]=0;}
+				out[j]++;
+				return;
+			}
+			out[i]=a[i]-1;i++;
+		}
+		for(;i<m;i++){out[i]=a[i];}
+		out[i]=0;
+	}   
+	static void ntt_dfs(int*x,int mlog2,int lenlog2,int*tmp)//不考虑长度1
+	{
+		int m=1<<mlog2,l=m+1;
+		if(lenlog2==1){transform2_fermat(x,x+l,m);return;}
+		int half=l<<(lenlog2-1);
+		for(int k=0,end=1<<(lenlog2-1),curexp=0,expstep=1<<(1+mlog2-lenlog2);k<end;k++)
+		{
+			transform2_fermat(x,x+half,m);
+			mulBasepowmod_fermat(x+half,curexp>>mlog2,curexp&(m-1),m,tmp);
+			x+=l,curexp+=expstep;
+		}
+		ntt_dfs(x-half,mlog2,lenlog2-1,tmp);
+		ntt_dfs(x,mlog2,lenlog2-1,tmp);
+	}
+	static void  intt_dfs(int*x,int mlog2,int lenlog2,int*tmp)
+	{
+		int m=1<<mlog2,l=m+1;
+		if(lenlog2==1){transform2_fermat(x,x+l,m);return;}
+		int half=l<<(lenlog2-1);
+		intt_dfs(x,mlog2,lenlog2-1,tmp);
+		intt_dfs(x+half,mlog2,lenlog2-1,tmp);
+		for(int k=0,end=1<<(lenlog2-1),curexp=m<<1,expstep=1<<(1+mlog2-lenlog2);k<end;k++)
+		{
+			mulBasepowmod_fermat(x+half,curexp>>mlog2,curexp&(m-1),m,tmp);
+			transform2_fermat(x,x+half,m);
+			x+=l,curexp-=expstep;
+		}
+	}
+	static void recover_fermat(int*x,int mlog2,int lenlog2,int*tmp)
+	{
+		int m=1<<mlog2,l=m+1,n0=Blen-lenlog2,q1=2*m-1,r1=q1&(m-1);q1>>=mlog2;
+		//保证lenlog2>blen容易
+		for(int i=0,len=1<<lenlog2;i<len;i++,x+=l)
+		{
+			int m0=Blen-n0,mask=(1<<m0)-1;
+			tmp[m+1]=x[m]>>m0;
+			for(int j=m;j>0;j--)
+			{
+				int high=mask&x[j],low=x[j-1]>>m0;
+				tmp[j]=low|(high<<n0);
+			}
+			tmp[0]=(x[0]&mask)<<n0;
+			mod_fermat(tmp,x,m,2);
+			mulBasepowmod_fermat(x,q1,r1,m,tmp);
+		}
+	}
+	static int*mk(const view&a,int k,int m,int len,int*tmp)
+	{
+		int l=m+1;
+		int*x=new int[len*(m+1)]();
+		int i=0,j=0;
+		for(;i+k<=a.len;i+=k,j+=l)
+		{
+			for(int t=0;t<k;t++)
+			{
+				x[j+t]=a.ptr[i+t];
+			}
+		}
+		if(i!=a.len)
+		{
+			int k0=a.len-i;
+			for(int t=0;t<k0;t++)
+			{
+				x[j+t]=a.ptr[i+t];
+			}
+		}
+		return x;
+	}
+	static cd Wi(int i,int&index,int&ilog2,int mlog2)//w(i,4m),i++从0到m-1
+	{
+		if(!i){return 1;}
+		if(!(i&(i-1)))
+		{
+			index=0;
+			tb[0]=unit[mlog2-ilog2];
+			ilog2++;
+			return tb[0];
+		}
+		i--;
+		int bit=1,cnt=0;
+		while(i&bit){i^=bit,bit<<=1,cnt++;}i^=bit;
+		index-=cnt;
+		tb[index+1]=tb[index]*unit[mlog2-cnt];
+		return tb[++index];
+	}
+	static void b14rrii(int*l,int mlog2,c2*xx)
+	{
+		int m2=1<<(mlog2-1),i=0,index,ilog2=0;
+		for(int i=0;i<m2;i++)
+		{
+			cd u=conj(Wi(2*i,index,ilog2,mlog2))*cd(l[i]&Fmask,l[i+m2]&Fmask);
+			//这里必须是conj
+			cd v=conj(Wi(2*i+1,index,ilog2,mlog2))*cd(l[i]>>Flen,l[i+m2]>>Flen);
+			xx[i]=c2(u,v);
+		}
+	}
+	static double* b14rrii(const view& a, int n)
+	{
+		double* y = new double[n]();
+		int i = 0;
+		for (; i + 1 < a.len; i += 2)
+		{
+			y[2 * i] = a.ptr[i] & Fmask;
+			y[2 * i + 2] = a.ptr[i] >> Flen;
+			y[2 * i + 1] = a.ptr[i + 1] & Fmask;
+			y[2 * i + 3] = a.ptr[i + 1] >> Flen;
+		}
+		if (i != a.len)
+		{
+			y[2 * i] = a.ptr[i] & Fmask;
+			y[2 * i + 2] = a.ptr[i] >> Flen;
+		}
+		return y;
 	}
 public:
 	void shiftadd(const view& b, int i)//不pushback1
@@ -666,7 +949,141 @@ public:
 		return karamul(aview, bview);
 	}
 	static integer fftmul(const view& a, const view& b);
-	static double* b14rrii(const view& a, int n);
+	static integer nttmul(const view&a,const view&b)
+	//单层ssa思想
+	//mod base^(len*k)+1按照base^k分len块做mod x^m+1的足够大ntt_fermat
+	//系数mod1 = base^m+1单位根base阶2m,len<=2m因为需要ntt_fermat是2的幂
+	//为了保证频域点乘fft充分利用取m是2的幂
+	//base^(2k)*len<base^m,取len<base,简化为m>2k
+	//综合m>2k,len*k>=l
+	//希望len小,使得慢的ntt层少,快的fft层多
+	//取m是fft能力边缘,k=m/2-1
+	//点乘用实数下按照sqrt(base)分块做mod x^(2m)+1的负循环卷积
+	//用浮点fft折半法做加权负循环卷积
+	//已正确,常数大,待进一步更新
+	{
+		int l=a.len+b.len;
+		if(l>>26){std::cout<<"nttmul reject";exit(0);}
+		int mlog2=log2lenmax-5,m=1<<mlog2,lenlog2=1;
+		//mlog2必须比log2lenmax小更多
+		while(m>=l&&m>1){m>>=1;mlog2--;}
+		int k=(m>>1)-1;
+		while(l>(k<<lenlog2))
+		{
+			lenlog2++;
+		}
+		int len=1<<lenlog2;
+		//std::cout<<mlog2<<" "<<len<<"\n";
+		//std::cout<<k*len<<" "<<l<<"\n";//exit(0);
+		const bool same=a.ptr==b.ptr&&a.len==b.len;
+		int*tmp=new int[m+2];
+		int*x=mk(a,k,m,len,tmp),*y;
+		ntt_dfs(x,mlog2,lenlog2,tmp);
+		if(same){y=x;}
+		else{y=mk(b,k,m,len,tmp);ntt_dfs(y,mlog2,lenlog2,tmp);}
+		int n=m<<1,n4=n>>2;
+		double*xx=new double[n],*yy;
+		c2*xxx=reinterpret_cast<c2*>(&xx[0]),*yyy;
+		if(same){yy=xx,yyy=xxx;}
+		else{yy=new double[n];yyy=reinterpret_cast<c2*>(&yy[0]);}
+		for(int i=0,gap=m+1,end=gap<<lenlog2;i<end;i+=gap)
+		{
+			if(y[i+m]){neg_fermat(x+i,x+i,m);continue;}
+			if(x[i+m]){neg_fermat(y+i,x+i,m);continue;}
+			//integer now=view(x+i,0,m,1),q=integer(1).shift(m)+1;
+			b14rrii(x+i,mlog2,xxx);
+			fft(xxx,n4);
+			if(!same){b14rrii(y+i,mlog2,yyy);fft(yyy,n4);}
+			for(int i=0;i<n4;i++){xxx[i]=xxx[i].mul(yyy[i]);}
+			ifft(xxx,n4);
+			int index,j=0,jlog2=0;ull k=0;
+			for(;j<n4;j++)
+			{
+				cd w=Wi(2*j,index,jlog2,mlog2);
+				xxx[j]=xxx[j].mul(c2(w,Wi(2*j+1,index,jlog2,mlog2)));
+				ll t=std::llround(xxx[j].r.a)+k;
+				ll pre=t&Fmask;
+				k=t>>Flen;
+				t=std::llround(xxx[j].r.b)+k;
+				k=t>>Flen;
+				x[i+j]=((t&Fmask)<<Flen)+pre;
+			}
+			for(j=0;j<n4;j++)
+			{
+				ll t=std::llround(xxx[j].i.a)+k;
+				ll pre=t&Fmask;
+				k=t>>Flen;
+				t=std::llround(xxx[j].i.b)+k;
+				k=t>>Flen;
+				x[i+n4+j]=((t&Fmask)<<Flen)+pre;
+			}
+			x[i+m]=0;
+			int carry=-k;
+			//std::cout<<"carry "<<carry<<" "<<-k<<"\n";
+			for(j=0;j<m&&carry;j++)
+			{
+				carry+=x[i+j];
+				x[i+j]=carry&Bmask;
+				carry>>=Blen;
+			}
+			if(j==m)//此时carry是1或者-1
+			{
+				if(carry>0)
+				{
+					for(j=0;j<m&&x[i+j]==0;j++);
+					if(j!=m)
+					{
+						for(int t=0;t<j;t++){x[i+t]=Bmask;}
+						x[i+j]--;
+					}
+					else{x[i+m]=1;}
+				}
+				else
+				{
+					for(j=0;j<m&&x[i+j]==Bmask;j++);
+					for(int t=0;t<j;t++){x[i+t]=0;}
+					x[i+j]++;
+				}
+			}
+			/*
+			integer aa=view(x+i,0,m,1),bb=(now*now).mod_positive(q);
+			aa.print();
+			bb.print();
+			if(aa.num!=bb.num){
+				std::cout<<aa.num[0]<<" "<<bb.num[0]<<"\n";
+				(aa-bb).print();
+				std::cout<<"bad";exit(0);}
+				else{std::cout<<"good\n";}
+			*/
+		}
+		delete[]xx;
+		if(!same){delete[]y,delete[]yy;}
+		intt_dfs(x,mlog2,lenlog2,tmp);
+		recover_fermat(x,mlog2,lenlog2,tmp);
+		delete[]tmp;
+		ll*conv=new ll[l]();
+		for(int i=0,gap=m+1,gap1=k;i<len;i++)
+		{
+			int convi=gap1*i,xi=gap*i;
+			for(int j=0;j<gap&&j<l-convi;j++)
+			{
+				conv[convi+j]+=x[xi+j];
+			}
+		}
+		delete[]x;
+		integer c;c.sign=a.sign*b.sign;
+		c.num.reserve(l);
+		ll carry=0;
+		for(int i=0;i<l;i++)
+		{
+			carry+=conv[i];
+			c.num.push_back(carry&Bmask);
+			carry>>=Blen;
+		}
+		delete[]conv;
+		while(!c.num.back()&&c.num.size()>1){c.num.pop_back();}
+		return c;
+	}
 	integer operator*(const integer& that)const
 	{
 		return karamul(*this, that);
@@ -1005,7 +1422,7 @@ public:
 			if(i!=j){i=j+(r.num[i+bblen2-1]>=bb.num.back());}//i至少减少bblen否则qlen切片混叠
 		}
 		i+=bblen2;
-		div_4n_2n(r.num.data(),i,bb.num.data(),bblen,q,0);
+		if(i){div_4n_2n(r.num.data(),i,bb.num.data(),bblen,q,0);}
 		r.num.resize(bblen);
 		while(r.num.size()>1&&r.num.back()==0){r.num.pop_back();}
 		while(q.num.size()>1&&q.num.back()==0){q.num.pop_back();}
@@ -1309,25 +1726,27 @@ integer integer::karamul(view a, view b)
 	if (b.len < 80 || (b.len < 160 && a.len * b.len < 30000)) { return multiply(a.ptr, a.len, b.ptr, b.len, a.sign * b.sign); }
 	if (a.len + b.len <= halflen) { return fftmul(a, b); }
 	int n = (a.len + 1) / 2;
+	if(n*2+2>halflen){return nttmul(a,b);}
 	view a1(a.ptr, n, a.len - 1, 1);
 	view a0(a.ptr, 0, n - 1, 1);
 	integer ans;
 	if (b.len <= n)
 	{
 		view bb = b; bb.sign = 1;
-		ans = karamul(a0, bb);
+		ans = fftmul(a0, bb);
 		ans.num.resize(a.len + b.len);
-		ans.shiftadd(karamul(a1, bb), n);
+		ans.shiftadd(fftmul(a1, bb), n);
 	}
 	else
 	{
 		view b1(b.ptr, n, b.len - 1, 1);
 		view b0(b.ptr, 0, n - 1, 1);
-		integer c1 = karamul(a1, b1);
-		integer c0 = karamul(a0, b0);
+		integer c1 = fftmul(a1, b1);
+		integer c0 = fftmul(a0, b0);
 		ans.num = c0.num;
 		ans.num.resize(a.len + b.len);
-		integer tmp = karamul(addorsub(a0.ptr, a0.len, 1, a1.ptr, a1.len, 1, 1), addorsub(b0.ptr, b0.len, 1, b1.ptr, b1.len, 1, 1));
+		integer tmp = fftmul(addorsub(a0.ptr, a0.len, 1, a1.ptr, a1.len, 1, 1), addorsub(b0.ptr, b0.len, 1, b1.ptr, b1.len, 1, 1));
+		//此处长度<=n+1+n+1=2n+2<=halflen
 		abssub(tmp.num.data(), tmp.num.size(), c0.num.data(), c0.num.size());
 		abssub(tmp.num.data(), tmp.num.size(), c1.num.data(), c1.num.size());
 		while (tmp.num.back() == 0 && tmp.num.size() > 1) { tmp.num.pop_back(); }
@@ -1338,76 +1757,21 @@ integer integer::karamul(view a, view b)
 	ans.sign = a.sign * b.sign;
 	return ans;
 }
-double* integer::b14rrii(const view& a, int n)
-{
-	double* y = new double[n]();
-	int i = 0;
-	for (; i + 1 < a.len; i += 2)
-	{
-		y[2 * i] = a.ptr[i] & Fmask;
-		y[2 * i + 2] = a.ptr[i] >> Flen;
-		y[2 * i + 1] = a.ptr[i + 1] & Fmask;
-		y[2 * i + 3] = a.ptr[i + 1] >> Flen;
-	}
-	if (i != a.len)
-	{
-		y[2 * i] = a.ptr[i] & Fmask;
-		y[2 * i + 2] = a.ptr[i] >> Flen;
-	}
-	return y;
-}
-std::vector<cd> unit = []() {
-	std::vector<cd> l;
-	for (int i = 0; i < log2lenmax; i++) {
-		double t = -(double)3.1415926535897932384626433832795 / (1 << (i + 1));
-		l.push_back(cd(cos(t), sin(t)));
-	}
-	return l;
-}();
 integer integer::fftmul(const  view& a, const view& b)
 {
 	int la = a.len, lb = b.len;
 	int m = (la + lb) << 1, n = 256;
 	while (n < m) { n <<= 1; }
 	if (n > lenmax || n < 0) { std::cout << "fftmul"; exit(0); }
-	int n2 = n >> 1, n4 = n >> 2;
+	int n4 = n >> 2;
 	double* x0 = b14rrii(a, n), * y0;
 	c2* xx = reinterpret_cast<c2*>(&x0[0]), * yy;
 	fft(xx, n4);
 	const bool same = a.ptr == b.ptr && a.len == b.len;
 	if (same) { y0 = x0, yy = xx; }
 	else { y0 = b14rrii(b, n), yy = reinterpret_cast<c2*>(&y0[0]); fft(yy, n4); }
-	xx[0].first(yy[0]); xx[1].second(yy[1]);
-	int l = 0; m = n2;
-	while (!(m & 1)) { m >>= 1, l++; }
-	int lk = l - 3;
-	std::vector<cd> tb; tb.assign(log2lenmax, 0); int index;
-	auto next = [&tb, &index, &n4](int& k)->cd {
-		int bit = n4, cnt = 0;
-		while (k & bit) { k ^= bit, bit >>= 1; cnt++; }k ^= bit;
-		index -= cnt; tb[index + 1] = tb[index] * unit[cnt];
-		return tb[++index];
-	};
-	for (int len = 2; len < n4; len <<= 1, lk--)
-	{
-		int k = 1 << lk; index = 0, tb[0] = unit[l - 1 - lk];
-		c2 w(tb[0], next(k));
-		for (int s = len, e = (len << 1) - 1;;)
-		{
-			c2 w2 = w.mul(0.5);
-			c2 u = xx[s], v = xx[e]; v.swapabconj();
-			c2 xa = (u + v).mul(0.5), xb = (u - v).mul(w2); xb.mulj();
-			u = yy[s], v = yy[e]; v.swapabconj();
-			c2 ya = (u + v).mul(0.5), yb = (u - v).mul(w2); yb.mulj();
-			u = xa.mul(ya) + xb.mul(yb), v = (xa.mul(yb) + xb.mul(ya)).mulconj(w); v.mulnegj();
-			xx[s] = u + v, xx[e] = u - v; xx[e].swapabconj();
-			if (--e > ++s)
-			{
-				cd t = next(k); w = c2(t, next(k));
-			}
-			else { break; }
-		}
-	}if (!same) { delete[]y0; }
+	middle(xx,yy,n4);
+	if (!same) { delete[]y0; }
 	ifft(xx, n4);
 	integer c;
 	c.num.reserve(m = la + lb + 1); m /= 2;
