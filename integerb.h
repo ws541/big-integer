@@ -964,8 +964,8 @@ public:
 	{
 		int l=a.len+b.len;
 		if(l>>26){std::cout<<"nttmul reject";exit(0);}//lenlog2与blen问题远远比这个小,不用考虑
-		int mlog2=std::min(log2lenmax-1,17),m=1<<mlog2,lenlog2=1;
-		//折半法放大了系数mlog2必须更小
+		int mlog2=std::min(log2lenmax-1,15),m=1<<mlog2,lenlog2=1;
+		//折半法放大了系数mlog2必须更小,15是测试优值,不溢出最大改17
 		while(m>=l&&m>8){m>>=1;mlog2--;}
 		int k=(m>>1)-1;
 		while(l>(k<<lenlog2))
@@ -1055,11 +1055,17 @@ public:
 			*/
 		}
 		delete[]xx;
-		if(!same){delete[]y,delete[]yy;}
+		if(!same){delete[]yy;}
 		intt_dfs(x,mlog2,lenlog2,tmp);
 		recover_fermat(x,mlog2,lenlog2,tmp);
 		delete[]tmp;
-		ll*conv=new ll[l]();
+		ll*conv;
+		if(same){conv=new ll[l]();}
+		else
+		{
+			conv=reinterpret_cast<ll*>(&y[0]);
+			for(int i=0;i<l;i++){conv[i]=0;}
+		}
 		for(int i=0,gap=m+1,gap1=k;i<len;i++)
 		{
 			int convi=gap1*i,xi=gap*i;
@@ -1078,7 +1084,8 @@ public:
 			c.num.push_back(carry&Bmask);
 			carry>>=Blen;
 		}
-		delete[]conv;
+		if(same){delete[]conv;}
+		else{delete[]y;}
 		while(!c.num.back()&&c.num.size()>1){c.num.pop_back();}
 		return c;
 	}
