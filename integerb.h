@@ -45,6 +45,7 @@ typedef long long ll;
 typedef unsigned long long ull;
 typedef std::complex<double> cd;
 const int log2lenmax = 20, lenmax = 1 << log2lenmax, halflen = lenmax >> 1, e8 = 100000000;
+//你可以调小log2lenmax,会初始表小一点,慢一倍左右(更早进入nttmul分支),但是不能调更大了
 constexpr int Blen = 28, Base = 1 << Blen, Bmask = Base - 1, Flen = Blen >> 1, Fmask = (1 << Flen) - 1;
 struct c2
 {
@@ -145,12 +146,12 @@ std::vector<double> table(int f)
 std::vector<double>table1 = table(1), table3 = table(3);
 std::vector<cd> unit = []() {
 	std::vector<cd> l;
-	for (int i = 0; i < log2lenmax-1; i++) {
+	for (int i = 0; i < log2lenmax; i++) {
 		double t = -(double)3.1415926535897932384626433832795 / (1 <<(i+1));
 		l.push_back(cd(cos(t), sin(t)));
 	}
 	return l;
-}();
+}();//w(i,4m)是边界
 cd tb[log2lenmax];
 void fft(c2* x, int n)
 {
@@ -438,46 +439,46 @@ private:
 		}
 		if(cnt){abssub(q.num.data()+qstart,qlen,&cnt,1);}
 	}
-		static  void transform2_fermat(int*a,int*b,int m)
+	static  void transform2_fermat(int*a,int*b,int m)
+	{
+		bool bm=b[m];
+		if(a[m]&&bm)
 		{
-			bool bm=b[m];
-			if(a[m]&&bm)
-			{
-				for(int i=0;i<m;i++){a[i]=Bmask;}
-				a[m]=b[m]=0;
-				return;
-			}
-			int kadd=0;
-			bool ksub=0;
-			for(int i=0;i<m;i++)
-			{
-				kadd+=a[i]+b[i];
-				b[i]=a[i]-b[i]-ksub;
-				a[i]=kadd&Bmask;
-				kadd>>=Blen;
-				ksub=b[i]<0;
-				b[i]+=ksub<<Blen;
-			}
-			b[m]=a[m]-b[m]-ksub;
-			if(kadd||bm||a[m])
-			{
-				int i=0;
-				for(;i<m&&a[i]==0;i++);
-				if(i!=m)
-				{
-					for(int j=0;j<i;j++){a[j]=Bmask;}
-					a[i]--,a[m]=0;
-				}
-				else{a[m]=1;}
-			}
-			if(b[m]<0)
-			{
-				b[m]=0;
-				int j=0;
-				for(;j<m&&b[j]==Bmask;j++){b[j]=0;}
-				b[j]++;
-			}    
+			for(int i=0;i<m;i++){a[i]=Bmask;}
+			a[m]=b[m]=0;
+			return;
 		}
+		int kadd=0;
+		bool ksub=0;
+		for(int i=0;i<m;i++)
+		{
+			kadd+=a[i]+b[i];
+			b[i]=a[i]-b[i]-ksub;
+			a[i]=kadd&Bmask;
+			kadd>>=Blen;
+			ksub=b[i]<0;
+			b[i]+=ksub<<Blen;
+		}
+		b[m]=a[m]-b[m]-ksub;
+		if(kadd||bm||a[m])
+		{
+			int i=0;
+			for(;i<m&&a[i]==0;i++);
+			if(i!=m)
+			{
+				for(int j=0;j<i;j++){a[j]=Bmask;}
+				a[i]--,a[m]=0;
+			}
+			else{a[m]=1;}
+		}
+		if(b[m]<0)
+		{
+			b[m]=0;
+			int j=0;
+			for(;j<m&&b[j]==Bmask;j++){b[j]=0;}
+			b[j]++;
+		}    
+	}
 	static void  neg_fermat(int*a,int*out,int m)
 	{
 		if(a[m])
@@ -595,7 +596,7 @@ private:
 	static void recover_fermat(int*x,int mlog2,int lenlog2,int*tmp)
 	{
 		int m=1<<mlog2,l=m+1,n0=Blen-lenlog2,q1=2*m-1,r1=q1&(m-1);q1>>=mlog2;
-		//保证lenlog2>blen容易
+		//保证lenlog2<blen-1容易
 		for(int i=0,len=1<<lenlog2;i<len;i++,x+=l)
 		{
 			int m0=Blen-n0,mask=(1<<m0)-1;
@@ -954,7 +955,7 @@ public:
 	//mod base^(len*k)+1按照base^k分len块做mod x^m+1的足够大ntt_fermat
 	//系数mod1 = base^m+1单位根base阶2m,len<=2m因为需要ntt_fermat是2的幂
 	//为了保证频域点乘fft充分利用取m是2的幂
-	//base^(2k)*len<base^m,取len<base,简化为m>2k
+	//base^(2k)*len*2<base^m,取len足够小,简化为m>2k
 	//综合m>2k,len*k>=l
 	//希望len小,使得慢的ntt层少,快的fft层多
 	//取m是fft能力边缘,k=m/2-1
@@ -962,18 +963,19 @@ public:
 	//用浮点fft折半法做加权负循环卷积
 	{
 		int l=a.len+b.len;
-		if(l>>26){std::cout<<"nttmul reject";exit(0);}
-		int mlog2=log2lenmax-5,m=1<<mlog2,lenlog2=1;
-		//mlog2必须比log2lenmax小更多
-		while(m>=l&&m>1){m>>=1;mlog2--;}
+		if(l>>26){std::cout<<"nttmul reject";exit(0);}//lenlog2与blen问题远远比这个小,不用考虑
+		int mlog2=std::min(log2lenmax-1,17),m=1<<mlog2,lenlog2=1;
+		//折半法放大了系数mlog2必须更小
+		while(m>=l&&m>8){m>>=1;mlog2--;}
 		int k=(m>>1)-1;
 		while(l>(k<<lenlog2))
 		{
 			lenlog2++;
 		}
 		int len=1<<lenlog2;
-		//std::cout<<mlog2<<" "<<len<<"\n";
-		//std::cout<<k*len<<" "<<l<<"\n";//exit(0);
+		if(mlog2+1<lenlog2){std::cout<<"nttmul need bigger log2lenmax";exit(0);}
+		//std::cout<<mlog2+1<<" "<<lenlog2<<"\n";
+		//std::cout<<k*len<<" "<<l<<"\n";exit(0);
 		const bool same=a.ptr==b.ptr&&a.len==b.len;
 		int*tmp=new int[m+2];
 		int*x=mk(a,k,m,len,tmp),*y;
@@ -989,7 +991,7 @@ public:
 		{
 			if(y[i+m]){neg_fermat(x+i,x+i,m);continue;}
 			if(x[i+m]){neg_fermat(y+i,x+i,m);continue;}
-			//integer now=view(x+i,0,m,1),q=integer(1).shift(m)+1;
+			//integer xcopy=view(x+i,0,m,1),ycopy=view(y+i,0,m,1),q=integer(1).shift(m)+1;
 			b14rrii(x+i,mlog2,xxx);
 			fft(xxx,n4);
 			if(!same){b14rrii(y+i,mlog2,yyy);fft(yyy,n4);}
@@ -1045,14 +1047,11 @@ public:
 				}
 			}
 			/*
-			integer aa=view(x+i,0,m,1),bb=(now*now).mod_positive(q);
-			aa.print();
-			bb.print();
+			integer aa=view(x+i,0,m,1),bb=(xcopy*ycopy).mod_positive(q);
 			if(aa.num!=bb.num){
-				std::cout<<aa.num[0]<<" "<<bb.num[0]<<"\n";
-				(aa-bb).print();
-				std::cout<<"bad";exit(0);}
-				else{std::cout<<"good\n";}
+			std::cout<<aa.num[0]<<" "<<bb.num[0]<<"\n";
+			(aa-bb).print();
+			std::cout<<"bad";exit(0);}
 			*/
 		}
 		delete[]xx;
@@ -1724,8 +1723,8 @@ integer integer::karamul(view a, view b)
 	if (a.len < b.len) { std::swap(a, b); }
 	if (b.len < 80 || (b.len < 160 && a.len * b.len < 30000)) { return multiply(a.ptr, a.len, b.ptr, b.len, a.sign * b.sign); }
 	if (a.len + b.len <= halflen) { return fftmul(a, b); }
+	if(a.len+b.len>lenmax){return nttmul(a,b);}
 	int n = (a.len + 1) / 2;
-	if(a.len+b.len>halflen*1.8){return nttmul(a,b);}
 	view a1(a.ptr, n, a.len - 1, 1);
 	view a0(a.ptr, 0, n - 1, 1);
 	integer ans;
