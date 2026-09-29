@@ -1495,6 +1495,7 @@ public:
 		if (end >= num.size()) { return; }
 		num[end] &= (1 << n) - 1;
 		num.resize(end + 1);
+		while(num.size()>1&&!num.back()){num.pop_back();}
 	}
 	void div2pow(int n)
 	{
@@ -1868,15 +1869,14 @@ integer C_core(int e, int s, int  e_s, int& zeros)//s<=e
 	};
 	std::vector<integer>l;
 	b = cnt(e, 2) - cnt(s, 2) - cnt(e_s, 2);
-	for (int i = 0, j = 0; i < u.size() - 2; j = u[i], i += 2)
+	for (int i = 0, j = 0; i < u.size() - 1; j = u[i], i += 2)
 	{
 		l.push_back(power(mul_lambda(j, u[i]), u[i + 1]));
 	}
 	integer::mul_core(l, s);
-	integer r = (l.back() * power(2, b % Blen));
-	if (u.size() > 2) { r = r * power(mul_lambda(u[u.size() - 4], u[u.size() - 2]), u[u.size() - 1]); }
+	l[0].mul2pow(b%Blen);
 	zeros += b / Blen;
-	return r;
+	return l[0];
 }
 integer mul(std::vector<integer>& level)
 {
@@ -2042,7 +2042,7 @@ int jacobi(const integer& a, const integer& b)
 		x %=y;
 		std::swap(x, y);
 	}
-	return 0;
+	return b.num.size() == 1 && b.num[0] == 1;
 }
 void hgcd(const integer::view& x, const integer::view& y, integer& a, integer& b, integer& c, integer& d)//多项式版本粗暴映射
 {
