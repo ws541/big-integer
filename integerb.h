@@ -949,21 +949,27 @@ public:
 		view aview(a, b1), bview(b, b2);
 		return karamul(aview, bview);
 	}
-	static integer fftmul(const view& a, const view& b);
+	static int ceil2pow(int len)
+	{
+		int m = (len) << 1, n = 256;
+		while (n < m) { n <<= 1; }
+		return  n;
+	}
+	static integer fftmul(const view& a, const view& b,int n=0,double*outside=0);
 	static integer nttmul(const view&a,const view&b)
-	//单层ssa思想
 	//mod base^(len*k)+1按照base^k分len块做mod x^m+1的足够大ntt_fermat
 	//系数mod1 = base^m+1单位根base阶2m,len<=2m因为需要ntt_fermat是2的幂
 	//为了保证频域点乘fft充分利用取m是2的幂
-	//base^(2k)*len*2<base^m,取len足够小,简化为m>2k
+	//base^(2k)*len<base^m,取len足够小,简化为m>2k
 	//综合m>2k,len*k>=l
 	//希望len小,使得慢的ntt层少,快的fft层多
 	//取m是fft能力边缘,k=m/2-1
 	//点乘用实数下按照sqrt(base)分块做mod x^(2m)+1的负循环卷积
 	//用浮点fft折半法做加权负循环卷积
+	//点乘部分len*m>2*l,比直接fft慢一倍
 	{
 		int l=a.len+b.len;
-		if(l>>26){std::cout<<"nttmul reject";exit(0);}//lenlog2与blen问题远远比这个小,不用考虑
+		if(l>>26){std::cout<<"nttmul reject";exit(0);}//实际最早边界是lenlog2<=blen,不过这么大的计算没有意义
 		int mlog2=std::min(log2lenmax-1,15),m=1<<mlog2,lenlog2=1;
 		//折半法放大了系数mlog2必须更小,15是测试优值,不溢出最大改17
 		while(m>=l&&m>8){m>>=1;mlog2--;}
@@ -1728,24 +1734,34 @@ integer integer::multiply(const int* a, int la, const int* b, int lb, int sign)/
 integer integer::karamul(view a, view b)
 {
 	if (a.len < b.len) { std::swap(a, b); }
-	if (b.len < 80 || (b.len < 160 && a.len * b.len < 30000)) { return multiply(a.ptr, a.len, b.ptr, b.len, a.sign * b.sign); }
-	if (a.len + b.len <= halflen) { return fftmul(a, b); }
-	if(a.len+b.len>lenmax){return nttmul(a,b);}
+	bool canfft=a.len + b.len <= halflen;
+	if (b.len < 80 || (b.len < 160 &&((!canfft)||a.len * b.len < 30000))) { return multiply(a.ptr, a.len, b.ptr, b.len, a.sign * b.sign); }
+	if (canfft) { return fftmul(a, b); }
+	if(b.len>halflen*0.7){return nttmul(a,b);}
 	int n = (a.len + 1) / 2;
-	view a1(a.ptr, n, a.len - 1, 1);
-	view a0(a.ptr, 0, n - 1, 1);
 	integer ans;
-	if (b.len <= n)
+	if (b.len <= n*1.3)
 	{
-		view bb = b; bb.sign = 1;
-		ans = karamul(a0, bb);
-		ans.num.resize(a.len + b.len);
-		ans.shiftadd(karamul(a1, bb), n);
+		int la=halflen-1-b.len;
+		int k=a.len/la+(bool)(a.len%la);
+		la=a.len/k+bool(a.len%k);
+		int n=ceil2pow(la+b.len);
+		double*outside=b14rrii(b,n);
+		fft(reinterpret_cast<c2*>(&outside[0]),n>>2);
+		ans.num.resize(a.len+b.len);
+		for(int i=0;i<a.len;i+=la)
+		{
+			view anow(a.ptr,i,std::min(i+la,a.len)-1,1);
+			ans.shiftadd(fftmul(anow,b,n,outside),i);
+		}	
+		delete[]outside;
 	}
 	else
 	{
 		view b1(b.ptr, n, b.len - 1, 1);
 		view b0(b.ptr, 0, n - 1, 1);
+		view a1(a.ptr, n, a.len - 1, 1);
+		view a0(a.ptr, 0, n - 1, 1);
 		integer c1 = karamul(a1, b1);
 		integer c0 = karamul(a0, b0);
 		ans.num = c0.num;
@@ -1761,24 +1777,24 @@ integer integer::karamul(view a, view b)
 	ans.sign = a.sign * b.sign;
 	return ans;
 }
-integer integer::fftmul(const  view& a, const view& b)
+integer integer::fftmul(const  view& a, const view& b,int n,double*outside)
 {
-	int la = a.len, lb = b.len;
-	int m = (la + lb) << 1, n = 256;
-	while (n < m) { n <<= 1; }
+	if(!n){n=ceil2pow(a.len+b.len);}
 	if (n > lenmax || n < 0) { std::cout << "fftmul"; exit(0); }
 	int n4 = n >> 2;
 	double* x0 = b14rrii(a, n), * y0;
 	c2* xx = reinterpret_cast<c2*>(&x0[0]), * yy;
 	fft(xx, n4);
 	const bool same = a.ptr == b.ptr && a.len == b.len;
-	if (same) { y0 = x0, yy = xx; }
-	else { y0 = b14rrii(b, n), yy = reinterpret_cast<c2*>(&y0[0]); fft(yy, n4); }
+	if(outside){y0=outside,yy = reinterpret_cast<c2*>(&y0[0]);}
+	else if (same) { y0 = x0, yy = xx; }
+	else { y0 = b14rrii(b, n), yy = reinterpret_cast<c2*>(&y0[0]); fft(yy, n4);}
 	middle(xx,yy,n4);
-	if (!same) { delete[]y0; }
+	if (!same&&!outside) { delete[]y0; }
 	ifft(xx, n4);
 	integer c;
-	c.num.reserve(m = la + lb + 1); m /= 2;
+	int m=a.len + b.len + 1;
+	c.num.reserve(m); m>>=1;
 	c.sign = a.sign * b.sign;
 	ll k = 0;
 	for (int i = 0; i < m; i++)
@@ -3296,13 +3312,12 @@ private:
 public:
 	dlsolver(integer p)
 	{
-		int small=1000000;
+		integer small=p.num.size()>2?2147483647:1000000;//如果批量求解改小small
 		ic.q.p=p;p.addsmall(-1);
 		euler(p,&k);
-		if(p.num.size()>2){small=Bmask;}
 		for(auto&e:k)
 		{
-			if(e.num.size()==1&&e.num[0]<small)
+			if(small.absbigger(e,0))
 			{
 				int cnt=0;
 				integer r,q=integer::div_native(p,e,r);
@@ -3311,7 +3326,7 @@ public:
 					std::swap(p,q);
 					q=integer::div_native(p,e,r);cnt++;
 				}while(r.num.back()==0);
-				l.push_back(e.num[0]);l.push_back(cnt);
+				l.push_back(e.toll());l.push_back(cnt);
 			}
 		}
 		ic.pp=p;
