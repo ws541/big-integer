@@ -6,7 +6,7 @@
  * 并集成了多种高级数论算法。核心特性包括：
  * 
  * 【核心运算】
- * - 四则运算：加、减、乘、除（含取余），支持 Karatsuba 乘法与 FFT 加速
+ * - 四则运算：加、减、乘、除（含取余），支持 Karatsuba 乘法与 FFT、NTT加速
  * - 位运算：左移、右移、按位与/或（通过 2 的幂次乘除实现）
  * - 进制转换：支持从十进制字符串构造，以及高精度转字符串输出（支持科学计数法）
  * 
@@ -341,8 +341,7 @@ private:
 				k = (ull)b.ptr[b.len - 1] * q + k;
 				prod.num[b.len] = k & Bmask;
 				prod.num[b.len + 1] = k>>Blen;
-				view pview(prod.num.data(), 0, b.len + 1, 1);
-				int s = abssub(now.num.data() + t - 1, b.len + 2, pview.ptr, pview.len);
+				int s = abssub(now.num.data() + t - 1, b.len + 2, prod.num.data(), b.len+2);
 				int cnt = 0;
 				while (s < 0)
 				{
@@ -365,13 +364,12 @@ private:
 				k = (ull)b.ptr[i] * q + k;
 				prod.num[i] = k & Bmask, k >>= Blen;
 			}prod.num[b.len] = k;
-			view pview(prod.num.data(), 0, b.len, 1);
-			int s = abssub(now.num.data() + t, b.len + 1, pview.ptr, pview.len);
+			int s = abssub(now.num.data() + t, b.len + 1, prod.num.data(), b.len+1);
 			int cnt = 0;
 			while (s < 0)
 			{
 				s = -abssub(now.num.data() + t, b.len + 1, b.ptr, b.len);
-				if (cnt++ > 2) { std::cout << "quotient2 "; exit(0); }
+				if (cnt++ > 2) { std::cout << "quotient2"; exit(0); }
 			}
 			num[t] = q - cnt;
 		}
@@ -379,11 +377,30 @@ private:
 	}
 	static void div_short(int*anum,int alen,const int*bnum,int blen,integer&q,int qstart)
 	{
-		integer r;
-		q.shiftadd(div_native(view(anum,0,alen-1,1),view(bnum,0,blen-1,1),r),qstart);
-		int i=0;
-		for(;i<r.num.size();i++){anum[i]=r.num[i];}
-		for(;i<alen;i++){anum[i]=0;}
+		integer prod;prod.num.resize(blen+1);
+		for(int qindex=alen-blen-1;qindex>-1;qindex--)
+		{
+			ull k=((ull)anum[blen+qindex]<<Blen)+anum[blen+qindex-1];
+			int qguess=k/bnum[blen-1];
+			if(!qguess){continue;}
+			qguess=std::min(qguess,Base-1);//其实>=Base也没事
+			k=0;
+			for(int i=0;i<blen;i++)
+			{
+				k+=(ull)qguess*bnum[i];
+				prod.num[i]=k&Bmask;
+				k>>=Blen;
+			}
+			prod.num[blen]=k;
+			int s=abssub(anum+qindex,prod.num.size(),prod.num.data(),prod.num.size());
+			int cnt=0;
+			while(s<0)
+			{
+				s=-abssub(anum+qindex,prod.num.size(),bnum,blen);
+				if (cnt++ > 2) { std::cout << "div_short"; exit(0); }
+			}
+			q.num[qstart+qindex]=qguess-cnt;
+		}		
 	}
 	static void div_4n_2n(int*anum,int alen,const int*bnum,int blen,integer&q,int qstart)
 	{
@@ -939,7 +956,51 @@ public:
 	{
 		return addorsub(num.data(), num.size(), sign, that.num.data(), that.num.size(), that.sign, 0);
 	}
-	static integer karamul(view  a, view b);
+	static integer karamul(view  a, view b)
+	{
+		if (a.len < b.len) { std::swap(a, b); }
+		bool canfft=a.len + b.len <= halflen;
+		if (b.len < 80 || (b.len < 160 &&((!canfft)||a.len * b.len < 30000))) { return multiply(a.ptr, a.len, b.ptr, b.len, a.sign * b.sign); }
+		if (canfft) { return fftmul(a, b); }
+		if(b.len>halflen*0.7){return nttmul(a,b);}
+		int n = (a.len + 1) / 2;
+		integer ans;
+		if (b.len <= n*1.3)
+		{
+			int la=halflen-1-b.len;
+			int k=a.len/la+(bool)(a.len%la);
+			la=a.len/k+bool(a.len%k);
+			int n=ceil2pow(la+b.len);
+			double*outside=b14rrii(b,n);
+			fft(reinterpret_cast<c2*>(&outside[0]),n>>2);
+			ans.num.resize(a.len+b.len);
+			for(int i=0;i<a.len;i+=la)
+			{
+				view anow(a.ptr,i,std::min(i+la,a.len)-1,1);
+				ans.shiftadd(fftmul(anow,b,n,outside),i);
+			}	
+			delete[]outside;
+		}
+		else
+		{
+			view b1(b.ptr, n, b.len - 1, 1);
+			view b0(b.ptr, 0, n - 1, 1);
+			view a1(a.ptr, n, a.len - 1, 1);
+			view a0(a.ptr, 0, n - 1, 1);
+			integer c1 = karamul(a1, b1);
+			ans=karamul(a0, b0);
+			integer tmp = karamul(addorsub(a0.ptr, a0.len, 1, a1.ptr, a1.len, 1, 1), addorsub(b0.ptr, b0.len, 1, b1.ptr, b1.len, 1, 1));
+			abssub(tmp.num.data(), tmp.num.size(), ans.num.data(),ans.num.size());
+			abssub(tmp.num.data(), tmp.num.size(), c1.num.data(), c1.num.size());
+			while (tmp.num.back() == 0 && tmp.num.size() > 1) { tmp.num.pop_back(); }
+			ans.num.resize(a.len + b.len);
+			ans.shiftadd(tmp, n);
+			ans.shiftadd(c1, 2 * n);
+		}
+		while (ans.num.size() > 1 && ans.num.back() == 0) ans.num.pop_back();
+		ans.sign = a.sign * b.sign;
+		return ans;
+	}
 	static integer shiftmul(const view& a, const view& b, int need, int& offset)
 	{
 		if (need < 1) { std::cout << "shiftmul"; exit(0); }
@@ -1253,14 +1314,15 @@ public:
 		ll rate = (ll)1 << 50;
 		if (q.absbigger(target, 1)) { target = q + 1; rate >>= 10; }
 		else if (target.absbigger(xt, 1)) { target = xt - 1; rate >>= 10; }
-		while (xt.absbigger(q + gap, 0))
+		int leftshift;
+		while (xt.absbigger(q + gap, 0)||xt.num.size()>k)
 		{
 			integer mid = (xt + q) / 2;
 			if (rate < 2) { rate = 2; }
 			mid = (target * (rate - 1) + mid) / rate;
 			b = 0;
 			integer tmp = shiftpow(mid, m, need, b);
-			int leftshift = m * (f - k) + b;
+			leftshift = m * (f - k) + b;
 			if (leftshift < ns && !tmp.absbigger(view(*this, leftshift), 0))
 			{
 				q = mid;
@@ -1280,7 +1342,7 @@ public:
 				integer tmp = shiftpow(xt, m - 1, need, b);
 				b1 = 0;
 				integer tmp1 = shiftmul(xt, tmp, need, b1).shift(b1);
-				int leftshift = m * (f - k) + b;
+				leftshift = m * (f - k) + b;
 				if (ns > leftshift) {
 					view nview(*this, leftshift);
 					abssub(tmp1.num.data(), tmp1.num.size(), nview.ptr, nview.len);
@@ -1293,17 +1355,17 @@ public:
 			std::vector<int>kplan;
 			int k1 = f; k1 += ((k1 & 1) == 1);
 			while (k1 > 5) { k1 = k1 / 2 + 1; k1 += ((k1 & 1) == 1); kplan.push_back(k1); }
-			int cnt = 0;//必须保护第一轮
-			while (k < f || cnt == 1)
+			int again=f<10;//f太小需要保护
+			while (k < f ||again)
 			{
-				//std::cout<<k<<"\n";
-				cnt++;
-				if (p + k > f) { p = f - k; }
+				//std::cout<<k<<" "<<f<<"\n";
+				again+=again<0;
+				if (p + k >= f) { p = f - k;again=-again;}
 				else if (!kplan.empty() && kplan.back() > k && kplan.back() - k < p) { p = kplan.back() - k; kplan.pop_back(); }
 				need = xt.num.size() + p + 2, b = 0, b1 = 0;
 				integer tmp = shiftpow(xt, m - 1, need, b);
 				integer tmp1 = shiftmul(xt, tmp, need, b1).shift(b1 + p);
-				int leftshift = m * (f - k) + b - p;
+				leftshift = m * (f - k) + b - p;
 				if (ns > leftshift) {
 					view nview(*this, leftshift);
 					int check = abssub(tmp1.num.data(), tmp1.num.size(), nview.ptr, nview.len);
@@ -1731,52 +1793,6 @@ integer integer::multiply(const int* a, int la, const int* b, int lb, int sign)/
 	if (k) { c.num[l] = k; }
 	else { c.num.pop_back(); }
 	return c;
-}
-integer integer::karamul(view a, view b)
-{
-	if (a.len < b.len) { std::swap(a, b); }
-	bool canfft=a.len + b.len <= halflen;
-	if (b.len < 80 || (b.len < 160 &&((!canfft)||a.len * b.len < 30000))) { return multiply(a.ptr, a.len, b.ptr, b.len, a.sign * b.sign); }
-	if (canfft) { return fftmul(a, b); }
-	if(b.len>halflen*0.7){return nttmul(a,b);}
-	int n = (a.len + 1) / 2;
-	integer ans;
-	if (b.len <= n*1.3)
-	{
-		int la=halflen-1-b.len;
-		int k=a.len/la+(bool)(a.len%la);
-		la=a.len/k+bool(a.len%k);
-		int n=ceil2pow(la+b.len);
-		double*outside=b14rrii(b,n);
-		fft(reinterpret_cast<c2*>(&outside[0]),n>>2);
-		ans.num.resize(a.len+b.len);
-		for(int i=0;i<a.len;i+=la)
-		{
-			view anow(a.ptr,i,std::min(i+la,a.len)-1,1);
-			ans.shiftadd(fftmul(anow,b,n,outside),i);
-		}	
-		delete[]outside;
-	}
-	else
-	{
-		view b1(b.ptr, n, b.len - 1, 1);
-		view b0(b.ptr, 0, n - 1, 1);
-		view a1(a.ptr, n, a.len - 1, 1);
-		view a0(a.ptr, 0, n - 1, 1);
-		integer c1 = karamul(a1, b1);
-		integer c0 = karamul(a0, b0);
-		ans.num = c0.num;
-		ans.num.resize(a.len + b.len);
-		integer tmp = karamul(addorsub(a0.ptr, a0.len, 1, a1.ptr, a1.len, 1, 1), addorsub(b0.ptr, b0.len, 1, b1.ptr, b1.len, 1, 1));
-		abssub(tmp.num.data(), tmp.num.size(), c0.num.data(), c0.num.size());
-		abssub(tmp.num.data(), tmp.num.size(), c1.num.data(), c1.num.size());
-		while (tmp.num.back() == 0 && tmp.num.size() > 1) { tmp.num.pop_back(); }
-		ans.shiftadd(tmp, n);
-		ans.shiftadd(c1, 2 * n);
-	}
-	while (ans.num.size() > 1 && ans.num.back() == 0) ans.num.pop_back();
-	ans.sign = a.sign * b.sign;
-	return ans;
 }
 integer integer::fftmul(const  view& a, const view& b,int n,double*outside)
 {
