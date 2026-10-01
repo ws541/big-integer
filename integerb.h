@@ -1449,7 +1449,7 @@ public:
 		int l = (la - lb) / n + 3,l0=(la - lb) / (n+1) + 3;
 		while (l >= 512) { l >>= 1;l0>>=1;}
 		if(l>255&&l0<256){n++;}//增加分段数改善fft仅仅刚跳变,这非常重要因为所有乘法都是按照need约(la - lb) / n截断的
-		l = (la - lb) / n + lb + 1;
+		l = (la - lb) / n + lb + 2;
 		integer xt=reciprocal(b,l);
 		if(r.num.data()!=a.ptr||r.num.size()!=a.len){r=a;}
 		integer q; q.num.assign(la - lb + 1, 0);
