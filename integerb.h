@@ -1315,23 +1315,22 @@ public:
 		if (q.absbigger(target, 1)) { target = q + 1; rate >>= 10; }
 		else if (target.absbigger(xt, 1)) { target = xt - 1; rate >>= 10; }
 		int leftshift;
-		while (xt.absbigger(q + gap, 0)||xt.num.size()>k)
+		while (xt.absbigger(q + gap, 0))
 		{
 			integer mid = (xt + q) / 2;
-			if (rate < 2) { rate = 2; }
-			mid = (target * (rate - 1) + mid) / rate;
+			if (rate) { mid = (target * (rate - 1) + mid) / rate;}
 			b = 0;
 			integer tmp = shiftpow(mid, m, need, b);
 			leftshift = m * (f - k) + b;
 			if (leftshift < ns && !tmp.absbigger(view(*this, leftshift), 0))
 			{
 				q = mid;
-				if (q.absbigger(target, 1)) { target = q + 1; rate >>= 10; }
+				if (rate&&q.absbigger(target, 1)) { target = q + 1; rate >>= 10; }
 			}
 			else
 			{
 				xt = mid;
-				if (target.absbigger(xt, 1)) { target = xt - 1; rate >>= 10; }
+				if (rate&&target.absbigger(xt, 1)) { target = xt - 1; rate >>= 10; }
 			}
 		}
 		if (f > 1)
@@ -1355,12 +1354,12 @@ public:
 			std::vector<int>kplan;
 			int k1 = f; k1 += ((k1 & 1) == 1);
 			while (k1 > 5) { k1 = k1 / 2 + 1; k1 += ((k1 & 1) == 1); kplan.push_back(k1); }
-			int again=f<10;//f太小需要保护
-			while (k < f ||again)
+			bool again=f<10;//f太小需要保护
+			while (k < f||again)
 			{
-				//std::cout<<k<<" "<<f<<"\n";
-				again+=again<0;
-				if (p + k >= f) { p = f - k;again=-again;}
+				//std::cout<<k<<" and "<<f<<"\n";
+				again&=k<f;
+				if (p + k > f) { p = f - k;}
 				else if (!kplan.empty() && kplan.back() > k && kplan.back() - k < p) { p = kplan.back() - k; kplan.pop_back(); }
 				need = xt.num.size() + p + 2, b = 0, b1 = 0;
 				integer tmp = shiftpow(xt, m - 1, need, b);
