@@ -45,7 +45,8 @@ typedef long long ll;
 typedef unsigned long long ull;
 typedef std::complex<double> cd;
 const int log2lenmax = 20, lenmax = 1 << log2lenmax, halflen = lenmax >> 1, e8 = 100000000;
-//你可以调小log2lenmax,会初始表小一点,慢一倍左右(更早进入nttmul分支),但是不能调更大了
+//你可以调小log2lenmax,会初始表小一点,慢一倍左右(更早进入nttmul分支),但是不能大于20
+//log2lenmax =13足以胜任10,000,000!任务(48s,如果是默认20要19s)
 constexpr int Blen = 28, Base = 1 << Blen, Bmask = Base - 1, Flen = Blen >> 1, Fmask = (1 << Flen) - 1;
 struct c2
 {
@@ -610,10 +611,9 @@ private:
 			x+=l,curexp-=expstep;
 		}
 	}
-	static void recover_fermat(int*x,int mlog2,int lenlog2,int*tmp)
+	static void invlen_fermat(int*x,int mlog2,int lenlog2,int*tmp)
 	{
 		int m=1<<mlog2,l=m+1,n0=Blen-lenlog2,q1=2*m-1,r1=q1&(m-1);q1>>=mlog2;
-		//保证lenlog2<blen-1容易
 		for(int i=0,len=1<<lenlog2;i<len;i++,x+=l)
 		{
 			int m0=Blen-n0,mask=(1<<m0)-1;
@@ -1122,37 +1122,28 @@ public:
 			*/
 		}
 		delete[]xx;
-		if(!same){delete[]yy;}
+		if(!same){delete[]yy;delete[]y;}
 		intt_dfs(x,mlog2,lenlog2,tmp);
-		recover_fermat(x,mlog2,lenlog2,tmp);
+		invlen_fermat(x,mlog2,lenlog2,tmp);
 		delete[]tmp;
-		ll*conv;
-		if(same){conv=new ll[l]();}
-		else
-		{
-			conv=reinterpret_cast<ll*>(&y[0]);
-			for(int i=0;i<l;i++){conv[i]=0;}
-		}
+		integer c;c.sign=a.sign*b.sign;
+		c.num.resize(l);
 		for(int i=0,gap=m+1,gap1=k;i<len;i++)
 		{
 			int convi=gap1*i,xi=gap*i;
 			for(int j=0;j<gap&&j<l-convi;j++)
 			{
-				conv[convi+j]+=x[xi+j];
+				c.num[convi+j]+=x[xi+j];
 			}
 		}
 		delete[]x;
-		integer c;c.sign=a.sign*b.sign;
-		c.num.reserve(l);
-		ll carry=0;
+		int carry=0;
 		for(int i=0;i<l;i++)
 		{
-			carry+=conv[i];
-			c.num.push_back(carry&Bmask);
+			carry+=c.num[i];
+			c.num[i]=carry&Bmask;
 			carry>>=Blen;
 		}
-		if(same){delete[]conv;}
-		else{delete[]y;}
 		while(!c.num.back()&&c.num.size()>1){c.num.pop_back();}
 		return c;
 	}
