@@ -1,0 +1,313 @@
+#ifndef _INTEGERB_H_
+#define _INTEGERB_H_
+/*
+# 1. 编译 .cpp 成 .o
+g++ -O2 -c integerb.cpp -o integerb.o
+
+# 2. 打包成静态库
+ar rcs libintegerb.a integerb.o
+
+# 3. 编译 a.cpp 并链接
+g++ -O2 a.cpp -L. -lintegerb -o a.exe
+
+# 4. 运行
+.\a.exe
+*/
+// g++ -O2 a.cpp -L. -lintegerb -o a.exe
+//[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+#include <iostream>
+#include <vector>
+#include <cmath>
+#include <complex>
+#include <string>
+
+#define more 1
+typedef long long ll;
+typedef unsigned long long ull;
+typedef std::complex<double> cd;
+const int log2lenmax = 20, lenmax = 1 << log2lenmax, halflen = lenmax >> 1, e8 = 100000000;
+constexpr int Blen = 28, Base = 1 << Blen, Bmask = Base - 1, Flen = Blen >> 1, Fmask = (1 << Flen) - 1;
+
+struct c2
+{
+private:
+    struct d2
+    {
+    public:
+        double a, b;
+        d2() = default;
+        constexpr d2(double x, double y) :a(x), b(y) {};
+        d2 operator+(const d2& t) { return d2(a + t.a, b + t.b); }
+        d2 operator-(const d2& t) { return d2(a - t.a, b - t.b); }
+        d2 operator*(const d2& t) { return d2(a * t.a, b * t.b); }
+        void  t() { double u = a + b, v = a - b; a = u, b = v; }
+        d2 operator*(double t) { return d2(a * t, b * t); }
+    };
+public:
+    d2 r, i;
+    c2() = default;
+    constexpr c2(const d2& x, const d2& y) :r(x), i(y) {};
+    c2(const cd& x, const cd& y) { r.a = real(x), i.a = imag(x), r.b = real(y), i.b = imag(y); }
+    c2 operator+(const c2& t) { return c2(r + t.r, i + t.i); }
+    c2 operator-(const c2& t) { return c2(r - t.r, i - t.i); }
+    c2 mul(const double&t) { return c2(r * t, i * t); }
+    c2 mul(const c2& t) { return c2(r * t.r - i * t.i, i * t.r + r * t.i); }
+    c2 mulconj(const c2& t) { return c2(r * t.r + i * t.i, i * t.r - r * t.i); }
+    void swapabconj()
+    {
+        std::swap(r.a, r.b);
+        double u = -i.a;
+        i.a = -i.b, i.b = u;
+    }
+    void bmulj() { double u = r.b; r.b = -i.b, i.b = u; }
+    void bmulnegj() { double u = r.b; r.b = i.b, i.b = -u; }
+    void mulj()
+    {
+        double u = r.a, v = r.b;
+        r.a = -i.a, r.b = -i.b, i.a = u, i.b = v;
+    }
+    void mulnegj()
+    {
+        double u = r.a, v = r.b;
+        r.a = i.a, r.b = i.b, i.a = -u, i.b = -v;
+    }
+    void t() { r.t(), i.t(); }
+    void first(const c2& y);
+    void second(const c2& y);
+};
+
+// 全局表与常量（定义在 .cpp）
+extern std::vector<double> table1;
+extern std::vector<double> table3;
+extern std::vector<cd> unit;
+extern cd tb[log2lenmax];
+
+// 自由函数
+std::vector<double> table(int f);
+void fft(c2* x, int n);
+void ifft(c2* x, int n);
+void middle(c2* xx, c2* yy, int n4);
+
+class integer
+{
+public:
+    struct view
+    {
+    public:
+        const int* ptr;
+        int len;
+        int sign;
+        view(const integer& x) { ptr = x.num.data(), len = x.num.size(), sign = x.sign; }
+        view(const int* a, int start, int end, int s) {
+            while (end > start && a[end] == 0) { end--; }
+            ptr = a + start;
+            len = end - start + 1;
+            sign = s;
+        }
+        view(const view& x, int leftshift) {
+            ptr = x.ptr + leftshift;
+            len = x.len - leftshift;
+            if (len < 1 || leftshift < 0) { std::cout << "view"; exit(0); }
+            sign = x.sign;
+        }
+    };
+private:
+    static integer multiply(const int* a, int la, const int* b, int lb, int sign);
+    static void div32(int* a, int bh, int bl, int& q);
+    void quotient(const view& a, const view& b, integer& now);
+    static void div_short(int*anum, int alen, const int*bnum, int blen, integer&q, int qstart);
+    static void div_4n_2n(int*anum, int alen, const int*bnum, int blen, integer&q, int qstart);
+    static bool qlen_overflow(int*anum, int alen, const int*bnum, int blen, integer&q, int qstart);
+    static void div_3n_2n(int*anum, int alen, const int*bnum, int blen, integer&q, int qstart);
+    static void transform2_fermat(int*a, int*b, int m);
+    static void neg_fermat(int*a, int*out, int m);
+    static void mulBasepowmod_fermat(int*a, int q, int r, int m, int*tmp);
+    static void mod_fermat(int*in, int*out, int m, int lb);
+    static void ntt_dfs(int*x, int mlog2, int lenlog2, int*tmp);
+    static void intt_dfs(int*x, int mlog2, int lenlog2, int*tmp);
+    static void invlen_fermat(int*x, int mlog2, int lenlog2, int*tmp);
+    static int*mk(const view&a, int k, int m, int len, int*tmp);
+    static cd Wi(int i, int&index, int&ilog2, int mlog2);
+    static void b14rrii(int*l, int mlog2, c2*xx);
+    static double* b14rrii(const view& a, int n);
+
+public:
+    int sign = 1;
+    std::vector<int> num;
+
+    integer() {};
+    integer(integer&& other) noexcept;
+    integer(const integer& other);
+    integer& operator=(integer&& other) noexcept;
+    integer& operator=(const integer& other);
+    integer(const view& v);
+    integer(ll n);
+    integer(const std::string& s);
+
+    void get();
+    ll toll() const;
+    double getlog() const;
+    std::string tostring(int m = 0) const;
+    void print(bool stdendl = 1, int m = 5) const;
+    bool absbigger(const view& that, bool equal) const;
+    integer operator-() const;
+    integer operator+(const integer& that) const;
+    integer operator-(const integer& that) const;
+    integer operator*(const integer& that) const;
+    integer operator/(const integer& that) const;
+    integer operator%(const integer& that) const;
+    void operator%=(const integer& that);
+
+    void shiftadd(const view& b, int i);
+    static int abssub(int* a, int la, const int* b, int lb);
+    static integer div_native(const view& a, const view& b, integer& r);
+    static integer addorsub(const int* a, int la, int asign, const int* b, int lb, int bsign, bool add);
+    static integer karamul(view a, view b);
+    static integer shiftmul(const view& a, const view& b, int need, int& offset);
+    static int ceil2pow(int len);
+    static integer fftmul(const view& a, const view& b, int n = 0, double* outside = 0);
+    static integer nttmul(const view& a, const view& b);
+    static integer reciprocal(const view& n, int l);
+    integer fsqrt(bool fix = 1) const;
+    integer root(int m, bool fix = 1) const;
+    static integer shiftpow(const integer& x, int n, int need, int& b);
+    static integer div_newton(const view& a, const view& b, integer& r);
+    static integer div_bz(const view& a, const view& b, integer& r);
+    static integer divide(const view& a, const view& b, integer& r);
+    integer mod_positive(const integer& b) const;
+    int ctz() const;
+    void mod2pow(int n);
+    void div2pow(int n);
+    void mul2pow(int n);
+    integer shift(int n) const;
+    void addsmall(int n);
+    static void mul_core(std::vector<integer>& level, int& zeros);
+};
+
+// 自由函数声明（类外）
+integer power(const integer& b, const integer& c);
+integer C_core(int e, int s, int e_s, int& zeros);
+integer mul(std::vector<integer>& level);
+integer A_core(int e, int s, int& zeros);
+integer A(int e, int s);
+integer fac(int n);
+integer C(int e, int s);
+void gcdshift(integer& x, integer& y, const integer& q);
+void gcdshift1(integer& x, integer& y, const integer& A, const integer& B, const integer& C, const integer& D);
+void gcdshift2(integer& a, integer& b, integer& c, integer& d,
+               const integer& A, const integer& B, const integer& C, const integer& D);
+void gcdshift1_inplace(integer&x, integer&y, ll A, ll B, ll C, ll D);
+void gethigh(integer&x, integer&y, ll&xh, ll&yh);
+bool lehmer(integer& x, integer& y, integer* a, integer* b, integer* c, integer* d);
+int jacobi(const integer& a, const integer& b);
+void hgcd(const integer::view& x, const integer::view& y, integer& a, integer& b, integer& c, integer& d);
+integer gcd(const integer& m, const integer& n);
+integer euclid(const integer& m, const integer& n, integer& a, integer& c);
+integer inv(const integer& a, const integer& p);
+
+class mont
+{
+private:
+    integer a, b;
+    int m;
+    integer::view fastmod(const integer& x);
+    integer::view fastdiv(const integer& x);
+public:
+    integer f, p;
+    mont() {}
+    void init();
+    integer out(const integer& x);
+    integer in(const integer& x);
+    integer add(const integer& u, const integer& v);
+    integer sub(const integer& u, const integer& v);
+    integer pow_binary(const integer& x, const integer& y);
+    integer pow_exponent(const integer& u, const std::vector<int>& l, int w);
+};
+
+struct pairs
+{
+    integer f;
+    integer s;
+};
+
+class mod
+{
+private:
+    integer key;
+    int a1, m;
+    integer pow_exponent_m(const integer& u, const std::vector<int>& l, int w);
+public:
+    mont a;
+    mod(const integer& x);
+    pairs in(const integer& x);
+    pairs mul(const pairs& u, const pairs& v);
+    pairs add(const pairs& u, const pairs& v);
+    pairs sub(const pairs& u, const pairs& v);
+    integer out(const pairs& u);
+    pairs one();
+    pairs zero();
+    pairs pow_exponent(const pairs& x, const std::vector<int>& l, int w = 5);
+};
+
+std::vector<int> exponent(const integer& a, int w = 5);
+int getw(const integer& n);
+integer power(const integer& x, const integer& n, const integer& p);
+
+#if more
+bool inside(int k, const std::initializer_list<int>& t);
+bool miller(const integer& n, const std::initializer_list<int> t = { 2, 3, 5, 7, 11, 13, 17 });
+bool lucas(const integer& x);
+bool isprime(const integer& x);
+integer shanks_sqrt(const integer& a, const integer& p);
+int inv_fsp(int q, int p);
+void qsinit(integer&d, const integer&n, std::vector<int>&prime, std::vector<int>&root, std::vector<float>&logp, float&bound, mont&q, int&m);
+bool qsgeta(std::vector<int>& index, std::vector<int>& prime, std::vector<int>&inva,
+            std::vector<int>&root, int&start, int&gap, std::vector<integer>&crtbase, integer&a, integer&d, integer&b);
+bool qsgetb(int&cnt, std::vector<int>& index, std::vector<integer>&crtbase, integer&a, integer&b);
+void qsseive(std::vector<int>&root, std::vector<int>&inva, std::vector<int>&prime, std::vector<float>&logp, std::vector<float>&pos, std::vector<float>&neg, integer&b, int m);
+integer factor(const integer& n, bool& pollard);
+integer primepow(const integer& x);
+integer euler(const integer& x, std::vector<integer>* l = 0, bool p = 1);
+integer euler(const integer&n, std::vector<integer>&l, std::vector<integer>&l0);
+int mobius(const integer& x, bool p = 1);
+int primeroot(const integer& p, const std::vector<integer>*k0 = 0);
+integer order(const integer&a, const integer&n, integer phi, const std::vector<integer>&l0);
+pairs fib(int n);
+
+class indexcalculus
+{
+private:
+    std::vector<integer>dlogp;
+    std::vector<int>flag;
+    std::vector<float>logp;
+    int m;
+    float bound;
+    bool smooth(integer tmp, std::vector<int>&right);
+    void prepare();
+public:
+    int pr;
+    integer pp;
+    std::vector<int>prime;
+    mont q;
+    indexcalculus() {};
+    indexcalculus(const integer& p0, int r0, const integer&cutoff = 1);
+    void init(int r0);
+    integer dlogr(const integer& x);
+};
+
+class dlsolver
+{
+private:
+    std::vector<integer>k;
+    std::vector<int>l;
+    indexcalculus ic;
+    int bsgs(const integer&a, const integer&b, int m);
+    integer hellman(const integer&a, const integer&b);
+public:
+    dlsolver(integer p);
+    integer ord(const integer&a, std::vector<int>*s = 0);
+    integer dlogp(const integer&a, const integer&b);
+};
+#endif
+
+#endif
