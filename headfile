@@ -25,6 +25,7 @@ g++ -O2 a.cpp -L. -lintegerb -o a.exe
 typedef long long ll;
 typedef unsigned long long ull;
 typedef std::complex<double> cd;
+typedef unsigned char uc;
 const int log2lenmax = 20, lenmax = 1 << log2lenmax, halflen = lenmax >> 1, e8 = 100000000;
 constexpr int Blen = 28, Base = 1 << Blen, Bmask = Base - 1, Flen = Blen >> 1, Fmask = (1 << Flen) - 1;
 
@@ -260,11 +261,11 @@ bool lucas(const integer& x);
 bool isprime(const integer& x);
 integer shanks_sqrt(const integer& a, const integer& p);
 int inv_fsp(int q, int p);
-void qsinit(integer&d, const integer&n, std::vector<int>&prime, std::vector<int>&root, std::vector<float>&logp, float&bound, mont&q, int&m);
+void qsinit(integer&d, const integer&n, std::vector<int>&prime, std::vector<int>&root, std::vector<uc>&logp, uc&bound, mont&q, int&m);
 bool qsgeta(std::vector<int>& index, std::vector<int>& prime, std::vector<int>&inva,
             std::vector<int>&root, int&start, int&gap, std::vector<integer>&crtbase, integer&a, integer&d, integer&b);
 bool qsgetb(int&cnt, std::vector<int>& index, std::vector<integer>&crtbase, integer&a, integer&b);
-void qsseive(std::vector<int>&root, std::vector<int>&inva, std::vector<int>&prime, std::vector<float>&logp, std::vector<float>&pos, std::vector<float>&neg, integer&b, int m);
+void qsseive(std::vector<int>&root, std::vector<int>&inva, std::vector<int>&prime, std::vector<uc>&logp, std::vector<uc>&pos, std::vector<uc>&neg, integer&b, int m);
 integer factor(const integer& n, bool& pollard);
 integer primepow(const integer& x);
 integer euler(const integer& x, std::vector<integer>* l = 0, bool p = 1);
@@ -279,9 +280,9 @@ class indexcalculus
 private:
     std::vector<integer>dlogp;
     std::vector<int>flag;
-    std::vector<float>logp;
+    std::vector<uc>logp;
     int m;
-    float bound;
+    uc bound;
     bool smooth(integer tmp, std::vector<int>&right);
     void prepare();
 public:
