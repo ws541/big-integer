@@ -30,6 +30,14 @@
  * - 循环分裂基 FFT 乘法（rrii 布局），复数打包优化
  * - 模运算采用 Montgomery 表示，避免除法
  * - 大数除法支持 Newton 倒数法与 Burnikel-Ziegler 分块算法
+ * - 本库的大整数分解和离散对数均是玩具级
+ * - 与gmp差距小规模在3到8倍,大规模在3到4倍
+ * - 参考实现来源:
+ *  1 github的hint.hpp的fft和除法相关
+ *  2 中文互联网搜索的简单qs,多项式hgcd实现
+ *  3 python的gcd原地更新思想
+ *  4 中文互联网mathu文档的算法导引
+ *  5 有很多函数例如root是找不到资料的工程魔改版本,经过至少10000点极端边界验证,使用保守策略,但是没有理论保证正确
  */
 //[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 //g++ a.cpp -O2 -I D:\mingw64download\mingw64\include -L D:\mingw64download\mingw64\lib -lgmp -lgmpxx -o a.exe
@@ -44,6 +52,7 @@
 typedef long long ll;
 typedef unsigned long long ull;
 typedef std::complex<double> cd;
+typedef unsigned char uc;
 const int log2lenmax = 20, lenmax = 1 << log2lenmax, halflen = lenmax >> 1, e8 = 100000000;
 //你可以调小log2lenmax,会初始表小一点,慢一倍左右(更早进入nttmul分支),但是不能大于20
 //log2lenmax =13足以胜任10,000,000!任务(48s,如果是默认20要19s)
@@ -401,7 +410,7 @@ private:
 				if (cnt++ > 2) { std::cout << "div_short"; exit(0); }
 			}
 			q.num[qstart+qindex]=qguess-cnt;
-		}		
+		}        
 	}
 	static void div_4n_2n(int*anum,int alen,const int*bnum,int blen,integer&q,int qstart)
 	{
@@ -949,9 +958,7 @@ public:
 		return a;
 	}
 	integer operator+(const integer& that)const
-	{
-		return addorsub(num.data(), num.size(), sign, that.num.data(), that.num.size(), that.sign, 1);
-	}
+	;
 	integer operator-(const integer& that)const
 	{
 		return addorsub(num.data(), num.size(), sign, that.num.data(), that.num.size(), that.sign, 0);
@@ -978,7 +985,7 @@ public:
 			{
 				view anow(a.ptr,i,std::min(i+la,a.len)-1,1);
 				ans.shiftadd(fftmul(anow,b,n,outside),i);
-			}	
+			}    
 			delete[]outside;
 		}
 		else
@@ -1622,11 +1629,12 @@ public:
 	static void mul_core(std::vector<integer>& level, int& zeros)
 	{
 		int s, s2;
+		std::vector<integer>nextlevel;
 		while ((s = level.size()) > 1)
 		{
 			s2 = s / 2;
-			std::vector<integer> nextlevel;
 			nextlevel.reserve(level.size());
+			nextlevel.clear();
 			for (int k = 0; k < s2; k++)
 			{
 				integer& a = level[k];
@@ -1640,7 +1648,7 @@ public:
 				nextlevel.push_back(karamul(a_view, b_view));
 			}
 			if (s % 2) { nextlevel.push_back(level.back()); }
-			level = std::move(nextlevel);
+			std::swap(level,nextlevel);
 		}
 	}
 };
@@ -1886,6 +1894,7 @@ integer C_core(int e, int s, int  e_s, int& zeros)//s<=e
 }
 integer mul(std::vector<integer>& level)
 {
+	if(level.empty()){return 1;}
 	int zeros = 0; integer::mul_core(level, zeros); return level.back().shift(zeros);
 }
 integer A_core(int e, int s, int& zeros)//s<=e
@@ -2593,7 +2602,7 @@ int inv_fsp(int q, int p)//q<p<sqrt(intmax)
 	}
 	return a;
 }
-void qsinit(integer&d,const integer&n,std::vector<int>&prime,std::vector<int>&root,std::vector<float>&logp,float&bound,mont&q,int&m)
+void qsinit(integer&d,const integer&n,std::vector<int>&prime,std::vector<int>&root,std::vector<uc>&logp,uc&bound,mont&q,int&m)
 {
 	d = n.fsqrt();
 	int B = pow(d.getlog() - 2, 1.67 + 0.106 * n.num.size());
@@ -2607,15 +2616,15 @@ void qsinit(integer&d,const integer&n,std::vector<int>&prime,std::vector<int>&ro
 	}prime.push_back(2);
 	for (int i = 1; i < root.size(); i++) { if (root[i] && jacobi(n, 2 * i + 1) == 1) { prime.push_back(2 * i + 1); } }
 	root.clear();
-	m = 1 << (14 + std::min((int)d.num.size(), 3));
+	m = 1 << 15;
 	for (int i = 1; i < prime.size(); i++)
 	{
 		int p = prime[i];
-		logp.push_back(log(p));
+		logp.push_back(log(p)*3);
 		root.push_back(shanks_sqrt(n, p).num[0]);
 	}
 	d = d * 14142 / (integer(m) * 10000);
-	bound = d.getlog() + 2 * log(m) - 13;
+	bound = (d.getlog() + 2 * log(m) - 13)*3;
 	q.p = n; q.init();
 }
 bool qsgeta(std::vector<int>& index, std::vector<int>& prime,std::vector<int>&inva,
@@ -2674,7 +2683,7 @@ bool qsgetb(int&cnt, std::vector<int>& index,std::vector<integer>&crtbase,intege
 	b = (b + diff).mod_positive(a);
 	return 1;
 }
-void qsseive(std::vector<int>&root,std::vector<int>&inva,std::vector<int>&prime,std::vector<float>&logp,std::vector<float>&pos,std::vector<float>&neg,integer&b,int m)
+void qsseive(std::vector<int>&root,std::vector<int>&inva,std::vector<int>&prime,std::vector<uc>&logp,std::vector<uc>&pos,std::vector<uc>&neg,integer&b,int m)
 {
 	for (int i = 0; i < root.size(); i++)
 	{
@@ -2683,7 +2692,7 @@ void qsseive(std::vector<int>&root,std::vector<int>&inva,std::vector<int>&prime,
 		int x0 = (-h - root[i]) * invai % p;
 		int x1 = (-h + root[i]) * invai % p;
 		if (x0 < 0) { x0 += p; }if (x1 < 0) { x1 += p; }
-		const float lp = logp[i];
+		const uc lp = logp[i];
 		for (int j = x0; j < m; j += p) { pos[j] += lp; }
 		for (int j = x1; j < m; j += p) { pos[j] += lp; }
 		for (int j = p - x0; j < m; j += p) { neg[j] += lp; }
@@ -2730,13 +2739,13 @@ integer factor(const integer& n, bool& pollard)//不质数幂
 		pollard = 0;
 	}
 	if (n.num.size() < 3) { std::cout << "pollard"; exit(0); }
-	if (n.num.size() > 7) { std::cout << "qs too big"; exit(0); }
+	if (n.getlog()>120) { std::cout << "qs too big"; exit(0); }
 	//qs知乎学的,10^47之内保证不超过10s
 	//11111111111111111111111111122332231111111111111117791这个需要26s,通过euler的参数l调用,不要直接调用factor
 	mont q;
 	std::vector<int>prime;
 	std::vector<int>root;
-	std::vector<float>logp;
+	std::vector<uc>logp;
 	struct equa
 	{
 		integer x, y;
@@ -2748,8 +2757,8 @@ integer factor(const integer& n, bool& pollard)//不质数幂
 	std::vector<equa>smooth;
 	std::vector<equa>flaw; int fs = 0;
 	std::vector<int>index;
-	std::vector<int>pcnt;
-	int ta = 0, tb = 0, tc = 0; float bound;
+	std::vector<uc>pcnt;
+	int ta = 0, tb = 0, tc = 0;uc bound;
 	auto insert_lambda =
 	[&q, &prime, &smooth, &flaw, &fs, &n, &ok, &ta, &tb, &tc, &bound, &index, &pcnt](const integer& x, integer y) -> integer {
 		int  ps = prime.size();
@@ -2840,7 +2849,7 @@ integer factor(const integer& n, bool& pollard)//不质数幂
 		smooth[index] = e;
 		//std::cout << "\n    relation:" << ta + tc << " need:" << prime.size() << " |from " <<tb << " fail extract " << fs << " flaw and " << tc << " relation\n";
 		const int level = 2;
-		if (tb > (ta << (level + 1))) { bound += 0.1; }if ((ta << level) > tb) { bound -= 0.1; }//倾向于错误多些,快
+		if (tb > (ta << (level + 1))) { bound ++; }if ((ta << level) > tb) { bound --; }//倾向于错误多些,快
 		return 0;
 	};
 	integer d = n.fsqrt(); int m;
@@ -2853,7 +2862,7 @@ integer factor(const integer& n, bool& pollard)//不质数幂
 	std::vector<integer>crtbase;
 	std::vector<int>inva; inva.resize(root.size());
 	int cnt = 0;
-	std::vector<float>pos(m,0), neg(m,0);
+	std::vector<uc>pos(m,0), neg(m,0);
 	while (ok > 0)
 	{
 		if (!qsgetb(cnt,index,crtbase,a,b)) { cnt = 0; while (!qsgeta(index,prime,inva,root,start,gap,crtbase,a,d,b));}
@@ -3036,9 +3045,9 @@ class indexcalculus
 private:
 	std::vector<integer>dlogp;
 	std::vector<int>flag;
-	std::vector<float>logp;
+	std::vector<uc>logp;
 	int m;
-	float bound;
+	uc bound;
 	bool smooth(integer tmp,std::vector<int>&right)
 	{
 		right.clear();
@@ -3061,19 +3070,13 @@ private:
 	}
 	void prepare()
 	{
-		bound = q.p.getlog();//lnp<42保证7s内
-		if(bound<20||bound>50){std::cout<<"indexcalculus reject";exit(0);}
-		//作为边界测试p =  1566632214376429584384000043(lnp约62)建立需要965s
-		if(bound>40){
-			std::cout << "\nif mingw64 -O2,ic init time :" << 0.2423 * exp(0.2427 *bound) / 1000.0 << " s\n";
-		}
-		//   Performance models (-O2,empirical, error <5%):
-		//   integerb.h:  T ≈ 0.2423 * exp(0.2427*ln(p)) ms
-		//   GP/PARI: T ≈ exp(0.127*ln(p)) ms
-		//   => GP/PARI is ~300x faster at ln(p)=62
-		//   gp指数系数减半,是比快integerb.h快几百倍原因
-		//   integerb.h由于高斯消元是瓶颈,采用一次多项式构造版本u=u+p*i mod p
-		int B=(15-bound*0.2)*pow(1.135,bound);
+		double lg = q.p.getlog();//lnp<42保证7s内
+		if(lg<20||lg>50){std::cout<<"indexcalculus reject";exit(0);}
+		if(lg>40){
+			std::cout << "\nif mingw64 -O2,ic estimated init time :" << 0.2423 * exp(0.2427 *lg) / 1000.0 << " s\n";
+		}//   Performance models (-O2,empirical):
+		int B=(15-lg*0.2)*pow(1.135,lg);
+		bound=lg*4-10;
 		flag.assign((B + B % 2) / 2, 1);
 		for (int i = 1, a; 2 * (a = 2 * i * (i + 1)) <= B - 1; i++)
 		{
@@ -3086,7 +3089,7 @@ private:
 		flag.resize(prime.size());
 		for (int i = 0; i < prime.size(); i++) { flag[i] = inv_fsp((q.p % prime[i]).num[0], prime[i]); }
 		logp.resize(prime.size());
-		for (int i = 0; i < prime.size(); i++) { logp[i] = log(prime[i]); }
+		for (int i = 0; i < prime.size(); i++) { logp[i] = log(prime[i])*4; }
 		m = 1 <<(12+q.p.num.size());
 	}
 public:
@@ -3171,7 +3174,7 @@ public:
 			a.clear();
 		};
 		if(smooth(r0,right)){insert_lambda(pp);needr=0;}
-		std::vector<float>pos(m, 0); int start = 0;
+		std::vector<uc>pos(m,0); int start = 0;
 		while (indexb < ps)
 		{
 			//std::cout<<indexb<<" "<<" "<<index<<" "<<ps<<"\n";
@@ -3238,7 +3241,7 @@ public:
 			return  tmp.mod_positive(pp);
 		}
 		int cnt=1;
-		std::vector<float>pos(m, 0);
+		std::vector<uc>pos(m, 0);
 		while(1)
 		{
 			x0=(x0*pr)%q.p;
@@ -3374,3 +3377,4 @@ public:
 };
 #endif
 #endif
+
