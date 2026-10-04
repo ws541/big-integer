@@ -1794,6 +1794,7 @@ integer C_core(int e, int s, int  e_s, int& zeros)
 
 integer mul(std::vector<integer>& level)
 {
+	if(level.empty()){return 1;}
 	int zeros = 0; integer::mul_core(level, zeros); return level.back().shift(zeros);
 }
 
@@ -2529,7 +2530,9 @@ int inv_fsp(int q, int p)
 	return a;
 }
 
-void qsinit(integer&d,const integer&n,std::vector<int>&prime,std::vector<int>&root,std::vector<float>&logp,float&bound,mont&q,int&m)
+/* ========================= qsinit ========================= */
+
+void qsinit(integer&d,const integer&n,std::vector<int>&prime,std::vector<int>&root,std::vector<uc>&logp,uc&bound,mont&q,int&m)
 {
 	d = n.fsqrt();
 	int B = pow(d.getlog() - 2, 1.67 + 0.106 * n.num.size());
@@ -2543,17 +2546,19 @@ void qsinit(integer&d,const integer&n,std::vector<int>&prime,std::vector<int>&ro
 	}prime.push_back(2);
 	for (int i = 1; i < root.size(); i++) { if (root[i] && jacobi(n, 2 * i + 1) == 1) { prime.push_back(2 * i + 1); } }
 	root.clear();
-	m = 1 << (14 + std::min((int)d.num.size(), 3));
+	m = 1 << 15;
 	for (int i = 1; i < prime.size(); i++)
 	{
 		int p = prime[i];
-		logp.push_back(log(p));
+		logp.push_back(log(p)*3);
 		root.push_back(shanks_sqrt(n, p).num[0]);
 	}
 	d = d * 14142 / (integer(m) * 10000);
-	bound = d.getlog() + 2 * log(m) - 13;
+	bound = (d.getlog() + 2 * log(m) - 13)*3;
 	q.p = n; q.init();
 }
+
+/* ========================= qsgeta ========================= */
 
 bool qsgeta(std::vector<int>& index, std::vector<int>& prime,std::vector<int>&inva,
 			std::vector<int>&root,int&start,int&gap,std::vector<integer>&crtbase,integer&a,integer&d,integer&b)
@@ -2599,10 +2604,12 @@ bool qsgeta(std::vector<int>& index, std::vector<int>& prime,std::vector<int>&in
 	return 1;
 }
 
+/* ========================= qsgetb ========================= */
+
 bool qsgetb(int&cnt, std::vector<int>& index,std::vector<integer>&crtbase,integer&a,integer&b)
 {
 	cnt++;
-	if (cnt + 1 > (1 << (index.size() - 1))) { return 0; }
+	if (cnt + 1 > (1 << (index.size() - 1))) { return 0; }//只要a-b和b中一个
 	int u = 1, pos = 0;
 	while ((cnt & u) == 0) { u <<= 1; pos++; }
 	u = cnt & (u << 1);
@@ -2613,7 +2620,9 @@ bool qsgetb(int&cnt, std::vector<int>& index,std::vector<integer>&crtbase,intege
 	return 1;
 }
 
-void qsseive(std::vector<int>&root,std::vector<int>&inva,std::vector<int>&prime,std::vector<float>&logp,std::vector<float>&pos,std::vector<float>&neg,integer&b,int m)
+/* ========================= qsseive ========================= */
+
+void qsseive(std::vector<int>&root,std::vector<int>&inva,std::vector<int>&prime,std::vector<uc>&logp,std::vector<uc>&pos,std::vector<uc>&neg,integer&b,int m)
 {
 	for (int i = 0; i < root.size(); i++)
 	{
@@ -2622,7 +2631,7 @@ void qsseive(std::vector<int>&root,std::vector<int>&inva,std::vector<int>&prime,
 		int x0 = (-h - root[i]) * invai % p;
 		int x1 = (-h + root[i]) * invai % p;
 		if (x0 < 0) { x0 += p; }if (x1 < 0) { x1 += p; }
-		const float lp = logp[i];
+		const uc lp = logp[i];
 		for (int j = x0; j < m; j += p) { pos[j] += lp; }
 		for (int j = x1; j < m; j += p) { pos[j] += lp; }
 		for (int j = p - x0; j < m; j += p) { neg[j] += lp; }
@@ -2631,7 +2640,7 @@ void qsseive(std::vector<int>&root,std::vector<int>&inva,std::vector<int>&prime,
 }
 // ============ factor / primepow / euler / mobius / primeroot / order / fib ============
 
-integer factor(const integer& n, bool& pollard)
+integer factor(const integer& n, bool& pollard)//不质数幂
 {
 	if (n.num[0] % 2 == 0) { return 2; }
 	integer g;
@@ -2671,11 +2680,13 @@ integer factor(const integer& n, bool& pollard)
 		pollard = 0;
 	}
 	if (n.num.size() < 3) { std::cout << "pollard"; exit(0); }
-	if (n.num.size() > 7) { std::cout << "qs too big"; exit(0); }
+	if (n.getlog()>120) { std::cout << "qs too big"; exit(0); }
+	//qs知乎学的,10^47之内保证不超过10s
+	//11111111111111111111111111122332231111111111111117791这个需要26s,通过euler的参数l调用,不要直接调用factor
 	mont q;
 	std::vector<int>prime;
 	std::vector<int>root;
-	std::vector<float>logp;
+	std::vector<uc>logp;
 	struct equa
 	{
 		integer x, y;
@@ -2687,8 +2698,8 @@ integer factor(const integer& n, bool& pollard)
 	std::vector<equa>smooth;
 	std::vector<equa>flaw; int fs = 0;
 	std::vector<int>index;
-	std::vector<int>pcnt;
-	int ta = 0, tb = 0, tc = 0; float bound;
+	std::vector<uc>pcnt;
+	int ta = 0, tb = 0, tc = 0;uc bound;
 	auto insert_lambda =
 	[&q, &prime, &smooth, &flaw, &fs, &n, &ok, &ta, &tb, &tc, &bound, &index, &pcnt](const integer& x, integer y) -> integer {
 		int  ps = prime.size();
@@ -2777,8 +2788,9 @@ integer factor(const integer& n, bool& pollard)
 			return gcd(q.out(e.x) + e.y, n);
 		}
 		smooth[index] = e;
+		//std::cout << "\n    relation:" << ta + tc << " need:" << prime.size() << " |from " <<tb << " fail extract " << fs << " flaw and " << tc << " relation\n";
 		const int level = 2;
-		if (tb > (ta << (level + 1))) { bound += 0.1; }if ((ta << level) > tb) { bound -= 0.1; }
+		if (tb > (ta << (level + 1))) { bound ++; }if ((ta << level) > tb) { bound --; }//倾向于错误多些,快
 		return 0;
 	};
 	integer d = n.fsqrt(); int m;
@@ -2791,7 +2803,7 @@ integer factor(const integer& n, bool& pollard)
 	std::vector<integer>crtbase;
 	std::vector<int>inva; inva.resize(root.size());
 	int cnt = 0;
-	std::vector<float>pos(m,0), neg(m,0);
+	std::vector<uc>pos(m,0), neg(m,0);
 	while (ok > 0)
 	{
 		if (!qsgetb(cnt,index,crtbase,a,b)) { cnt = 0; while (!qsgeta(index,prime,inva,root,start,gap,crtbase,a,d,b));}
@@ -2811,7 +2823,7 @@ integer factor(const integer& n, bool& pollard)
 			}neg[i] = 0;
 		}
 	}
-	std::cout << "factor"; exit(0);
+	std::cout << "factor"; exit(0);//可能是输入质数幂(qs非法输入)，或者极小概率geta产生重复的a导致，或者ok正常耗尽
 }
 
 integer primepow(const integer& x)
@@ -2978,6 +2990,8 @@ pairs fib(int n)
 }
 // ============ indexcalculus / dlsolver + 收尾 ============
 
+/* ========================= indexcalculus ========================= */
+
 bool indexcalculus::smooth(integer tmp,std::vector<int>&right)
 {
 	right.clear();
@@ -3001,12 +3015,13 @@ bool indexcalculus::smooth(integer tmp,std::vector<int>&right)
 
 void indexcalculus::prepare()
 {
-	bound = q.p.getlog();
-	if(bound<20||bound>50){std::cout<<"indexcalculus reject";exit(0);}
-	if(bound>40){
-		std::cout << "\nif mingw64 -O2,ic init time :" << 0.2423 * exp(0.2427 *bound) / 1000.0 << " s\n";
-	}
-	int B=(15-bound*0.2)*pow(1.135,bound);
+	double lg = q.p.getlog();//lnp<42保证7s内
+	if(lg<20||lg>50){std::cout<<"indexcalculus reject";exit(0);}
+	if(lg>40){
+		std::cout << "\nif mingw64 -O2,ic estimated init time :" << 0.2423 * exp(0.2427 *lg) / 1000.0 << " s\n";
+	}//   Performance models (-O2,empirical):
+	int B=(15-lg*0.2)*pow(1.135,lg);
+	bound=lg*4-10;
 	flag.assign((B + B % 2) / 2, 1);
 	for (int i = 1, a; 2 * (a = 2 * i * (i + 1)) <= B - 1; i++)
 	{
@@ -3019,11 +3034,14 @@ void indexcalculus::prepare()
 	flag.resize(prime.size());
 	for (int i = 0; i < prime.size(); i++) { flag[i] = inv_fsp((q.p % prime[i]).num[0], prime[i]); }
 	logp.resize(prime.size());
-	for (int i = 0; i < prime.size(); i++) { logp[i] = log(prime[i]); }
+	for (int i = 0; i < prime.size(); i++) { logp[i] = log(prime[i])*4; }
 	m = 1 <<(12+q.p.num.size());
 }
 
+
 indexcalculus::indexcalculus(const integer& p0,int r0,const integer&cutoff)
+//传入质数p0,原根r,系统计算logr(pi)mod ((p0-1)/cutoff)
+//p-1的质因子不能太多,否则使用dlsolver
 {
 	q.p=p0,pp=(q.p-1)/cutoff;init(r0);
 }
@@ -3075,6 +3093,7 @@ void indexcalculus::init(int r0)
 						b.h[i] = (a.h[i] * x + b.h[i] * y) % pp;
 					}
 				}
+				//if(!needb[first]){std::cout<<first<<" good\n";}
 			}
 			for (int i = first + 1; i < ps + 1; i++)
 			{
@@ -3087,6 +3106,7 @@ void indexcalculus::init(int r0)
 			need[first] = 0;
 			integer g = gcd(pp, a.h[first]);
 			needb[first] = g.num.size() > 1 || g.num[0] > maxtry;
+			//if(!needb[first]){std::cout<<first<<" good\n";}
 			for (int i = first; i < ps + 1; i++) { matrix[first].h[i] = a.h[i]; }
 			for (; index < ps && !need[index]; index++);
 		}
@@ -3096,9 +3116,10 @@ void indexcalculus::init(int r0)
 		a.clear();
 	};
 	if(smooth(r0,right)){insert_lambda(pp);needr=0;}
-	std::vector<float>pos(m, 0); int start = 0;
+	std::vector<uc>pos(m,0); int start = 0;
 	while (indexb < ps)
 	{
+		//std::cout<<indexb<<" "<<" "<<index<<" "<<ps<<"\n";
 		left.clear();
 		ll h = prime[indexb]; left.push_back(indexb);
 		if (index < ps) { h = h * prime[index]; left.push_back(index); }
@@ -3145,10 +3166,11 @@ void indexcalculus::init(int r0)
 			s = q.out(s * t); cnt++;
 		}
 		dlogp[i] = tmp + ppp * cnt;
+		//if(q.pow_binary(r,dlogp[i]).num!=end.num){std::cout<<"bad";exit(0);}
 	}
 }
 
-integer indexcalculus::dlogr(const integer& x)
+integer indexcalculus::dlogr(const integer& x)//不要传0
 {
 	std::vector<int>right;
 	integer x0=x.mod_positive(q.p);
@@ -3162,7 +3184,7 @@ integer indexcalculus::dlogr(const integer& x)
 		return  tmp.mod_positive(pp);
 	}
 	int cnt=1;
-	std::vector<float>pos(m, 0);
+	std::vector<uc>pos(m, 0);
 	while(1)
 	{
 		x0=(x0*pr)%q.p;
