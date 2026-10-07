@@ -106,7 +106,7 @@ public:
         }
     };
 private:
-    static integer multiply(const int* a, int la, const int* b, int lb, int sign,int i=0);
+    static integer multiply(const int* a, int la, const int* b, int lb, int sign,int i=0,int iend=1<<30);
     static void div32(int* a, int bh, int bl, int& q);
     void quotient(const view& a, const view& b, integer& now);
     static void div_short(int*anum, int alen, const int*bnum, int blen, integer&q, int qstart);
@@ -152,7 +152,7 @@ public:
     static int abssub(int* a, int la, const int* b, int lb);
     static integer div_native(const view& a, const view& b, integer& r);
     static integer addorsub(const int* a, int la, int asign, const int* b, int lb, int bsign, bool add);
-    static integer karamul(view a, view b,int i=0);
+    static integer karamul(view a, view b,int i=0,int iend=1<<30);
     static integer shiftmul(const view& a, const view& b, int need, int& offset);
     static int ceil2pow(int len);
     static integer fftmul(const view& a, const view& b, int n = 0, double* outside = 0);
