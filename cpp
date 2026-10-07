@@ -301,7 +301,7 @@ void integer::div_short(int*anum,int alen,const int*bnum,int blen,integer&q,int 
 void integer::div_4n_2n(int*anum,int alen,const int*bnum,int blen,integer&q,int qstart)
 {
 	int qlen=alen-blen;
-	if(qlen<40||blen<40){div_short(anum,alen,bnum,blen,q,qstart);return;}
+	if(qlen<10||blen<10){div_short(anum,alen,bnum,blen,q,qstart);return;}
 	int qlen1=qlen>>1,alen1=blen+qlen1,ashift1=alen-alen1;
 	div_3n_2n(anum+ashift1,alen1,bnum,blen,q,qstart+ashift1);
 	alen-=qlen1;
@@ -329,7 +329,7 @@ bool integer::qlen_overflow(int*anum,int alen,const int*bnum,int blen,integer&q,
 void integer::div_3n_2n(int*anum,int alen,const int*bnum,int blen,integer&q,int qstart)
 {
 	int qlen=alen-blen;
-	if(qlen<40||blen<40){div_short(anum,alen,bnum,blen,q,qstart);return;}
+	if(qlen<10||blen<10){div_short(anum,alen,bnum,blen,q,qstart);return;}
 	int shift=blen-qlen;
 	bool flag=qlen_overflow(anum+shift,alen-shift,bnum+shift,blen-shift,q,qstart);
 	if(!flag){div_4n_2n(anum+shift,alen-shift,bnum+shift,blen-shift,q,qstart);}
@@ -516,7 +516,7 @@ void integer::div_3n_2n(int*anum,int alen,const int*bnum,int blen,integer&q,int 
             mulBasepowmod_fermat(x,q1,r1,m,tmp);
         }
     }
-    int* integer::mk(const view&a,int k,int m,int len,int*tmp)
+    int* integer::mk(const view&a,int k,int m,int len)
     {
         int l=m+1;
         int*x=new int[len*(m+1)]();
@@ -958,7 +958,7 @@ int integer::abssub(int* a, int la, const int* b, int lb)
 	return s;
 }
 
-integer integer::multiply(const int* a, int la, const int* b, int lb, int sign)
+integer integer::multiply(const int* a, int la, const int* b, int lb, int sign,int i)
 {
 	if (!lb || (la + a[0] < 2) || (lb + b[0] < 2)) { return 0; }
 	int n = la - 1, m = lb - 1, l = n + m + 1;
@@ -966,8 +966,7 @@ integer integer::multiply(const int* a, int la, const int* b, int lb, int sign)
 	c.sign = sign;
 	c.num.resize(l + 1);
 	ull k = 0;
-	int i;
-	for (i = 0; i < m; i++)
+	for (; i < m; i++)
 	{
 		int j = i;
 		for (; j > 3; j -= 4)
@@ -1027,11 +1026,11 @@ integer integer::multiply(const int* a, int la, const int* b, int lb, int sign)
 }
 // ============ 乘法核心：karamul / shiftmul / ceil2pow / fftmul ============
 
-integer integer::karamul(view  a, view b)
+integer integer::karamul(view  a, view b,int i)
 {
 	if (a.len < b.len) { std::swap(a, b); }
 	bool canfft=a.len + b.len <= halflen;
-	if (b.len < 80 || (b.len < 160 &&((!canfft)||a.len * b.len < 30000))) { return multiply(a.ptr, a.len, b.ptr, b.len, a.sign * b.sign); }
+	if (b.len < 80 || (b.len < 160 &&((!canfft)||a.len * b.len < 30000))) { return multiply(a.ptr, a.len, b.ptr, b.len, a.sign * b.sign,i); }
 	if (canfft) { return fftmul(a, b); }
 	if(b.len>halflen*0.7){return nttmul(a,b);}
 	int n = (a.len + 1) / 2;
@@ -1080,7 +1079,7 @@ integer integer::shiftmul(const view& a, const view& b, int need, int& offset)
 	int b2 = std::max(0, b.len - need);
 	offset += b1 + b2;
 	view aview(a, b1), bview(b, b2);
-	return karamul(aview, bview);
+	return karamul(aview, bview,std::max(0,aview.len+bview.len-need-4));
 }
 
 int integer::ceil2pow(int len)
@@ -1145,11 +1144,11 @@ integer integer::nttmul(const view&a,const view&b)
         int len=1<<lenlog2;
         if(mlog2+1<lenlog2){std::cout<<"nttmul need bigger log2lenmax";exit(0);}
         const bool same=a.ptr==b.ptr&&a.len==b.len;
-        int*tmp=new int[m+2];
-        int*x=mk(a,k,m,len,tmp),*y;
+        int*x=mk(a,k,m,len),*y;
+		int*tmp=new int[m+2];
         ntt_dfs(x,mlog2,lenlog2,tmp);
         if(same){y=x;}
-        else{y=mk(b,k,m,len,tmp);ntt_dfs(y,mlog2,lenlog2,tmp);}
+        else{y=mk(b,k,m,len);ntt_dfs(y,mlog2,lenlog2,tmp);}
         int n=m<<1,n4=n>>2;
         double*xx=new double[n],*yy;
         c2*xxx=reinterpret_cast<c2*>(&xx[0]),*yyy;
@@ -1587,10 +1586,12 @@ integer integer::div_bz(const view& a, const view& b, integer& r)
 
 integer integer::divide(const view& a, const view& b, integer& r)
 {
-	int la = a.len, lb = b.len, c = la - lb;
-	if (la > 200 && lb > 50 && c > 20 && (c > 200 || lb * c > 60000))
+	int la = a.len, lb = b.len;
+	float f=(float)la/lb;
+	if (la > 200 && lb > 50 && (la-lb > 100||f>3))
 	{
-		if(c>70&&lb>160&&lb<300-(float)(la<<4)/lb){return div_bz(a,b,r);}
+		
+		if (lb < 400-f*30&&f<2.6){return div_bz(a,b,r);}
 		return div_newton(a, b, r);
 	}
 	return div_native(a, b, r);
