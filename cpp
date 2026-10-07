@@ -958,7 +958,7 @@ int integer::abssub(int* a, int la, const int* b, int lb)
 	return s;
 }
 
-integer integer::multiply(const int* a, int la, const int* b, int lb, int sign,int i)
+integer integer::multiply(const int* a, int la, const int* b, int lb, int sign,int i,int iend)
 {
 	if (!lb || (la + a[0] < 2) || (lb + b[0] < 2)) { return 0; }
 	int n = la - 1, m = lb - 1, l = n + m + 1;
@@ -966,7 +966,7 @@ integer integer::multiply(const int* a, int la, const int* b, int lb, int sign,i
 	c.sign = sign;
 	c.num.resize(l + 1);
 	ull k = 0;
-	for (; i < m; i++)
+	for (int end=std::min(m,iend); i < end; i++)
 	{
 		int j = i;
 		for (; j > 3; j -= 4)
@@ -984,7 +984,7 @@ integer integer::multiply(const int* a, int la, const int* b, int lb, int sign,i
 		c.num[i] = k & Bmask;
 		k >>= Blen;
 	}
-	for (; i < n; i++)
+	for (int end=std::min(n,iend); i < end; i++)
 	{
 		int j = m;
 		for (; j > 3; j -= 4)
@@ -1002,7 +1002,7 @@ integer integer::multiply(const int* a, int la, const int* b, int lb, int sign,i
 		c.num[i] = k & Bmask;
 		k >>= Blen;
 	}
-	for (; i < l; i++)
+	for (int end=std::min(l,iend); i < end; i++)
 	{
 		int j = m;
 		for (; j > i - n + 3; j -= 4)
@@ -1026,11 +1026,11 @@ integer integer::multiply(const int* a, int la, const int* b, int lb, int sign,i
 }
 // ============ 乘法核心：karamul / shiftmul / ceil2pow / fftmul ============
 
-integer integer::karamul(view  a, view b,int i)
+integer integer::karamul(view  a, view b,int i,int iend)
 {
 	if (a.len < b.len) { std::swap(a, b); }
 	bool canfft=a.len + b.len <= halflen;
-	if (b.len < 80 || (b.len < 160 &&((!canfft)||a.len * b.len < 30000))) { return multiply(a.ptr, a.len, b.ptr, b.len, a.sign * b.sign,i); }
+	if (b.len < 80 || (b.len < 160 &&((!canfft)||a.len * b.len < 30000))) { return multiply(a.ptr, a.len, b.ptr, b.len, a.sign * b.sign,i,iend); }
 	if (canfft) { return fftmul(a, b); }
 	if(b.len>halflen*0.7){return nttmul(a,b);}
 	int n = (a.len + 1) / 2;
@@ -2112,7 +2112,7 @@ void mont::init()
 integer mont::out(const integer& x)
 {
 	if(!x.num.back()){return 0;}
-	integer tmp1 = integer::karamul(fastmod(x), a);
+	integer tmp1 = integer::karamul(fastmod(x), a,0,m);
 	integer tmp2 = x + integer::karamul(p, fastmod(tmp1));
 	integer::view t = fastdiv(tmp2);
 	if (!p.absbigger(t, 0))
@@ -2202,11 +2202,11 @@ integer mod::pow_exponent_m(const integer& u, const std::vector<int>& l, int w)
 {
 	if (l.empty()) { return 1; }
 	std::vector<integer>b; b.push_back(u);
-	integer a = u * u; a.mod2pow(m);
+	integer a = integer::karamul(u,u,0,m); a.mod2pow(m);
 	w = (1 << (w - 1)) - 1;
 	for (int i = 0; i < w; i++)
 	{
-		integer tmp = a * b.back();
+		integer tmp = integer::karamul(a,b.back(),0,m);
 		tmp.mod2pow(m);
 		b.push_back(tmp);
 	}
@@ -2215,11 +2215,11 @@ integer mod::pow_exponent_m(const integer& u, const std::vector<int>& l, int w)
 	for (int j = 0; j < l[ls - 1]; j++) { a = a * a; a.mod2pow(m); }
 	for (int i = ls - 4; i > -1; i -= 2)
 	{
-		a = a * b[l[i]];
+		a = integer::karamul(a,b[l[i]],0,m);
 		a.mod2pow(m);
 		for (int j = 0; j < l[i + 1]; j++)
 		{
-			a = a * a;
+			a = integer::karamul(a,a,0,m);
 			a.mod2pow(m);
 		}
 	}
@@ -2263,7 +2263,7 @@ pairs mod::mul(const pairs& u, const pairs& v)
 	}
 	if (m)
 	{
-		ans.s = u.s * v.s;
+		ans.s =integer::karamul(u.s,v.s,0,m);
 		ans.s.mod2pow(m);
 	}
 	return ans;
@@ -2304,7 +2304,7 @@ integer mod::out(const pairs& u)
 	if (!a1) { return u.s; }
 	integer x = a.out(u.f);
 	if (!m) { return x; }
-	integer tmp = (u.s - x) * key;
+	integer tmp =integer::karamul(u.s - x,key,0,m);
 	tmp.mod2pow(m);
 	return x + a.p * tmp;
 }
