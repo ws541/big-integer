@@ -1,15 +1,13 @@
+
 #ifndef _INTEGERB_H_
 #define _INTEGERB_H_
 /*
 # 1. 编译 .cpp 成 .o
 g++ -O2 -c integerb.cpp -o integerb.o
-
 # 2. 打包成静态库
 ar rcs libintegerb.a integerb.o
-
 # 3. 编译 a.cpp 并链接
 g++ -O2 a.cpp -L. -lintegerb -o a.exe
-
 # 4. 运行
 .\a.exe
 */
@@ -20,7 +18,6 @@ g++ -O2 a.cpp -L. -lintegerb -o a.exe
 #include <cmath>
 #include <complex>
 #include <string>
-
 #define more 1
 typedef long long ll;
 typedef unsigned long long ull;
@@ -28,7 +25,6 @@ typedef std::complex<double> cd;
 typedef unsigned char uc;
 const int log2lenmax = 20, lenmax = 1 << log2lenmax, halflen = lenmax >> 1, e8 = 100000000;
 constexpr int Blen = 28, Base = 1 << Blen, Bmask = Base - 1, Flen = Blen >> 1, Fmask = (1 << Flen) - 1;
-
 struct c2
 {
 private:
@@ -76,19 +72,16 @@ public:
     void first(const c2& y);
     void second(const c2& y);
 };
-
 // 全局表与常量（定义在 .cpp）
 extern std::vector<double> table1;
 extern std::vector<double> table3;
 extern std::vector<cd> unit;
 extern cd tb[log2lenmax];
-
 // 自由函数
 std::vector<double> table(int f);
 void fft(c2* x, int n);
 void ifft(c2* x, int n);
 void middle(c2* xx, c2* yy, int n4);
-
 class integer
 {
 public:
@@ -113,7 +106,7 @@ public:
         }
     };
 private:
-    static integer multiply(const int* a, int la, const int* b, int lb, int sign);
+    static integer multiply(const int* a, int la, const int* b, int lb, int sign,int i=0);
     static void div32(int* a, int bh, int bl, int& q);
     void quotient(const view& a, const view& b, integer& now);
     static void div_short(int*anum, int alen, const int*bnum, int blen, integer&q, int qstart);
@@ -127,15 +120,13 @@ private:
     static void ntt_dfs(int*x, int mlog2, int lenlog2, int*tmp);
     static void intt_dfs(int*x, int mlog2, int lenlog2, int*tmp);
     static void invlen_fermat(int*x, int mlog2, int lenlog2, int*tmp);
-    static int*mk(const view&a, int k, int m, int len, int*tmp);
+    static int*mk(const view&a, int k, int m, int len);
     static cd Wi(int i, int&index, int&ilog2, int mlog2);
     static void b14rrii(int*l, int mlog2, c2*xx);
     static double* b14rrii(const view& a, int n);
-
 public:
     int sign = 1;
     std::vector<int> num;
-
     integer() {};
     integer(integer&& other) noexcept;
     integer(const integer& other);
@@ -144,7 +135,6 @@ public:
     integer(const view& v);
     integer(ll n);
     integer(const std::string& s);
-
     void get();
     ll toll() const;
     double getlog() const;
@@ -158,12 +148,11 @@ public:
     integer operator/(const integer& that) const;
     integer operator%(const integer& that) const;
     void operator%=(const integer& that);
-
     void shiftadd(const view& b, int i);
     static int abssub(int* a, int la, const int* b, int lb);
     static integer div_native(const view& a, const view& b, integer& r);
     static integer addorsub(const int* a, int la, int asign, const int* b, int lb, int bsign, bool add);
-    static integer karamul(view a, view b);
+    static integer karamul(view a, view b,int i=0);
     static integer shiftmul(const view& a, const view& b, int need, int& offset);
     static int ceil2pow(int len);
     static integer fftmul(const view& a, const view& b, int n = 0, double* outside = 0);
@@ -184,7 +173,6 @@ public:
     void addsmall(int n);
     static void mul_core(std::vector<integer>& level, int& zeros);
 };
-
 // 自由函数声明（类外）
 integer power(const integer& b, const integer& c);
 integer C_core(int e, int s, int e_s, int& zeros);
@@ -205,7 +193,6 @@ void hgcd(const integer::view& x, const integer::view& y, integer& a, integer& b
 integer gcd(const integer& m, const integer& n);
 integer euclid(const integer& m, const integer& n, integer& a, integer& c);
 integer inv(const integer& a, const integer& p);
-
 class mont
 {
 private:
@@ -224,13 +211,11 @@ public:
     integer pow_binary(const integer& x, const integer& y);
     integer pow_exponent(const integer& u, const std::vector<int>& l, int w);
 };
-
 struct pairs
 {
     integer f;
     integer s;
 };
-
 class mod
 {
 private:
@@ -249,11 +234,9 @@ public:
     pairs zero();
     pairs pow_exponent(const pairs& x, const std::vector<int>& l, int w = 5);
 };
-
 std::vector<int> exponent(const integer& a, int w = 5);
 int getw(const integer& n);
 integer power(const integer& x, const integer& n, const integer& p);
-
 #if more
 bool inside(int k, const std::initializer_list<int>& t);
 bool miller(const integer& n, const std::initializer_list<int> t = { 2, 3, 5, 7, 11, 13, 17 });
@@ -274,7 +257,6 @@ int mobius(const integer& x, bool p = 1);
 int primeroot(const integer& p, const std::vector<integer>*k0 = 0);
 integer order(const integer&a, const integer&n, integer phi, const std::vector<integer>&l0);
 pairs fib(int n);
-
 class indexcalculus
 {
 private:
@@ -295,7 +277,6 @@ public:
     void init(int r0);
     integer dlogr(const integer& x);
 };
-
 class dlsolver
 {
 private:
@@ -310,5 +291,4 @@ public:
     integer dlogp(const integer&a, const integer&b);
 };
 #endif
-
 #endif
