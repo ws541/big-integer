@@ -3,7 +3,7 @@
 #define _INTEGERB_H_
 /*
 # 1. 编译 .cpp 成 .o
-g++ -O2 -c integerb.cpp -o integerb.o
+g++ -O2 -march=native -c integerb.cpp -o integerb.o
 # 2. 打包成静态库
 ar rcs libintegerb.a integerb.o
 # 3. 编译 a.cpp 并链接
@@ -11,6 +11,7 @@ g++ -O2 a.cpp -L. -lintegerb -o a.exe
 # 4. 运行
 .\a.exe
 */
+//使用此推荐编译指令快
 // g++ -O2 a.cpp -L. -lintegerb -o a.exe
 //[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 #include <iostream>
@@ -84,6 +85,13 @@ std::vector<double> table(int f);
 void fft(c2* x, int n);
 void ifft(c2* x, int n);
 void middle(c2* xx, c2* yy, int n4);
+constexpr ull dot4(const int* a, const int* b)
+{
+    return (ull)((ll)a[0] * b[0]
+               + (ll)a[1] * b[-1]
+               + (ll)a[2] * b[-2]
+               + (ll)a[3] * b[-3]);
+}
 class integer
 {
 public:
