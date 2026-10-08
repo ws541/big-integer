@@ -961,11 +961,13 @@ int integer::abssub(int* a, int la, const int* b, int lb)
 integer integer::multiply(const int* a, int la, const int* b, int lb, int sign,int i,int iend)
 {
 	if (!lb || (la + a[0] < 2) || (lb + b[0] < 2)) { return 0; }
-	int n = la - 1, m = lb - 1, l = n + m + 1;
+	int l = la+lb-1;
 	integer c;
 	c.sign = sign;
 	c.num.resize(l + 1);
+	if(l>2&&a==b&&la==lb){square(a,la,c,i,iend);return c;}
 	ull k = 0;
+	int n = la - 1, m = lb - 1;
 	for (int end=std::min(m,iend); i < end; i++)
 	{
 		int j = i;
@@ -1024,6 +1026,59 @@ integer integer::multiply(const int* a, int la, const int* b, int lb, int sign,i
 	else { c.num.pop_back(); }
 	return c;
 }
+void integer::square(const int* a, int la, integer& c, int i, int iend)
+{
+    ull k = 0;
+    for(int end = std::min(la-1, iend); i < end; i++)
+    {
+        int j = 0, i2 = (i>>1)+(i&1);
+        for(; j + 3 < i2; j += 4)
+        {
+            int t = i - j;
+            k+= ((ll)a[t]   * a[j]
+                 + (ll)a[t-1] * a[j+1]
+                 + (ll)a[t-2] * a[j+2]
+                 + (ll)a[t-3] * a[j+3])<<1;
+        }
+        for(; j < i2; j++)
+        {
+            k += ((ll)a[i-j] * a[j]) << 1;
+        }
+        c.num[i] = k & Bmask;
+        k >>= Blen;
+    }
+    int l = (la<<1) - 1;
+    for(int end = std::min(l, iend); i < end; i++)
+    {
+        int j = i - la + 1, i2  = (i>>1)+(i&1);
+        for(; j + 3 < i2; j += 4)
+        {
+            int t = i - j;
+            k+= ((ll)a[t]   * a[j]
+                 + (ll)a[t-1] * a[j+1]
+                 + (ll)a[t-2] * a[j+2]
+                 + (ll)a[t-3] * a[j+3])<<1;
+        }
+        for(; j < i2; j++)
+        {
+            k += ((ll)a[i-j] * a[j]) << 1;
+        }
+        c.num[i] = k & Bmask;
+        k >>= Blen;
+    }
+    c.num[l] = k;
+	k=0;
+    for(int i=0;i<l;i+=2)
+	{
+		int i2=i>>1;
+		k+=c.num[i]+(ll)a[i2]*a[i2];
+		c.num[i]=k&Bmask;
+		k=c.num[i+1]+(k>>Blen);
+		c.num[i+1]=k&Bmask;
+		k>>=Blen;
+	}
+	if(!c.num[l]){c.num.pop_back();}
+}
 // ============ 乘法核心：karamul / shiftmul / ceil2pow / fftmul ============
 
 integer integer::karamul(view  a, view b,int i,int iend)
@@ -1059,7 +1114,8 @@ integer integer::karamul(view  a, view b,int i,int iend)
 		view a0(a.ptr, 0, n - 1, 1);
 		integer c1 = karamul(a1, b1);
 		ans=karamul(a0, b0);
-		integer tmp = karamul(addorsub(a0.ptr, a0.len, 1, a1.ptr, a1.len, 1, 1), addorsub(b0.ptr, b0.len, 1, b1.ptr, b1.len, 1, 1));
+		integer tmp=addorsub(a0.ptr, a0.len, 1, a1.ptr, a1.len, 1, 1);
+		tmp = karamul(tmp,a.ptr==b.ptr&&a.len==b.len?tmp:addorsub(b0.ptr, b0.len, 1, b1.ptr, b1.len, 1, 1));
 		abssub(tmp.num.data(), tmp.num.size(), ans.num.data(),ans.num.size());
 		abssub(tmp.num.data(), tmp.num.size(), c1.num.data(), c1.num.size());
 		while (tmp.num.back() == 0 && tmp.num.size() > 1) { tmp.num.pop_back(); }
