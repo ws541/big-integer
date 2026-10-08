@@ -1047,17 +1047,16 @@ void integer::square(const int* a, int la, integer& c, int i, int iend)
         k >>= Blen;
     }
     c.num[l] = k;
-	k=0;
-    for(int i=0;i<l;i+=2)
+	k=i=0;
+    for(int j=0,end=std::min(l,iend);i<end;j++,i+=2)
 	{
-		int i2=i>>1;
-		k+=c.num[i]+(ll)a[i2]*a[i2];
+		k+=c.num[i]+(ll)a[j]*a[j];
 		c.num[i]=k&Bmask;
 		k=c.num[i+1]+(k>>Blen);
 		c.num[i+1]=k&Bmask;
 		k>>=Blen;
 	}
-	if(!c.num[l]){c.num.pop_back();}
+	if(!c.num.back()){c.num.pop_back();}
 }
 // ============ 乘法核心：karamul / shiftmul / ceil2pow / fftmul ============
 
