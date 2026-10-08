@@ -24,6 +24,8 @@ typedef unsigned long long ull;
 typedef std::complex<double> cd;
 typedef unsigned char uc;
 const int log2lenmax = 20, lenmax = 1 << log2lenmax, halflen = lenmax >> 1, e8 = 100000000;
+//你可以调小log2lenmax,会初始表小一点,慢一倍左右(更早进入nttmul分支),但是不能大于20
+//log2lenmax =13足以胜任10,000,000!任务(48s,如果是默认20要19s)
 constexpr int Blen = 28, Base = 1 << Blen, Bmask = Base - 1, Flen = Blen >> 1, Fmask = (1 << Flen) - 1;
 struct c2
 {
@@ -107,6 +109,7 @@ public:
     };
 private:
     static integer multiply(const int* a, int la, const int* b, int lb, int sign,int i=0,int iend=1<<30);
+    static void square(const int* a, int la,integer&c,int i=0,int iend=1<<30);
     static void div32(int* a, int bh, int bl, int& q);
     void quotient(const view& a, const view& b, integer& now);
     static void div_short(int*anum, int alen, const int*bnum, int blen, integer&q, int qstart);
