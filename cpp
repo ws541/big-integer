@@ -965,7 +965,7 @@ integer integer::multiply(const int* a, int la, const int* b, int lb, int sign,i
 	integer c;
 	c.sign = sign;
 	c.num.resize(l + 1);
-	if(l>2&&a==b&&la==lb){square(a,la,c,i,iend);return c;}
+	if(l>3&&a==b&&la==lb){square(a,la,c,i,iend);return c;}
 	ull k = 0;
 	int n = la - 1, m = lb - 1;
 	for (int end=std::min(m,iend); i < end; i++)
@@ -973,11 +973,7 @@ integer integer::multiply(const int* a, int la, const int* b, int lb, int sign,i
 		int j = i;
 		for (; j > 3; j -= 4)
 		{
-			int t = i - j;
-			k += (ll)a[t] * b[j]
-			+ (ll)a[t + 1] * b[j - 1]
-			+ (ll)a[t + 2] * b[j - 2]
-			+ (ll)a[t + 3] * b[j - 3];
+			k += dot4(a+i-j,b+j);
 		}
 		for (; j > -1; j--)
 		{
@@ -991,11 +987,7 @@ integer integer::multiply(const int* a, int la, const int* b, int lb, int sign,i
 		int j = m;
 		for (; j > 3; j -= 4)
 		{
-			int t = i - j;
-			k += (ll)a[t] * b[j]
-			+ (ll)a[t + 1] * b[j - 1]
-			+ (ll)a[t + 2] * b[j - 2]
-			+ (ll)a[t + 3] * b[j - 3];
+			k += dot4(a+i-j,b+j);
 		}
 		for (; j > -1; j--)
 		{
@@ -1009,11 +1001,7 @@ integer integer::multiply(const int* a, int la, const int* b, int lb, int sign,i
 		int j = m;
 		for (; j > i - n + 3; j -= 4)
 		{
-			int t = i - j;
-			k += (ll)a[t] * b[j]
-			+ (ll)a[t + 1] * b[j - 1]
-			+ (ll)a[t + 2] * b[j - 2]
-			+ (ll)a[t + 3] * b[j - 3];
+			k += dot4(a+i-j,b+j);
 		}
 		for (; j > i - n - 1; j--)
 		{
@@ -1034,11 +1022,7 @@ void integer::square(const int* a, int la, integer& c, int i, int iend)
         int j = 0, i2 = (i>>1)+(i&1);
         for(; j + 3 < i2; j += 4)
         {
-            int t = i - j;
-            k+= ((ll)a[t]   * a[j]
-                 + (ll)a[t-1] * a[j+1]
-                 + (ll)a[t-2] * a[j+2]
-                 + (ll)a[t-3] * a[j+3])<<1;
+            k+= dot4(a+j,a+i-j)<<1;
         }
         for(; j < i2; j++)
         {
@@ -1053,11 +1037,7 @@ void integer::square(const int* a, int la, integer& c, int i, int iend)
         int j = i - la + 1, i2  = (i>>1)+(i&1);
         for(; j + 3 < i2; j += 4)
         {
-            int t = i - j;
-            k+= ((ll)a[t]   * a[j]
-                 + (ll)a[t-1] * a[j+1]
-                 + (ll)a[t-2] * a[j+2]
-                 + (ll)a[t-3] * a[j+3])<<1;
+            k+= dot4(a+j,a+i-j)<<1;
         }
         for(; j < i2; j++)
         {
@@ -3370,5 +3350,4 @@ integer dlsolver::dlogp(const integer&a,const integer&b)
 	}
 	return ans;
 }
-
 #endif
