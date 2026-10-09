@@ -1126,8 +1126,9 @@ void integer::endcatch()
     if(lastview.sign>0){delete[]lasty;}
     lastview.sign=-1;
 }
-integer integer::fftmul(const  view& a, const view& b)
+integer integer::fftmul(view a,view b)
 {
+    if(lastview.sign>0&&b.ptr!=lastview.ptr){std::swap(a,b);}
     int m = (a.len+b.len) << 1, n = 256;
 	while (n < m) { n <<= 1; }
 	if (n > lenmax || n < 0) { std::cout << "fftmul"; exit(0); }
