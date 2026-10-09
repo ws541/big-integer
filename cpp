@@ -1063,10 +1063,11 @@ void integer::square(const int* a, int la, integer& c, int i, int iend)
 
 integer integer::karamul(view  a, view b,int i,int iend)
 {
-	if (a.len < b.len) { std::swap(a, b); }
+    bool change=a.len < b.len;
+	if (change) { std::swap(a, b); }
 	bool canfft=a.len + b.len <= halflen;
 	if (b.len < 80 || (b.len < 160 &&((!canfft)||a.len * b.len < 30000))) { return multiply(a.ptr, a.len, b.ptr, b.len, a.sign * b.sign,i,iend); }
-	if (canfft) { return fftmul(a, b); }
+	if (canfft) {if (change) { std::swap(a, b); }return fftmul(a, b); }
 	if(b.len>halflen*0.7){return nttmul(a,b);}
 	int n = (a.len + 1) / 2;
 	integer ans;
@@ -1088,6 +1089,8 @@ integer integer::karamul(view  a, view b,int i,int iend)
 	}
 	else
 	{
+        int state=lastview.sign;
+        lastview.sign=-1;
 		view b1(b.ptr, n, b.len - 1, 1);
 		view b0(b.ptr, 0, n - 1, 1);
 		view a1(a.ptr, n, a.len - 1, 1);
@@ -1102,6 +1105,7 @@ integer integer::karamul(view  a, view b,int i,int iend)
 		ans.num.resize(a.len + b.len);
 		ans.shiftadd(tmp, n);
 		ans.shiftadd(c1, 2 * n);
+        lastview.sign=state;
 	}
 	while (ans.num.size() > 1 && ans.num.back() == 0) ans.num.pop_back();
 	ans.sign = a.sign * b.sign;
@@ -1126,9 +1130,8 @@ void integer::endcatch()
     if(lastview.sign>0){delete[]lasty;}
     lastview.sign=-1;
 }
-integer integer::fftmul(view a,view b)
+integer integer::fftmul(const view&a,const view&b)
 {
-    if(lastview.sign>0&&b.ptr!=lastview.ptr){std::swap(a,b);}
     int m = (a.len+b.len) << 1, n = 256;
 	while (n < m) { n <<= 1; }
 	if (n > lenmax || n < 0) { std::cout << "fftmul"; exit(0); }
@@ -1587,6 +1590,7 @@ integer integer::div_newton(const view& a, const view& b, integer& r)
         lastviewtmp=lastview,lastytmp=lasty;
         lastview=bview,lasty=db;
 		integer now = karamul(pview,b);
+        bview=lastview,db=lasty;
         lastview=lastviewtmp,lasty=lastytmp;
 		if (abssub(r.num.data() + start, std::min(l, lr), now.num.data(), now.num.size()) < 0) { std::cout << "div_newton1"; exit(0); }
 		q.shiftadd(pview, start);
