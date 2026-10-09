@@ -38,7 +38,8 @@ std::vector<cd> unit = []() {
 }();
 
 cd tb[log2lenmax];
-
+integer::view integer::lastview;
+double* integer::lasty;
 // ============ c2 的成员函数 ============
 
 void c2::first(const c2& y)
@@ -1074,16 +1075,14 @@ integer integer::karamul(view  a, view b,int i,int iend)
 		int la=halflen-1-b.len;
 		int k=a.len/la+(bool)(a.len%la);
 		la=a.len/k+bool(a.len%k);
-		int n=ceil2pow(la+b.len);
-		double*outside=b14rrii(b,n);
-		fft(reinterpret_cast<c2*>(&outside[0]),n>>2);
+		trycatch();
 		ans.num.resize(a.len+b.len);
 		for(int i=0;i<a.len;i+=la)
 		{
 			view anow(a.ptr,i,std::min(i+la,a.len)-1,1);
-			ans.shiftadd(fftmul(anow,b,n,outside),i);
+			ans.shiftadd(fftmul(anow,b),i);
 		}	
-		delete[]outside;
+		endcatch();
 	}
 	else
 	{
@@ -1116,32 +1115,36 @@ integer integer::shiftmul(const view& a, const view& b, int need, int& offset)
 	view aview(a, b1), bview(b, b2);
 	return karamul(aview, bview,std::max(0,aview.len+bview.len-need-4));
 }
-
-int integer::ceil2pow(int len)
+void integer::trycatch()
 {
-	int m = (len) << 1, n = 256;
-	while (n < m) { n <<= 1; }
-	return  n;
+    if(lastview.sign>0){delete[]lasty;}
+    lastview.sign=0;
 }
-
-integer integer::fftmul(const  view& a, const view& b,int n,double*outside)
+void integer::endcatch()
 {
-	if(!n){n=ceil2pow(a.len+b.len);}
+    if(lastview.sign>0){delete[]lasty;}
+    lastview.sign=-1;
+}
+integer integer::fftmul(const  view& a, const view& b)
+{
+    int m = (a.len+b.len) << 1, n = 256;
+	while (n < m) { n <<= 1; }
 	if (n > lenmax || n < 0) { std::cout << "fftmul"; exit(0); }
 	int n4 = n >> 2;
 	double* x0 = b14rrii(a, n), * y0;
 	c2* xx = reinterpret_cast<c2*>(&x0[0]), * yy;
 	fft(xx, n4);
 	const bool same = a.ptr == b.ptr && a.len == b.len;
-	if(outside){y0=outside,yy = reinterpret_cast<c2*>(&y0[0]);}
-	else if (same) { y0 = x0, yy = xx; }
+    const bool uselast=lastview.sign==n&&b.ptr==lastview.ptr&&b.len==lastview.len;
+	if (same) { y0 = x0, yy = xx; }
+    else if(uselast){y0 = lasty, yy = reinterpret_cast<c2*>(&y0[0]);}
 	else { y0 = b14rrii(b, n), yy = reinterpret_cast<c2*>(&y0[0]); fft(yy, n4);}
 	middle(xx,yy,n4);
-	if (!same&&!outside) { delete[]y0; }
+    if(lastview.sign==0){lastview=b;lastview.sign=n;lasty=y0;}
+	else if (!same&&!uselast) { delete[]y0; }
 	ifft(xx, n4);
 	integer c;
-	int m=a.len + b.len + 1;
-	c.num.reserve(m); m>>=1;
+	c.num.reserve(m=a.len + b.len + 1); m>>=1;
 	c.sign = a.sign * b.sign;
 	ll k = 0;
 	for (int i = 0; i < m; i++)
@@ -1388,6 +1391,7 @@ integer integer::fsqrt(bool fix)const
 				tmp.sign = abssub(tmp.num.data(), tmp.num.size(), prod.num.data(), prod.num.size());
 				while (tmp.num.back() == 0 && tmp.num.size() > 1) { tmp.num.pop_back(); }
 				integer r;
+                //std::cout<<tmp.num.size()<<" "<<xt.num.size()<<"\n";
 				tmp = divide(tmp, xt, r);
 				q = addorsub(qview.ptr, qview.len, qview.sign, tmp.num.data(), tmp.num.size(), tmp.sign, 1);
 				if (tmp.sign == -1 && r.num.back()) { q.addsmall(-1); }
@@ -1567,18 +1571,21 @@ integer integer::div_newton(const view& a, const view& b, integer& r)
 	integer xt=reciprocal(b,l);
 	if(r.num.data()!=a.ptr||r.num.size()!=a.len){r=a;}
 	integer q; q.num.assign(la - lb + 1, 0);
+    trycatch();
 	for (int i = 0; i < n && r.num.size() > lb + 4; i++) {
 		int lr = r.num.size(), start = lr - l;
 		if (start < 0) { start = 0; }
 		view cutview(r.num.data(), start, lr - 1, r.sign);
 		int need = cutview.len - lb + 2, b_shift = 0;
-		integer p = shiftmul(xt, cutview, need, b_shift);
+        if(lastview.sign>0&&need<lastview.len&&need*1.3>lastview.len){need=lastview.len;}
+		integer p = shiftmul(cutview,xt, need, b_shift);
 		view pview(p, l - b_shift);
 		integer now = karamul(b, pview);
 		if (abssub(r.num.data() + start, std::min(l, lr), now.num.data(), now.num.size()) < 0) { std::cout << "div_newton1"; exit(0); }
 		q.shiftadd(pview, start);
 		while (!r.num.back() && r.num.size() > 1) { r.num.pop_back(); }
 	}
+    endcatch();
 	if (r.num.size() > lb + 4) { std::cout << "div_newton2"; exit(0); }
 	q.shiftadd(div_native(r, b, r), 0);
 	while (q.num.size() > 1 && q.num.back() == 0) { q.num.pop_back(); }
