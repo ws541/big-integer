@@ -1075,6 +1075,7 @@ integer integer::karamul(view  a, view b,int i,int iend)
 		int la=halflen-1-b.len;
 		int k=a.len/la+(bool)(a.len%la);
 		la=a.len/k+bool(a.len%k);
+        view lv=lastview;double*ly=lasty;
 		trycatch();
 		ans.num.resize(a.len+b.len);
 		for(int i=0;i<a.len;i+=la)
@@ -1083,6 +1084,7 @@ integer integer::karamul(view  a, view b,int i,int iend)
 			ans.shiftadd(fftmul(anow,b),i);
 		}	
 		endcatch();
+        lastview=lv,lasty=ly;
 	}
 	else
 	{
@@ -1117,7 +1119,6 @@ integer integer::shiftmul(const view& a, const view& b, int need, int& offset)
 }
 void integer::trycatch()
 {
-    if(lastview.sign>0){delete[]lasty;}
     lastview.sign=0;
 }
 void integer::endcatch()
@@ -1571,21 +1572,26 @@ integer integer::div_newton(const view& a, const view& b, integer& r)
 	integer xt=reciprocal(b,l);
 	if(r.num.data()!=a.ptr||r.num.size()!=a.len){r=a;}
 	integer q; q.num.assign(la - lb + 1, 0);
-    trycatch();
+    view bview;double*db;
+    if(n>1){trycatch();bview.sign=0;}
 	for (int i = 0; i < n && r.num.size() > lb + 4; i++) {
 		int lr = r.num.size(), start = lr - l;
 		if (start < 0) { start = 0; }
 		view cutview(r.num.data(), start, lr - 1, r.sign);
-		int need = cutview.len - lb + 2, b_shift = 0;
+		int need = cutview.len - lb + 2, shift = 0;
         if(lastview.sign>0&&need<lastview.len&&need*1.3>lastview.len){need=lastview.len;}
-		integer p = shiftmul(cutview,xt, need, b_shift);
-		view pview(p, l - b_shift);
-		integer now = karamul(b, pview);
+		integer p = shiftmul(cutview,xt, need, shift);
+		view pview(p, l - shift);
+        view lastviewtmp;double*lastytmp;
+        lastviewtmp=lastview,lastytmp=lasty;
+        lastview=bview,lasty=db;
+		integer now = karamul(pview,b);
+        lastview=lastviewtmp,lasty=lastytmp;
 		if (abssub(r.num.data() + start, std::min(l, lr), now.num.data(), now.num.size()) < 0) { std::cout << "div_newton1"; exit(0); }
 		q.shiftadd(pview, start);
 		while (!r.num.back() && r.num.size() > 1) { r.num.pop_back(); }
 	}
-    endcatch();
+    if(n>1){endcatch();if(bview.sign>0){delete[]db;}}
 	if (r.num.size() > lb + 4) { std::cout << "div_newton2"; exit(0); }
 	q.shiftadd(div_native(r, b, r), 0);
 	while (q.num.size() > 1 && q.num.back() == 0) { q.num.pop_back(); }
