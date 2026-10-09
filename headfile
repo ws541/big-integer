@@ -101,6 +101,7 @@ public:
         const int* ptr;
         int len;
         int sign;
+        view(){sign=-1;}
         view(const integer& x) { ptr = x.num.data(), len = x.num.size(), sign = x.sign; }
         view(const int* a, int start, int end, int s) {
             while (end > start && a[end] == 0) { end--; }
@@ -116,6 +117,8 @@ public:
         }
     };
 private:
+    static view lastview;
+    static double*lasty;
     static integer multiply(const int* a, int la, const int* b, int lb, int sign,int i=0,int iend=1<<30);
     static void square(const int* a, int la,integer&c,int i=0,int iend=1<<30);
     static void div32(int* a, int bh, int bl, int& q);
@@ -165,8 +168,9 @@ public:
     static integer addorsub(const int* a, int la, int asign, const int* b, int lb, int bsign, bool add);
     static integer karamul(view a, view b,int i=0,int iend=1<<30);
     static integer shiftmul(const view& a, const view& b, int need, int& offset);
-    static int ceil2pow(int len);
-    static integer fftmul(const view& a, const view& b, int n = 0, double* outside = 0);
+    static void trycatch();
+    static void endcatch();
+    static integer fftmul(const view& a, const view& b);
     static integer nttmul(const view& a, const view& b);
     static integer reciprocal(const view& n, int l);
     integer fsqrt(bool fix = 1) const;
