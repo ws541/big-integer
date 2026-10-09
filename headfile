@@ -170,7 +170,7 @@ public:
     static integer shiftmul(const view& a, const view& b, int need, int& offset);
     static void trycatch();
     static void endcatch();
-    static integer fftmul(const view& a, const view& b);
+    static integer fftmul(view a,view b);
     static integer nttmul(const view& a, const view& b);
     static integer reciprocal(const view& n, int l);
     integer fsqrt(bool fix = 1) const;
