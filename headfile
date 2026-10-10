@@ -11,7 +11,7 @@ g++ -O2 a.cpp -L. -lintegerb -o a.exe
 # 4. 运行
 .\a.exe
 */
-//使用此推荐编译指令快
+//使用此推荐编译指令快;
 // g++ -O2 a.cpp -L. -lintegerb -o a.exe
 //[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 #include <iostream>
@@ -87,10 +87,10 @@ void ifft(c2* x, int n);
 void middle(c2* xx, c2* yy, int n4);
 constexpr ull dot4(const int* a, const int* b)
 {
-    return (ull)((ll)a[0] * b[0]
-               + (ll)a[1] * b[-1]
-               + (ll)a[2] * b[-2]
-               + (ll)a[3] * b[-3]);
+    return (ull)a[0] * b[0]
+               + (ull)a[1] * b[-1]
+               + (ull)a[2] * b[-2]
+               + (ull)a[3] * b[-3];
 }
 class integer
 {
@@ -101,7 +101,7 @@ public:
         const int* ptr;
         int len;
         int sign;
-        view(){sign=-1;}
+        view(){}
         view(const integer& x) { ptr = x.num.data(), len = x.num.size(), sign = x.sign; }
         view(const int* a, int start, int end, int s) {
             while (end > start && a[end] == 0) { end--; }
@@ -166,7 +166,6 @@ public:
     static int abssub(int* a, int la, const int* b, int lb);
     static integer div_native(const view& a, const view& b, integer& r);
     static integer addorsub(const int* a, int la, int asign, const int* b, int lb, int bsign, bool add);
-    static bool karamulchoosemultiply(view a, view b);
     static integer karamul(view a, view b,int i=0,int iend=1<<30);
     static integer shiftmul(const view& a, const view& b, int need, int& offset);
     static void trycatch();
@@ -215,7 +214,7 @@ private:
     integer a, b;
     int m;
     integer::view fastmod(const integer& x);
-    integer::view fastdiv(const integer& x);
+    static bool karamulchoosemultiply(integer::view a,integer::view b);
 public:
     integer f, p;
     mont() {}
