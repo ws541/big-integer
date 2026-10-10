@@ -896,20 +896,9 @@ integer integer::addorsub(const int* a, int la, int asign, const int* b, int lb,
 	result.sign = asign;
 	if (absadd)
 	{
-		for (int i = 0; i < lb; i++)
-		{
-			result.num[i] += b[i] + k;
-			k = result.num[i] >= Base;
-			result.num[i] -= k << Blen;
-		}
-		const int lr = result.num.size();
-		for (j = lb; j < lr && k; j++)
-		{
-			result.num[j] += k;
-			k = result.num[j] >= Base;
-			result.num[j] -= k << Blen;
-		}
-		if (k) { result.num.push_back(1); }
+		result.num.push_back(0);
+		result.shiftadd(view(b,0,lb-1,1),0);
+		if(!result.num.back()){result.num.pop_back();}
 	}
 	else
 	{
@@ -1017,7 +1006,7 @@ integer integer::multiply(const int* a, int la, const int* b, int lb, int sign,i
 }
 void integer::square(const int* a, int la, integer& c, int i, int iend)
 {
-    ull k = 0;
+    ull k = 0;int icopy=i;
     for(int end = std::min(la-1, iend); i < end; i++)
     {
         int j = 0, i2 = (i>>1)+(i&1);
@@ -1048,8 +1037,8 @@ void integer::square(const int* a, int la, integer& c, int i, int iend)
         k >>= Blen;
     }
     c.num[l] = k;
-	k=i=0;
-    for(int j=0,end=std::min(l,iend);i<end;j++,i+=2)
+	k=0,i=icopy-(icopy&1);
+    for(int j=i>>1,end=std::min(l,iend);i<end;j++,i+=2)
 	{
 		k+=c.num[i]+(ll)a[j]*a[j];
 		c.num[i]=k&Bmask;
@@ -1060,7 +1049,7 @@ void integer::square(const int* a, int la, integer& c, int i, int iend)
 	if(!c.num.back()){c.num.pop_back();}
 }
 // ============ 乘法核心：karamul / shiftmul / ceil2pow / fftmul ============
-bool integer::karamulchoosemultiply(view a,view b)
+bool mont::karamulchoosemultiply(integer::view a,integer::view b)
 {
 	if (a.len < b.len) { std::swap(a, b); }
 	bool canfft=a.len + b.len <= halflen;
@@ -1405,7 +1394,7 @@ integer integer::fsqrt(bool fix)const
                 //std::cout<<tmp.num.size()<<" "<<xt.num.size()<<"\n";
 				tmp = divide(tmp, xt, r);
 				q = addorsub(qview.ptr, qview.len, qview.sign, tmp.num.data(), tmp.num.size(), tmp.sign, 1);
-				if (tmp.sign == -1 && r.num.back()) { q.addsmall(-1); }
+				if (r.sign == -1 && r.num.back()) {q.addsmall(-1); }
 			}
 			else { flag = 0; }
 		}
@@ -1534,7 +1523,7 @@ integer integer::root(int m,bool fix)const
 					integer r;
 					tmp = divide(tmp1, tmp, r);
 					q = addorsub(qview.ptr, qview.len, qview.sign, tmp.num.data(), tmp.num.size(), tmp.sign, 1);
-					if (tmp.sign == -1 && r.num.back()) { q.addsmall(-1); }
+					if (r.sign == -1 && r.num.back()) { q.addsmall(-1); }
 					q = q / m;
 				}
 				else { flag = 0; }
@@ -1573,7 +1562,7 @@ integer integer::shiftpow(const integer& x, int n, int need, int& b)
 integer integer::div_newton(const view& a, const view& b, integer& r)
 {
 	int la = a.len, lb = b.len;
-	int n =std::min(24, la / lb);
+	int n =std::min(24.0, la*1.0 / lb+0.2);
 	int l = (la - lb) / n + 3,l0=(la - lb) / (n+1) + 3;
 	while (l >= 512) { l >>= 1;l0>>=1;}
 	if(l>255&&l0<256){n++;}
@@ -1645,6 +1634,7 @@ integer integer::div_bz(const view& a, const view& b, integer& r)
 integer integer::divide(const view& a, const view& b, integer& r)
 {
 	int la = a.len, lb = b.len;
+	if(la<lb){r=a;return 0;}
 	float f=(float)la/lb;
 	if (la > 200 && lb > 50 && (la-lb > 100||f>3))
 	{
@@ -2153,11 +2143,6 @@ integer::view mont::fastmod(const integer& x)
 	return  integer::view(x.num.data(), 0, std::min((int)x.num.size() - 1, m - 1), x.sign);
 }
 
-integer::view mont::fastdiv(const integer& x)
-{
-	return integer::view(x.num.data(), m, x.num.size() - 1, 1);
-}
-
 void mont::init()
 {
 	m = p.num.size();
@@ -2174,17 +2159,15 @@ integer mont::out(const integer& x)
 	integer::view tmpview=fastmod(tmp);
 	integer u=integer::karamul(p, tmpview,std::max(0,m-5));
 	bool  needadd1=0;
-	if(m>5&&integer::karamulchoosemultiply(p,tmpview))
+	if(m>5&&karamulchoosemultiply(p,tmpview))
 	{
 		for(int i=0,end=std::min((int)x.num.size(),m);i<end;i++){needadd1|=x.num[i]!=0;}
 		int end=m;
 		if(u.num.size()<=m){u.num.resize(1);end=1;}
 		for(int i=0;i<end;i++){u.num[i]=0;}
 	}
-	tmp = x + u;
-	integer t;
-	if(m>=tmp.num.size()){t.num.resize(1);}
-	else{t=fastdiv(tmp);}
+	integer t=x+u;
+	t.div2pow(m*Blen);
 	t.addsmall(needadd1);
 	if (!p.absbigger(t, 0))
 	{
