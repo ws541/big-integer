@@ -166,6 +166,7 @@ public:
     static int abssub(int* a, int la, const int* b, int lb);
     static integer div_native(const view& a, const view& b, integer& r);
     static integer addorsub(const int* a, int la, int asign, const int* b, int lb, int bsign, bool add);
+    static bool karamulchoosemultiply(view a, view b);
     static integer karamul(view a, view b,int i=0,int iend=1<<30);
     static integer shiftmul(const view& a, const view& b, int need, int& offset);
     static void trycatch();
