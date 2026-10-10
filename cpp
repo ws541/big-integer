@@ -2183,8 +2183,9 @@ integer mont::out(const integer& x)
 	}
 	tmp = x + u;
 	integer t;
-	if(m>=tmp.num.size()){t=1;}
-	else{t=fastdiv(tmp);t.addsmall(needadd1);}
+	if(m>=tmp.num.size()){t.num.resize(1);}
+	else{t=fastdiv(tmp);}
+	t.addsmall(needadd1);
 	if (!p.absbigger(t, 0))
 	{
 		integer::abssub(t.num.data(), t.num.size(), p.num.data(), p.num.size());
