@@ -1060,7 +1060,13 @@ void integer::square(const int* a, int la, integer& c, int i, int iend)
 	if(!c.num.back()){c.num.pop_back();}
 }
 // ============ 乘法核心：karamul / shiftmul / ceil2pow / fftmul ============
-
+bool integer::karamulchoosemultiply(view a,view b)
+{
+	if (a.len < b.len) { std::swap(a, b); }
+	bool canfft=a.len + b.len <= halflen;
+	if (b.len < 80 || (b.len < 160 &&((!canfft)||a.len * b.len < 30000))) { return 1; }
+	return 0;
+}
 integer integer::karamul(view  a, view b,int i,int iend)
 {
     bool change=a.len < b.len;
@@ -1564,11 +1570,10 @@ integer integer::shiftpow(const integer& x, int n, int need, int& b)
 	}
 	return ans;
 }
-
 integer integer::div_newton(const view& a, const view& b, integer& r)
 {
 	int la = a.len, lb = b.len;
-	int n = std::min(24, la / lb);
+	int n =std::min(24, la / lb);
 	int l = (la - lb) / n + 3,l0=(la - lb) / (n+1) + 3;
 	while (l >= 512) { l >>= 1;l0>>=1;}
 	if(l>255&&l0<256){n++;}
@@ -2165,13 +2170,25 @@ void mont::init()
 integer mont::out(const integer& x)
 {
 	if(!x.num.back()){return 0;}
-	integer tmp1 = integer::karamul(fastmod(x), a,0,m);
-	integer tmp2 = x + integer::karamul(p, fastmod(tmp1));
-	integer::view t = fastdiv(tmp2);
+	integer tmp = integer::karamul(fastmod(x), a,0,m);
+	integer::view tmpview=fastmod(tmp);
+	integer u=integer::karamul(p, tmpview,std::max(0,m-5));
+	bool  needadd1=0;
+	if(m>5&&integer::karamulchoosemultiply(p,tmpview))
+	{
+		for(int i=0,end=std::min((int)x.num.size(),m);i<end;i++){needadd1|=x.num[i]!=0;}
+		int end=m;
+		if(u.num.size()<=m){u.num.resize(1);end=1;}
+		for(int i=0;i<end;i++){u.num[i]=0;}
+	}
+	tmp = x + u;
+	integer t;
+	if(m>=tmp.num.size()){t=1;}
+	else{t=fastdiv(tmp);t.addsmall(needadd1);}
 	if (!p.absbigger(t, 0))
 	{
-		integer::abssub(tmp2.num.data() + m, t.len, p.num.data(), p.num.size());
-		while (t.len > 1 && t.ptr[t.len - 1] == 0) { t.len--; }
+		integer::abssub(t.num.data(), t.num.size(), p.num.data(), p.num.size());
+		while (t.num.size() > 1 && t.num.back()== 0) { t.num.pop_back(); }
 	}
 	return t;
 }
