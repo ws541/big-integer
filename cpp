@@ -2195,11 +2195,11 @@ integer mont::out(const integer& x)
 		for(int i=0,end=std::min((int)x.num.size(),m-1);i<end;i++){add1|=x.num[i]!=0;}
 		int shouldbe=(Base-add1-(x.num.size()<m?0:x.num[m-1]))&Bmask;
 		carry=u.num[m-1]>shouldbe;
-		//ai处来自低位量级eps=m*base^2/base^4=0,但是考虑全Bmask影响无法忽略eps=1
-		//ai+carry=shouldbe mod base,由eps=1得carry=0或者1 
-		//当ai>shouldbe,仅加1需产生变化,即需修正ai=bmask,shouldbe=0情形,此时向上产生一个进位
+		//u(m-1)处来自低位量级eps=m*base^2/base^4=0,但是考虑全Bmask影响无法忽略eps=1
+		//u(m-1)+carry=shouldbe mod base,由eps=1得carry=0或者1 
+		//仅需修正u(m-1)=bmask,shouldbe=0情形,此时向上产生一个进位,判据u(m-1)>shouldbe
 		//其余情况不会向上进位
-		if(x.num.size()<m){add1|=x.num[m-1]!=0;}
+		if(x.num.size()>=m){add1|=x.num[m-1]!=0;}
 		carry+=add1;
 		int end=m;
 		if(u.num.size()<=m){u.num.resize(1);end=1;}
