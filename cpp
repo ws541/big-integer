@@ -2136,18 +2136,48 @@ integer inv(const integer& a, const integer& p)
 	if (!(g.num.size() == 1 && g.num[0] == 1) || !t.num.back()) { return 0; }
 	return t.mod_positive(p);
 }
+
+integer invbasepower(const integer&a,int m)//a>0的奇数
+{
+	std::vector<int>mplan;
+	mplan.push_back(m);
+	while(m>1)
+	{
+		m=m/2+(m&1);
+		mplan.push_back(m);
+	}mplan.pop_back();
+	unsigned int x1=1,a1=a.num[0];
+	for(int i=1;i<32;i<<=1)
+	{
+		x1=x1*(2-a1*x1);
+	}
+	integer  x=x1;x.num.resize(1);
+	while(!mplan.empty())
+	{
+		m=mplan.back();mplan.pop_back();
+		bool odd=m&1;m+=odd;
+		integer tmp=integer::karamul(integer::view(a.num.data(), 0,std::min(m,(int)a.num.size())-1,1),x,0,m);
+		while(tmp.num.size()>1&&tmp.num.back()==0){tmp.num.pop_back();}
+		tmp.addsmall(-2);
+		x=integer::karamul(x,integer::view(tmp.num.data(), 0,std::min(m,(int)tmp.num.size())-1, tmp.sign),0,m-odd);
+		x.num.resize(std::min(m-odd,(int)x.num.size()));
+		x.sign*=-1;
+	}
+	return x;
+}
 // ============ mont / mod 类成员函数 ============
 
 integer::view mont::fastmod(const integer& x)
 {
 	return  integer::view(x.num.data(), 0, std::min((int)x.num.size() - 1, m - 1), x.sign);
 }
-
 void mont::init()
 {
 	m = p.num.size();
 	integer n = integer(1).shift(m);
-	a = n - inv(p, n);
+	a=invbasepower(p,m);
+	a.sign*=-1;
+	if(a.sign<0){a=a+n;}
 	f = n % p;
 	b = f * f % p;
 }
@@ -2288,8 +2318,8 @@ mod::mod(const integer& x)
 	if (a1 = (y.num.size() > 1 || y.num.back() > 1))
 	{
 		a.p = std::move(y); a.init();
-		integer tmp = 1; tmp.mul2pow(m);
-		key = inv(a.p, tmp);
+		key=invbasepower(a.p,m/Blen+(m%Blen!=0));
+		key.mod2pow(m);
 	}
 }
 
