@@ -2188,17 +2188,26 @@ integer mont::out(const integer& x)
 	integer tmp = integer::karamul(fastmod(x), a,0,m);
 	integer::view tmpview=fastmod(tmp);
 	integer u=integer::karamul(p, tmpview,std::max(0,m-5));
-	bool  needadd1=0;
+	int carry=0;
 	if(m>5&&karamulchoosemultiply(p,tmpview))
 	{
-		for(int i=0,end=std::min((int)x.num.size(),m);i<end;i++){needadd1|=x.num[i]!=0;}
+		bool add1=0;
+		for(int i=0,end=std::min((int)x.num.size(),m-1);i<end;i++){add1|=x.num[i]!=0;}
+		int shouldbe=(Base-add1-(x.num.size()<m?0:x.num[m-1]))&Bmask;
+		carry=u.num[m-1]>shouldbe;
+		//ai处来自低位量级eps=m*base^2/base^4=0,但是考虑全Bmask影响无法忽略eps=1
+		//ai+carry=shouldbe mod base,由eps=1得carry=0或者1 
+		//当ai>shouldbe,仅加1需产生变化,即需修正ai=bmask,shouldbe=0情形,此时向上产生一个进位
+		//其余情况不会向上进位
+		if(x.num.size()<m){add1|=x.num[m-1]!=0;}
+		carry+=add1;
 		int end=m;
 		if(u.num.size()<=m){u.num.resize(1);end=1;}
 		for(int i=0;i<end;i++){u.num[i]=0;}
 	}
 	integer t=x+u;
 	t.div2pow(m*Blen);
-	t.addsmall(needadd1);
+	t.addsmall(carry);
 	if (!p.absbigger(t, 0))
 	{
 		integer::abssub(t.num.data(), t.num.size(), p.num.data(), p.num.size());
