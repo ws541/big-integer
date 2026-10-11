@@ -208,6 +208,7 @@ void hgcd(const integer::view& x, const integer::view& y, integer& a, integer& b
 integer gcd(const integer& m, const integer& n);
 integer euclid(const integer& m, const integer& n, integer& a, integer& c);
 integer inv(const integer& a, const integer& p);
+integer invbasepower(const integer&a,int m);
 class mont
 {
 private:
@@ -218,7 +219,7 @@ private:
 public:
     integer f, p;
     mont() {}
-    void init();
+    void init();  
     integer out(const integer& x);
     integer in(const integer& x);
     integer add(const integer& u, const integer& v);
