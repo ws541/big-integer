@@ -101,7 +101,7 @@ public:
         const int* ptr;
         int len;
         int sign;
-        view(){}
+        view(){sign=-1;}//千万不要改1,否则lastview状态错误,fft会出现诡异情况
         view(const integer& x) { ptr = x.num.data(), len = x.num.size(), sign = x.sign; }
         view(const int* a, int start, int end, int s) {
             while (end > start && a[end] == 0) { end--; }
