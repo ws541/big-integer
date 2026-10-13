@@ -1,6 +1,7 @@
 
 #ifndef _INTEGERB_H_
 #define _INTEGERB_H_
+//使用此推荐编译指令快
 /*
 # 1. 编译 .cpp 成 .o
 g++ -O2 -march=native -c integerb.cpp -o integerb.o
@@ -11,7 +12,8 @@ g++ -O2 a.cpp -L. -lintegerb -o a.exe
 # 4. 运行
 .\a.exe
 */
-//使用此推荐编译指令快;
+//十进制长度1024以下小数字除法略慢于pythonint,isprime不提供试除,qs,dlsolver是玩具级
+//div_newton,recip,div_bz对商最小长度有要求,类似接口虽然公开不要随意调用
 // g++ -O2 a.cpp -L. -lintegerb -o a.exe
 //[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 #include <iostream>
@@ -119,9 +121,11 @@ public:
 private:
     static view lastview;
     static double*lasty;
+    static std::vector<int>divtmp;
     static integer multiply(const int* a, int la, const int* b, int lb, int sign,int i=0,int iend=1<<30);
     static void square(const int* a, int la,integer&c,int i=0,int iend=1<<30);
     static void div32(int* a, int bh, int bl, int& q);
+    template <bool WantQ>
     void quotient(const view& a, const view& b, integer& now);
     static void div_short(int*anum, int alen, const int*bnum, int blen, integer&q, int qstart);
     static void div_4n_2n(int*anum, int alen, const int*bnum, int blen, integer&q, int qstart);
@@ -164,21 +168,23 @@ public:
     void operator%=(const integer& that);
     void shiftadd(const view& b, int i);
     static int abssub(int* a, int la, const int* b, int lb);
+    template <bool WantQ>
     static integer div_native(const view& a, const view& b, integer& r);
     static integer addorsub(const int* a, int la, int asign, const int* b, int lb, int bsign, bool add);
     static integer karamul(view a, view b,int i=0,int iend=1<<30);
     static integer shiftmul(const view& a, const view& b, int need, int& offset);
-    static void trycatch();
+    static void trycatch();//危险函数,中间只能夹karamul,不能夹div_newton
     static void endcatch();
     static integer fftmul(const view&a,const view&b);
     static integer nttmul(const view& a, const view& b);
     static integer reciprocal(const view& n, int l);
-    integer fsqrt(bool fix = 1) const;
-    integer root(int m, bool fix = 1) const;
+    integer fsqrt(bool floor = 1) const;
+    integer root(int m, bool floor = 1) const;
     static integer shiftpow(const integer& x, int n, int need, int& b);
+    template <bool WantQ = true>
     static integer div_newton(const view& a, const view& b, integer& r);
     static integer div_bz(const view& a, const view& b, integer& r);
-    static integer divide(const view& a, const view& b, integer& r);
+    static integer divide(const view& a, const view& b, integer& r,bool wantq=1);
     integer mod_positive(const integer& b) const;
     int ctz() const;
     void mod2pow(int n);
