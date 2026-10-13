@@ -40,6 +40,7 @@ std::vector<cd> unit = []() {
 cd tb[log2lenmax];
 integer::view integer::lastview;
 double* integer::lasty;
+std::vector<int> integer::divtmp;
 // ============ c2 的成员函数 ============
 
 void c2::first(const c2& y)
@@ -199,7 +200,7 @@ void integer::div32(int* a, int bh, int bl, int& q)
 		a[2] += carry;
 	}
 }
-
+template <bool WantQ>
 void integer::quotient(const view& a, const view& b, integer& now)
 {
 	int m = 1, t = b.ptr[b.len - 1];
@@ -210,33 +211,46 @@ void integer::quotient(const view& a, const view& b, integer& now)
 	now.num.reserve(a.len + 1);
 	if(needcopy){now = a;}
 	now.num.push_back(0); int ln;
-	integer prod; prod.num.resize(b.len + 2);
-	if (a.len > b.len + 30 && b.len > 10)
+	divtmp.resize(b.len+2);
+	if (a.len > b.len + 20 && b.len > 10)
 	{
 		int h = Blen - m, hmask = (1 << h) - 1, bh = (b.ptr[b.len - 1] << m) | (b.ptr[b.len - 2] >> h),
 		bl = ((b.ptr[b.len - 2] & hmask) << m) | (b.ptr[b.len - 3] >> h);
-		for (int tmp[4]; (t = (ln = now.num.size()) - b.len - 1) > 10; now.num.pop_back())
+		for (; (t = (ln = now.num.size()) - b.len - 1) > 15; now.num.pop_back())
 		{
 			int q = (((((ull)now.num.back() << Blen) + now.num[ln - 2]) << m_5) + (((ull)now.num[ln - 3] << m) >> (Blen - 5))) / bb;
 			if (!q) { continue; }
 			for (int i = 3; i > -1; i--)
 			{
-				tmp[i] = ((now.num[ln - 4 + i] & hmask) << m) | (now.num[ln - 5 + i] >> h);
+				divtmp[i] = ((now.num[ln - 4 + i] & hmask) << m) | (now.num[ln - 5 + i] >> h);
 			}
-			div32(tmp + 1, bh, bl, q);
-			int q1 = (((ull)tmp[2] << Blen) + tmp[1]) / bh;
-			div32(tmp, bh, bl, q1);
+			div32(divtmp.data() + 1, bh, bl, q);
+			int q1 = (((ull)divtmp[2] << Blen) + divtmp[1]) / bh;
+			div32(divtmp.data(), bh, bl, q1);
 			ull k = (ull)b.ptr[0] * q1;
-			prod.num[0] = k & Bmask, k >>= Blen;
-			for (int i = 1; i < b.len; i++)
+			divtmp[0] = k & Bmask;
+			k >>= Blen;
+			int i = 1;
+			for (; i + 1 < b.len; i += 2)
 			{
-				k = (ull)b.ptr[i] * q1 + (ull)b.ptr[i - 1] * q + k;
-				prod.num[i] = k & Bmask, k >>= Blen;
+				ull p0 = (ull)b.ptr[i]     * q1 + (ull)b.ptr[i - 1] * q;
+				ull p1 = (ull)b.ptr[i + 1] * q1 + (ull)b.ptr[i]     * q;
+				k += p0;
+				divtmp[i] = k & Bmask;
+				k = p1+(k>>Blen);
+				divtmp[i + 1] = k & Bmask;
+				k >>=Blen;
 			}
-			k = (ull)b.ptr[b.len - 1] * q + k;
-			prod.num[b.len] = k & Bmask;
-			prod.num[b.len + 1] = k>>Blen;
-			int s = abssub(now.num.data() + t - 1, b.len + 2, prod.num.data(), b.len+2);
+			if (i<b.len)
+			{
+				k += (ull)b.ptr[i] * q1 + (ull)b.ptr[i - 1] * q;
+				divtmp[i] = k & Bmask;
+				k >>= Blen;
+			}
+			k += (ull)b.ptr[b.len - 1] * q;
+			divtmp[b.len]     = k & Bmask;
+			divtmp[b.len + 1] = k >> Blen;
+			int s = abssub(now.num.data() + t - 1, b.len + 2, divtmp.data(), b.len+2);
 			int cnt = 0;
 			while (s < 0)
 			{
@@ -244,8 +258,10 @@ void integer::quotient(const view& a, const view& b, integer& now)
 				if (cnt++ > 2) { std::cout << "quotient1"; exit(0); }
 			}
 			ull q2 = (((ull)q << Blen) | q1) - cnt;
-			num[t] = q2 >> Blen;
-			num[t - 1] = q2 & Bmask;
+			if constexpr (WantQ)
+			{
+				num[t] = q2 >> Blen;num[t - 1] = q2 & Bmask;
+			}
 			now.num.pop_back();
 		}
 	}
@@ -257,42 +273,46 @@ void integer::quotient(const view& a, const view& b, integer& now)
 		for (int i = 0; i < b.len; i++)
 		{
 			k = (ull)b.ptr[i] * q + k;
-			prod.num[i] = k & Bmask, k >>= Blen;
-		}prod.num[b.len] = k;
-		int s = abssub(now.num.data() + t, b.len + 1, prod.num.data(), b.len+1);
+			divtmp[i] = k & Bmask, k >>= Blen;
+		}
+		divtmp[b.len] = k;
+		int s = abssub(now.num.data() + t, b.len + 1, divtmp.data(), b.len+1);
 		int cnt = 0;
 		while (s < 0)
 		{
 			s = -abssub(now.num.data() + t, b.len + 1, b.ptr, b.len);
 			if (cnt++ > 2) { std::cout << "quotient2"; exit(0); }
 		}
-		num[t] = q - cnt;
+		if constexpr (WantQ)
+		{
+			num[t] = q - cnt;
+		}
 	}
 	while (now.num.back() == 0 && now.num.size() > 1) { now.num.pop_back(); }
 }
 
 void integer::div_short(int*anum,int alen,const int*bnum,int blen,integer&q,int qstart)
 {
-	integer prod;prod.num.resize(blen+1);
+	int l=blen+1;
+	divtmp.resize(l);
 	for(int qindex=alen-blen-1;qindex>-1;qindex--)
 	{
 		ull k=((ull)anum[blen+qindex]<<Blen)+anum[blen+qindex-1];
 		int qguess=k/bnum[blen-1];
 		if(!qguess){continue;}
-		qguess=std::min(qguess,Base-1);
 		k=0;
 		for(int i=0;i<blen;i++)
 		{
 			k+=(ull)qguess*bnum[i];
-			prod.num[i]=k&Bmask;
+			divtmp[i]=k&Bmask;
 			k>>=Blen;
 		}
-		prod.num[blen]=k;
-		int s=abssub(anum+qindex,prod.num.size(),prod.num.data(),prod.num.size());
+		divtmp[blen]=k;
+		int s=abssub(anum+qindex,l,divtmp.data(),l);
 		int cnt=0;
 		while(s<0)
 		{
-			s=-abssub(anum+qindex,prod.num.size(),bnum,blen);
+			s=-abssub(anum+qindex,l,bnum,blen);
 			if (cnt++ > 2) { std::cout << "div_short"; exit(0); }
 		}
 		q.num[qstart+qindex]=qguess-cnt;
@@ -302,7 +322,7 @@ void integer::div_short(int*anum,int alen,const int*bnum,int blen,integer&q,int 
 void integer::div_4n_2n(int*anum,int alen,const int*bnum,int blen,integer&q,int qstart)
 {
 	int qlen=alen-blen;
-	if(qlen<10||blen<10){div_short(anum,alen,bnum,blen,q,qstart);return;}
+	if(qlen<12||blen<12){div_short(anum,alen,bnum,blen,q,qstart);return;}
 	int qlen1=qlen>>1,alen1=blen+qlen1,ashift1=alen-alen1;
 	div_3n_2n(anum+ashift1,alen1,bnum,blen,q,qstart+ashift1);
 	alen-=qlen1;
@@ -330,7 +350,7 @@ bool integer::qlen_overflow(int*anum,int alen,const int*bnum,int blen,integer&q,
 void integer::div_3n_2n(int*anum,int alen,const int*bnum,int blen,integer&q,int qstart)
 {
 	int qlen=alen-blen;
-	if(qlen<10||blen<10){div_short(anum,alen,bnum,blen,q,qstart);return;}
+	if(qlen<12||blen<12){div_short(anum,alen,bnum,blen,q,qstart);return;}
 	int shift=blen-qlen;
 	bool flag=qlen_overflow(anum+shift,alen-shift,bnum+shift,blen-shift,q,qstart);
 	if(!flag){div_4n_2n(anum+shift,alen-shift,bnum+shift,blen-shift,q,qstart);}
@@ -849,38 +869,44 @@ integer integer::operator/(const integer& that)const
 integer integer::operator%(const integer& that)const
 {
 	integer r;
-	divide(*this, that, r);
+	divide(*this, that, r,0);
 	return r;
 }
 
 void integer::operator%=(const integer& that)
 {
-	divide(*this, that, *this);
+	divide(*this, that, *this,0);
 }
-
+template <bool WantQ>
 integer integer::div_native(const view& a, const view& b, integer& r)
 {
 	if (!b.ptr[b.len - 1]) { std::cout << "div0"; exit(0); }
 	integer c;
-	c.num.resize(std::max(a.len - b.len + 1, 1));
+	if constexpr (WantQ)
+	{
+		c.num.resize(std::max(a.len - b.len + 1, 1));
+		c.sign = a.sign * b.sign;
+	}
 	if (b.len == 1)
 	{
 		ull n = b.ptr[0], now = 0;
 		for (int i = a.len - 1; i > -1; i--)
 		{
 			now = (now << Blen) + a.ptr[i];
-			c.num[i] = now / n;
+			if constexpr (WantQ)
+			{
+				c.num[i] = now / n;
+			}
 			now %= n;
 		}
 		r.num.resize(1),r.num[0]= now;
 	}
 	else
 	{
-		c.quotient(a, b, r);
+		c.quotient<WantQ>(a, b, r);
 	}
 	while (c.num.size() > 1 && c.num.back() == 0) { c.num.pop_back(); }
 	r.sign = a.sign;
-	c.sign = a.sign * b.sign;
 	return c;
 }
 
@@ -1285,7 +1311,7 @@ integer integer::reciprocal(const view& n,int l)
 	int k = 1;
 	int t = n.len + k;
 	int b;
-	integer tmp,xt = div_native(integer(1).shift(3), view(n.ptr, n.len - 2, n.len - 1, n.sign), tmp);
+	integer tmp,xt = div_native<1>(integer(1).shift(3), view(n.ptr, n.len - 2, n.len - 1, n.sign), tmp);
 	std::vector<int>xtsize;
 	int k1 = l - xt.num.size() + 1; k1 += ((k1 & 1) == 0);
 	while (k1 > 5) { k1 = k1 / 2 + 1; k1 += ((k1 & 1) == 0); xtsize.push_back(k1); }
@@ -1309,7 +1335,7 @@ integer integer::reciprocal(const view& n,int l)
 	return xt;
 }
 
-integer integer::fsqrt(bool fix)const
+integer integer::fsqrt(bool floor)const
 {
 	int ns = num.size();
 	if (ns < 3)
@@ -1412,15 +1438,15 @@ integer integer::fsqrt(bool fix)const
 		while (!kplan.empty() && k >= kplan.back()) { kplan.pop_back(); }
 	}
 	xt.addsmall(-1);
-	if (fix&&(xt * xt).absbigger(*this, 0)) { xt.addsmall(-1); }
+	if (floor&&(xt * xt).absbigger(*this, 0)) { xt.addsmall(-1); }
 	return xt;
 }
 
-integer integer::root(int m,bool fix)const
+integer integer::root(int m,bool floor)const
 {
 	if (!num.back() || m == 1) { return *this; }
 	if (m < 1) { std::cout << "root"; exit(0); }
-	if (m == 2) { return fsqrt(fix); }
+	if (m == 2) { return fsqrt(floor); }
 	int ns = num.size();
 	int f = ns / m + (ns % m != 0);
 	const bool useyk = f > 100;
@@ -1543,7 +1569,7 @@ integer integer::root(int m,bool fix)const
 	}
 	xt.addsmall(-1);
 	need = num.size() << 1;
-	if (fix&&shiftpow(xt, m, need, b).absbigger(*this, 0)) { xt.addsmall(-1); }
+	if (floor&&shiftpow(xt, m, need, b).absbigger(*this, 0)) { xt.addsmall(-1); }
 	return xt;
 }
 
@@ -1559,6 +1585,7 @@ integer integer::shiftpow(const integer& x, int n, int need, int& b)
 	}
 	return ans;
 }
+template <bool WantQ>
 integer integer::div_newton(const view& a, const view& b, integer& r)
 {
 	int la = a.len, lb = b.len;
@@ -1569,7 +1596,11 @@ integer integer::div_newton(const view& a, const view& b, integer& r)
 	l = (la - lb) / n + lb + 2;
 	integer xt=reciprocal(b,l);
 	if(r.num.data()!=a.ptr||r.num.size()!=a.len){r=a;}
-	integer q; q.num.assign(la - lb + 1, 0);
+	integer q; 
+	if constexpr (WantQ)
+	{
+		q.num.assign(la - lb + 1, 0);
+	}
     view bview;double*db;
     if(n>1){trycatch();bview.sign=0;}
 	for (int i = 0; i < n && r.num.size() > lb + 4; i++) {
@@ -1587,14 +1618,20 @@ integer integer::div_newton(const view& a, const view& b, integer& r)
         bview=lastview,db=lasty;
         lastview=lastviewtmp,lasty=lastytmp;
 		if (abssub(r.num.data() + start, std::min(l, lr), now.num.data(), now.num.size()) < 0) { std::cout << "div_newton1"; exit(0); }
-		q.shiftadd(pview, start);
+		if constexpr (WantQ)
+		{
+			q.shiftadd(pview, start);
+		}
 		while (!r.num.back() && r.num.size() > 1) { r.num.pop_back(); }
 	}
     if(n>1){endcatch();if(bview.sign>0){delete[]db;}}
 	if (r.num.size() > lb + 4) { std::cout << "div_newton2"; exit(0); }
-	q.shiftadd(div_native(r, b, r), 0);
-	while (q.num.size() > 1 && q.num.back() == 0) { q.num.pop_back(); }
-	q.sign = a.sign * b.sign;
+	if constexpr (WantQ)
+	{
+		q.shiftadd(div_native<1>(r, b, r), 0);
+		while (q.num.size() > 1 && q.num.back() == 0) { q.num.pop_back(); }
+		q.sign = a.sign * b.sign;
+	}
 	r.sign = a.sign;
 	return q;
 }
@@ -1631,24 +1668,25 @@ integer integer::div_bz(const view& a, const view& b, integer& r)
 	return q;
 }
 
-integer integer::divide(const view& a, const view& b, integer& r)
+integer integer::divide(const view& a, const view& b, integer& r, bool wantq)
 {
-	int la = a.len, lb = b.len;
-	if(la<lb){r=a;return 0;}
-	float f=(float)la/lb;
-	if (la > 200 && lb > 50 && (la-lb > 100||f>3))
-	{
-		
-		if (lb < 400-f*30&&f<2.6){return div_bz(a,b,r);}
-		return div_newton(a, b, r);
-	}
-	return div_native(a, b, r);
+    int la = a.len, lb = b.len;
+    if (la < lb) { r = a; return 0; }
+    float f = (float)la / lb;
+    if (la > 200 && lb > 50 && (la - lb > 100 || f > 3))
+    {
+        if (lb < 400 - f * 30 && f < 2.6) { return div_bz(a, b, r); }
+        if (wantq) { return div_newton<true>(a, b, r); }
+        else       { return div_newton<false>(a, b, r); }
+    }
+    if (wantq) { return div_native<true>(a, b, r); }
+    else       { return div_native<false>(a, b, r); }
 }
 
 integer integer::mod_positive(const integer& b)const
 {
 	integer r;
-	divide(*this, b, r);
+	divide(*this, b, r,0);
 	if (r.sign < 0 && r.num.back())
 	{
 		r.num.resize(b.num.size());
@@ -2543,7 +2581,7 @@ bool lucas(const integer& x)
 	integer u;
 	if (x.num[0] % 2 == 0 ||
 		((inside(x.num[0] % 128, { 1, 9, 17, 25, 33, 41, 49, 57, 65, 73, 81, 89, 97, 105, 113, 121 }) &&
-		  ((u = x.fsqrt()) * u).num == x.num))) {
+		  ((u = x.fsqrt(0)) * u).num == x.num))) {
 		return 0;
 	}
 	int t = 5, s = 1;
@@ -2628,7 +2666,7 @@ int inv_fsp(int q, int p)
 
 void qsinit(integer&d,const integer&n,std::vector<int>&prime,std::vector<int>&root,std::vector<uc>&logp,uc&bound,mont&q,int&m)
 {
-	d = n.fsqrt();
+	d = n.fsqrt(0);
 	int B = pow(d.getlog() - 2, 1.67 + 0.106 * n.num.size());
 	root.assign((B + B % 2) / 2, 1);
 	for (int i = 1, a; 2 * (a = 2 * i * (i + 1)) <= B - 1; i++)
@@ -2803,13 +2841,13 @@ integer factor(const integer& n, bool& pollard)//不质数幂
 		for (; z < ps && (y.num.size() > 1 || y.num[0] > 1); z++)
 		{
 			p.num[0]=prime[z];
-			integer q = integer::div_native(y, p, res);
+			integer q = integer::div_native<1>(y, p, res);
 			int cnt = 0;
 			while (!res.num.back())
 			{
 				cnt++;
 				std::swap(y, q);
-				q = integer::div_native(y, p, res);
+				q = integer::div_native<1>(y, p, res);
 			}
 			pcnt[z] = cnt;
 		}
@@ -2887,7 +2925,7 @@ integer factor(const integer& n, bool& pollard)//不质数幂
 		if (tb > (ta << (level + 1))) { bound ++; }if ((ta << level) > tb) { bound --; }//倾向于错误多些,快
 		return 0;
 	};
-	integer d = n.fsqrt(); int m;
+	int m;integer d;
 	qsinit(d, n, prime, root, logp, bound, q,m);
 	pcnt.resize(prime.size());
 	smooth.assign(prime.size(), equa(n.num.size(), prime.size()));
@@ -3056,7 +3094,7 @@ integer order(const integer&a,const integer&n,integer phi,const std::vector<inte
 	if(g.num.size()>1||g.num[0]>1){return 0;}
 	for(auto&e:l0)
 	{
-		integer r,next=integer::div_native(phi,e,r);
+		integer r,next=integer::div_native<1>(phi,e,r);
 		do
 		{
 			integer check=power(a,next,n);
@@ -3094,13 +3132,13 @@ bool indexcalculus::smooth(integer tmp,std::vector<int>&right)
 	for (; j < ps && (tmp.num.size() > 1 || tmp.num[0] > 1); j++)
 	{
 		p.num[0]=prime[j];
-		integer q = integer::div_native(tmp, p, r);
+		integer q = integer::div_native<1>(tmp, p, r);
 		int cnt = 0;
 		while (r.num.back() == 0)
 		{
 			cnt++;
 			std::swap(tmp, q);
-			q = integer::div_native(tmp, p, r);
+			q = integer::div_native<1>(tmp, p, r);
 		}
 		if (cnt) { right.push_back(j), right.push_back(cnt); }
 	}
@@ -3360,11 +3398,11 @@ dlsolver::dlsolver(integer p)
 		if(small.absbigger(e,0))
 		{
 			int cnt=0;
-			integer r,q=integer::div_native(p,e,r);
+			integer r,q=integer::div_native<1>(p,e,r);
 			do
 			{
 				std::swap(p,q);
-				q=integer::div_native(p,e,r);cnt++;
+				q=integer::div_native<1>(p,e,r);cnt++;
 			}while(r.num.back()==0);
 			l.push_back(e.toll());l.push_back(cnt);
 		}
@@ -3383,7 +3421,7 @@ integer dlsolver::ord(const integer&a,std::vector<int>*s)
 	for(int i=0;i<l.size();i+=2)
 	{
 		int cnt=0;
-		integer e=l[i],r,next=integer::div_native(o,e,r);
+		integer e=l[i],r,next=integer::div_native<1>(o,e,r);
 		do
 		{
 			if(ic.q.pow_binary(a0,next).num!=ic.q.f.num){break;}
