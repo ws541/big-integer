@@ -209,7 +209,6 @@ void integer::quotient(const view& a, const view& b, integer& now)
 				start[i]=carry&Bmask;
 				carry>>=Blen;
 			}q--;
-			start[b.len]=0;
 		}
 		if constexpr (WantQ)
 		{
@@ -239,7 +238,7 @@ void integer::div_short(int*anum,int alen,const int*bnum,int blen,integer&q,int 
 		start[blen]+=k;
 		int top=blen;
 		while(top>-1&&start[top]==0){top--;}
-		if(start[top]<0)
+		if(top>-1&&start[top]<0)
 		{
 			int carry=0;
 			for(int i=0;i<blen;i++)
