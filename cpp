@@ -40,7 +40,6 @@ std::vector<cd> unit = []() {
 cd tb[log2lenmax];
 integer::view integer::lastview;
 double* integer::lasty;
-std::vector<int> integer::divtmp;
 // ============ c2 的成员函数 ============
 
 void c2::first(const c2& y)
@@ -176,30 +175,6 @@ void middle(c2*xx, c2*yy, int n4)
 	}
 }
 // ============ integer 私有 static 辅助函数 ============
-
-void integer::div32(int* a, int bh, int bl, int& q)
-{
-	ull p0 = (ull)bl * q, p1 = (ull)bh * q;
-	a[0] -= p0 & Bmask;
-	bool carry = a[0] < 0;
-	a[0] += carry << Blen;
-	a[1] -= (p0 >> Blen) + (p1 & Bmask) + carry;
-	carry = a[1] < 0;
-	a[1] += carry << Blen;
-	a[2] -= (p1 >> Blen) + carry + (a[1] < 0);
-	a[1] += (a[1] < 0) << Blen;
-	while (a[2] < 0)
-	{
-		q--;
-		a[0] += bl;
-		carry = a[0] >= Base;
-		a[0] -= carry << Blen;
-		a[1] += bh + carry;
-		carry = a[1] >= Base;
-		a[1] -= carry << Blen;
-		a[2] += carry;
-	}
-}
 template <bool WantQ>
 void integer::quotient(const view& a, const view& b, integer& now)
 {
@@ -211,118 +186,78 @@ void integer::quotient(const view& a, const view& b, integer& now)
 	now.num.reserve(a.len + 1);
 	if(needcopy){now = a;}
 	now.num.push_back(0); int ln;
-	divtmp.resize(b.len+2);
-	if (a.len > b.len + 20 && b.len > 10)
-	{
-		int h = Blen - m, hmask = (1 << h) - 1, bh = (b.ptr[b.len - 1] << m) | (b.ptr[b.len - 2] >> h),
-		bl = ((b.ptr[b.len - 2] & hmask) << m) | (b.ptr[b.len - 3] >> h);
-		for (; (t = (ln = now.num.size()) - b.len - 1) > 15; now.num.pop_back())
-		{
-			int q = (((((ull)now.num.back() << Blen) + now.num[ln - 2]) << m_5) + (((ull)now.num[ln - 3] << m) >> (Blen - 5))) / bb;
-			if (!q) { continue; }
-			for (int i = 3; i > -1; i--)
-			{
-				divtmp[i] = ((now.num[ln - 4 + i] & hmask) << m) | (now.num[ln - 5 + i] >> h);
-			}
-			div32(divtmp.data() + 1, bh, bl, q);
-			int q1 = (((ull)divtmp[2] << Blen) + divtmp[1]) / bh;
-			div32(divtmp.data(), bh, bl, q1);
-			ull k = (ull)b.ptr[0] * q1;
-			divtmp[0] = k & Bmask;
-			k >>= Blen;
-			int i = 1;
-			for (; i + 1 < b.len; i += 2)
-			{
-				ull p0 = (ull)b.ptr[i]     * q1 + (ull)b.ptr[i - 1] * q;
-				ull p1 = (ull)b.ptr[i + 1] * q1 + (ull)b.ptr[i]     * q;
-				k += p0;
-				divtmp[i] = k & Bmask;
-				k = p1+(k>>Blen);
-				divtmp[i + 1] = k & Bmask;
-				k >>=Blen;
-			}
-			if (i<b.len)
-			{
-				k += (ull)b.ptr[i] * q1 + (ull)b.ptr[i - 1] * q;
-				divtmp[i] = k & Bmask;
-				k >>= Blen;
-			}
-			k += (ull)b.ptr[b.len - 1] * q;
-			divtmp[b.len]     = k & Bmask;
-			divtmp[b.len + 1] = k >> Blen;
-			int s = abssub(now.num.data() + t - 1, b.len + 2, divtmp.data(), b.len+2);
-			int cnt = 0;
-			while (s < 0)
-			{
-				s = -abssub(now.num.data() + t - 1, b.len + 2, b.ptr, b.len);
-				if (cnt++ > 2) { std::cout << "quotient1"; exit(0); }
-			}
-			ull q2 = (((ull)q << Blen) | q1) - cnt;
-			if constexpr (WantQ)
-			{
-				num[t] = q2 >> Blen;num[t - 1] = q2 & Bmask;
-			}
-			now.num.pop_back();
-		}
-	}
 	for (; (t = (ln = now.num.size()) - b.len - 1) > -1; now.num.pop_back())
 	{
 		int q = (((((ull)now.num.back() << Blen) + now.num[ln - 2]) << m_5) + (((ull)now.num[ln - 3] << m) >> (Blen - 5))) / bb;
 		if (!q) { continue; }
-		ull k = 0;
+		int*start=now.num.data()+t;
+		ll k = 0;
 		for (int i = 0; i < b.len; i++)
 		{
-			k = (ull)b.ptr[i] * q + k;
-			divtmp[i] = k & Bmask, k >>= Blen;
+			k +=(ll)start[i]-(ll)b.ptr[i] * q;
+			start[i] = k & Bmask, k >>= Blen;
 		}
-		divtmp[b.len] = k;
-		int s = abssub(now.num.data() + t, b.len + 1, divtmp.data(), b.len+1);
-		int cnt = 0;
-		while (s < 0)
+		start[b.len] += k;
+		int top=b.len;
+		while(top>-1&&start[top]==0){top--;}
+		if(top>-1&&start[top]<0)
 		{
-			s = -abssub(now.num.data() + t, b.len + 1, b.ptr, b.len);
-			if (cnt++ > 2) { std::cout << "quotient2"; exit(0); }
+			int carry=0;
+			for(int i=0;i<b.len;i++)
+			{
+				carry+=start[i]+b.ptr[i];
+				start[i]=carry&Bmask;
+				carry>>=Blen;
+			}q--;
+			start[b.len]=0;
 		}
 		if constexpr (WantQ)
 		{
-			num[t] = q - cnt;
+			num[t] = q;
 		}
 	}
 	while (now.num.back() == 0 && now.num.size() > 1) { now.num.pop_back(); }
 }
 
+
 void integer::div_short(int*anum,int alen,const int*bnum,int blen,integer&q,int qstart)
 {
 	int l=blen+1;
-	divtmp.resize(l);
+	ull bb = ((ull)bnum[blen - 1] <<5) + (((ull)bnum[blen - 2]) >> (Blen - 5));
 	for(int qindex=alen-blen-1;qindex>-1;qindex--)
 	{
-		ull k=((ull)anum[blen+qindex]<<Blen)+anum[blen+qindex-1];
-		int qguess=k/bnum[blen-1];
-		if(!qguess){continue;}
-		k=0;
+		int q1 = (((((ull)anum[blen+qindex]<< Blen) +anum[blen+qindex-1]) <<5) + (((ull)anum[blen+qindex-2]) >> (Blen - 5))) / bb;
+		if(!q1){continue;}
+		int*start=anum+qindex;
+		ll k=0;
 		for(int i=0;i<blen;i++)
 		{
-			k+=(ull)qguess*bnum[i];
-			divtmp[i]=k&Bmask;
+			k+=(ll)start[i]-(ll)q1*bnum[i];
+			start[i]=k&Bmask;
 			k>>=Blen;
 		}
-		divtmp[blen]=k;
-		int s=abssub(anum+qindex,l,divtmp.data(),l);
-		int cnt=0;
-		while(s<0)
+		start[blen]+=k;
+		int top=blen;
+		while(top>-1&&start[top]==0){top--;}
+		if(start[top]<0)
 		{
-			s=-abssub(anum+qindex,l,bnum,blen);
-			if (cnt++ > 2) { std::cout << "div_short"; exit(0); }
+			int carry=0;
+			for(int i=0;i<blen;i++)
+			{
+				carry+=start[i]+bnum[i];
+				start[i]=carry&Bmask;
+				carry>>=Blen;
+			}q1--;
+			start[blen]=0;
 		}
-		q.num[qstart+qindex]=qguess-cnt;
+		q.num[qstart+qindex]=q1;
 	}		
 }
 
 void integer::div_4n_2n(int*anum,int alen,const int*bnum,int blen,integer&q,int qstart)
 {
 	int qlen=alen-blen;
-	if(qlen<12||blen<12){div_short(anum,alen,bnum,blen,q,qstart);return;}
+	if(qlen<15||blen<15){div_short(anum,alen,bnum,blen,q,qstart);return;}
 	int qlen1=qlen>>1,alen1=blen+qlen1,ashift1=alen-alen1;
 	div_3n_2n(anum+ashift1,alen1,bnum,blen,q,qstart+ashift1);
 	alen-=qlen1;
@@ -350,7 +285,7 @@ bool integer::qlen_overflow(int*anum,int alen,const int*bnum,int blen,integer&q,
 void integer::div_3n_2n(int*anum,int alen,const int*bnum,int blen,integer&q,int qstart)
 {
 	int qlen=alen-blen;
-	if(qlen<12||blen<12){div_short(anum,alen,bnum,blen,q,qstart);return;}
+	if(qlen<15||blen<15){div_short(anum,alen,bnum,blen,q,qstart);return;}
 	int shift=blen-qlen;
 	bool flag=qlen_overflow(anum+shift,alen-shift,bnum+shift,blen-shift,q,qstart);
 	if(!flag){div_4n_2n(anum+shift,alen-shift,bnum+shift,blen-shift,q,qstart);}
@@ -881,6 +816,7 @@ template <bool WantQ>
 integer integer::div_native(const view& a, const view& b, integer& r)
 {
 	if (!b.ptr[b.len - 1]) { std::cout << "div0"; exit(0); }
+	if(a.len<b.len){r=a;return 0;}
 	integer c;
 	if constexpr (WantQ)
 	{
@@ -1632,6 +1568,7 @@ integer integer::div_newton(const view& a, const view& b, integer& r)
 		while (q.num.size() > 1 && q.num.back() == 0) { q.num.pop_back(); }
 		q.sign = a.sign * b.sign;
 	}
+	else{div_native<0>(r, b, r);}
 	r.sign = a.sign;
 	return q;
 }
@@ -1655,7 +1592,7 @@ integer integer::div_bz(const view& a, const view& b, integer& r)
 		i-=bblen;
 		int j=i;
 		while(j+bblen2>0&&r.num[j+bblen2-1]==0){j--;}
-		if(i!=j){i=j+(r.num[i+bblen2-1]>=bb.num.back());}
+		if(i!=j){i=j+(r.num[j+bblen2-1]>=bb.num.back());}
 	}
 	i+=bblen2;
 	if(i){div_4n_2n(r.num.data(),i,bb.num.data(),bblen,q,0);}
