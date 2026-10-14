@@ -12,8 +12,8 @@ g++ -O2 a.cpp -L. -lintegerb -o a.exe
 # 4. 运行
 .\a.exe
 */
-//十进制长度1024以下小数字除法略慢于pythonint,isprime不提供试除,qs,dlsolver是玩具级
-//div_newton,recip,div_bz对商最小长度有要求,类似接口虽然公开不要随意调用
+//isprime不提供试除,qs,dlsolver是玩具级
+//div_newton,recip,div_bz对商最小长度有要求,类似接口虽然公开不能随意调用
 // g++ -O2 a.cpp -L. -lintegerb -o a.exe
 //[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 #include <iostream>
@@ -121,10 +121,8 @@ public:
 private:
     static view lastview;
     static double*lasty;
-    static std::vector<int>divtmp;
     static integer multiply(const int* a, int la, const int* b, int lb, int sign,int i=0,int iend=1<<30);
     static void square(const int* a, int la,integer&c,int i=0,int iend=1<<30);
-    static void div32(int* a, int bh, int bl, int& q);
     template <bool WantQ>
     void quotient(const view& a, const view& b, integer& now);
     static void div_short(int*anum, int alen, const int*bnum, int blen, integer&q, int qstart);
@@ -170,7 +168,7 @@ public:
     static int abssub(int* a, int la, const int* b, int lb);
     template <bool WantQ>
     static integer div_native(const view& a, const view& b, integer& r);
-    static integer addorsub(const int* a, int la, int asign, const int* b, int lb, int bsign, bool add);
+    static integer addorsub(const int* a, int la, int asign, const int* b, int lb, int bsign, bool isadd);
     static integer karamul(view a, view b,int i=0,int iend=1<<30);
     static integer shiftmul(const view& a, const view& b, int need, int& offset);
     static void trycatch();//危险函数,中间只能夹karamul,不能夹div_newton
@@ -314,3 +312,5 @@ public:
 };
 #endif
 #endif
+//g++ -O2 a.cpp -L. -lintegerb -I D:\mingw64download\mingw64\include -L D:\mingw64download\mingw64\lib -lgmp -lgmpxx -o a.exe
+//对比用命令
