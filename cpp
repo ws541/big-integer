@@ -1375,7 +1375,7 @@ integer integer::isqrt(bool floor)const
 	return xt;
 }
 
-integer integer::root(int m,bool floor,int zero)const//azero是浮点补丁
+integer integer::root(int m,bool floor,int zero)const//zero是浮点补丁
 {
 	if (!num.back() || m == 1) { return *this; }
 	if (m < 1||((m&1)==0&&sign==-1)||(zero&&m==2)) { std::cout << "root"; exit(0); }
@@ -1403,7 +1403,7 @@ integer integer::root(int m,bool floor,int zero)const//azero是浮点补丁
 		b = 0;
 		integer tmp = shiftpow(mid, m, need, b);
 		leftshift = m * (f - k) + b;
-		if (leftshift<zero||(leftshift < ns && !tmp.absbigger(view(*this, leftshift-zero), 0)))
+		if (leftshift<zero||(leftshift-zero < ns && !tmp.absbigger(view(*this, leftshift-zero), 0)))
 		//由于tmp.size<2*need,而*this在浮点大小root处大小3*l,所以lefshift<zero就一定小
 		{
 			q = mid;
@@ -1425,7 +1425,7 @@ integer integer::root(int m,bool floor,int zero)const//azero是浮点补丁
 			b1 = 0;
 			integer tmp1 = shiftmul(xt, tmp, need, b1).shift(b1);
 			leftshift = m * (f - k) + b;
-			if (leftshift<zero||ns > leftshift) {
+			if (ns > leftshift-zero) {
 				//std::cout<<f<<" "<<tmp1.num.size()<<"\n";
 				view nview(*this, leftshift-zero);
 				abssub(tmp1.num.data(), tmp1.num.size(), nview.ptr, nview.len);
@@ -1449,7 +1449,7 @@ integer integer::root(int m,bool floor,int zero)const//azero是浮点补丁
 			integer tmp = shiftpow(xt, m - 1, need, b);
 			integer tmp1 = shiftmul(xt, tmp, need, b1).shift(b1 + p);//tmp1最大,决定*this折叠0边界
 			leftshift = m * (f - k) + b - p;
-			if (ns > leftshift) {
+			if (ns > leftshift-zero) {
 				//std::cout<<f<<" "<<tmp1.num.size()<<"\n";
 				view nview(*this, leftshift-zero);
 				int check = abssub(tmp1.num.data(), tmp1.num.size(), nview.ptr, nview.len);
@@ -1504,6 +1504,7 @@ integer integer::root(int m,bool floor,int zero)const//azero是浮点补丁
 			l += p;
 			k += p;
 			p = xt.num.size() - 2;
+			if(p>2&&p<6&&zero){p--;}//浮点版本的等价again机制
 			while (!kplan.empty() && k >= kplan.back()) { kplan.pop_back(); }
 		}
 	}
@@ -1527,7 +1528,7 @@ integer integer::shiftpow(const integer& x, int n, int need, int& b)
 	return ans;
 }
 template <bool WantQ>
-integer integer::div_newton(const view& a, const view& b, integer& r,int bzero,bool eps)
+integer integer::div_newton(const view& a, const view& b, integer& r,int bzero,bool eps)//bzero,eps是浮点补丁
 {
 	int la = a.len, lb = b.len+bzero;
 	int n =std::min(24.0, la*1.0 / lb+0.2);
@@ -3700,7 +3701,7 @@ floatb floatb::divide(const floatb& b,int l) const//尝试NUM层面a*base^l/b,�
 	return ans;
 }
 
-floatb floatb::calpower(int n,int l)const
+floatb floatb::calpower(int n,int l)const//指数容易静默溢出,超大指数floatb乘法也是,不检查
 {
 	floatb c=integer(NUM.num.back()?1:0);
 	int l0=validlength();
@@ -3721,7 +3722,7 @@ floatb floatb::calpower(int n,int l)const
 	return ans;
 }
 
-floatb floatb::calroot(int n,int l)const
+floatb floatb::calroot(int n,int l)const//validlenth()*n要在int一定余量以内,否则溢出,之前太多int了,改不过来了,范围就小点吧
 {
 	floatb c=integer(NUM.num.back()?1:0);
 	int l0=validlength();
