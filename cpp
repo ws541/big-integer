@@ -1,3 +1,4 @@
+
 #include "integerb.h"
 
 // ============ 全局表与常量定义 ============
@@ -605,6 +606,12 @@ integer::integer(const std::string& s)
 		a += s[j] - 48;
 	}
 	if (a || num.empty()) { num.push_back(a); }
+	e8tob28();
+}
+
+void integer::e8tob28()
+{
+	while(num.size()>1&&num.back()==0){num.pop_back();}
 	int n = 1; while (n < num.size()) { n <<= 1; }
 	num.resize(n);
 	integer h; h.num.push_back(e8);
@@ -646,7 +653,7 @@ double integer::getlog()const
 	return l == 1 ? log(num[0]) : log((ll)num.back() * Base + num[l - 2]) + (l - 2) * log(Base);
 };
 
-std::string integer::tostring(int m)const
+std::string integer::tostring(int m,int floatbe8)const
 {
 	if (m < 1) { m = num.size() << 2; }
 	std::string s;
@@ -708,7 +715,7 @@ std::string integer::tostring(int m)const
 			a[j - 1] = a[j] / 10;
 		}
 		for (; cnt < 7 && a[cnt] == 0; cnt++);
-		if (n) {
+		if (n||floatbe8) {
 			s.push_back('0' + (a[cnt++] % 10));
 			s.push_back('.');
 		}
@@ -728,10 +735,10 @@ std::string integer::tostring(int m)const
 				s.push_back('0' + (a[j] % 10));
 			}
 		}
-		if (n)
+		if (n||floatbe8)
 		{
 			s.push_back('e');
-			s += std::to_string((tmp.num.size() + n) * 8 - cnt);
+			s += std::to_string(((int)tmp.num.size() + n+floatbe8) * 8 - cnt);
 		}
 	}
 	else {
@@ -768,6 +775,7 @@ integer integer::operator-()const
 
 void integer::shiftadd(const view& b, int i)
 {
+	if(b.len+i>num.size()){std::cout<<"shiftadd";exit(0);}
 	int lb = b.len, k = 0;
 	for (int j = 0; j < lb; j++)
 	{
@@ -870,12 +878,12 @@ integer integer::addorsub(const int* a, int la, int asign, const int* b, int lb,
 	return result;
 }
 
-int integer::abssub(int* a, int la, const int* b, int lb)
+int integer::abssub(int* a, int la, const int* b, int lb,int bshift)//a-(b<<bshift)
 {
-	if (la < lb) { std::cout << "abssub"; exit(0); }
+	if (la < lb+bshift) { std::cout << "abssub"; exit(0); }
 	for (int i = 0; i < lb; i++)
 	{
-		a[i] -= b[i];
+		a[i+bshift] -= b[i];
 	}
 	while (a[la - 1] == 0 && la > 1) { la--; }
 	if(a[la-1]==0){return 0;}
@@ -892,8 +900,8 @@ int integer::abssub(int* a, int la, const int* b, int lb)
 	}
 	else
 	{
-		int i = 0; s = 1;
-		for (; i < lb && i < la; i++)
+		int i = bshift; s = 1;
+		for (int end=std::min(la,lb+bshift); i <end; i++)
 		{
 			a[i] -= k;
 			k = a[i] < 0;
@@ -930,7 +938,7 @@ integer integer::multiply(const int* a, int la, const int* b, int lb, int sign,i
 		{
 			k += (ll)a[i - j] * b[j];
 		}
-		c.num[i] = k & Bmask;
+		c.num[i]+= k & Bmask;
 		k >>= Blen;
 	}
 	for (int end=std::min(n,iend); i < end; i++)
@@ -944,7 +952,7 @@ integer integer::multiply(const int* a, int la, const int* b, int lb, int sign,i
 		{
 			k += (ll)a[i - j] * b[j];
 		}
-		c.num[i] = k & Bmask;
+		c.num[i]+= k & Bmask;
 		k >>= Blen;
 	}
 	for (int end=std::min(l,iend); i < end; i++)
@@ -958,7 +966,7 @@ integer integer::multiply(const int* a, int la, const int* b, int lb, int sign,i
 		{
 			k += (ll)a[i - j] * b[j];
 		}
-		c.num[i] = k & Bmask;
+		c.num[i]+= k & Bmask;
 		k >>= Blen;
 	}
 	if (k) { c.num[l] = k; }
@@ -1010,13 +1018,6 @@ void integer::square(const int* a, int la, integer& c, int i, int iend)
 	if(!c.num.back()){c.num.pop_back();}
 }
 // ============ 乘法核心：karamul / shiftmul / ceil2pow / fftmul ============
-bool mont::karamulchoosemultiply(integer::view a,integer::view b)
-{
-	if (a.len < b.len) { std::swap(a, b); }
-	bool canfft=a.len + b.len <= halflen;
-	if (b.len < 80 || (b.len < 160 &&((!canfft)||a.len * b.len < 30000))) { return 1; }
-	return 0;
-}
 integer integer::karamul(view  a, view b,int i,int iend)
 {
     bool change=a.len < b.len;
@@ -1075,7 +1076,7 @@ integer integer::shiftmul(const view& a, const view& b, int need, int& offset)
 	int b2 = std::max(0, b.len - need);
 	offset += b1 + b2;
 	view aview(a, b1), bview(b, b2);
-	return karamul(aview, bview,std::max(0,aview.len+bview.len-need-4));
+	return karamul(aview, bview,std::max(0,aview.len+bview.len-need-3));
 }
 void integer::trycatch()
 {
@@ -1238,7 +1239,7 @@ integer integer::nttmul(const view&a,const view&b)
         return c;
     }
 
-// ============ reciprocal / fsqrt / root / shiftpow / div_newton / div_bz / divide ============
+// ============ reciprocal / isqrt / root / shiftpow / div_newton / div_bz / divide ============
 
 integer integer::reciprocal(const view& n,int l)
 {
@@ -1266,11 +1267,10 @@ integer integer::reciprocal(const view& n,int l)
 		while (!xtsize.empty() && xt.num.size() >= xtsize.back()) { xtsize.pop_back(); }
 	}
 	xt.div2pow(Blen);
-	xt.addsmall(-n.sign);
 	return xt;
 }
 
-integer integer::fsqrt(bool floor)const
+integer integer::isqrt(bool floor)const
 {
 	int ns = num.size();
 	if (ns < 3)
@@ -1286,7 +1286,7 @@ integer integer::fsqrt(bool floor)const
 	const bool useyk = f > 100;
 	int need, b;
 	integer xt;
-	double guess = (double)((ll)num.back() * Base + num[ns - 2]) * Base + num[ns - 3];
+	double guess = (double)((ll)num.back() * Base + num[ns - 2]) * Base + num[ns- 3];
 	if (ns % 2)
 	{
 		xt = sqrt(guess) + 1;
@@ -1321,7 +1321,7 @@ integer integer::fsqrt(bool floor)const
 		integer tmp = shiftmul(xt, xt, need, b).shift(p + b);
 		view nview(*this, 2 * (f - k) - p);
 		int check = abssub(tmp.num.data(), tmp.num.size(), nview.ptr, nview.len);
-		if (check < 0) { std::cout << "fsqrt"; exit(0); }
+		if (check < 0) { std::cout << "isqrt"; exit(0); }
 		while (tmp.num.size() > 1 && tmp.num.back() == 0) { tmp.num.pop_back(); }
 		integer q; bool flag = useyk;
 		if (useyk)
@@ -1351,17 +1351,15 @@ integer integer::fsqrt(bool floor)const
 				integer prod = karamul(qview, xt);
 				tmp.sign = abssub(tmp.num.data(), tmp.num.size(), prod.num.data(), prod.num.size());
 				while (tmp.num.back() == 0 && tmp.num.size() > 1) { tmp.num.pop_back(); }
-				integer r;
-                //std::cout<<tmp.num.size()<<" "<<xt.num.size()<<"\n";
-				tmp = divide(tmp, xt, r);
-				q = addorsub(qview.ptr, qview.len, qview.sign, tmp.num.data(), tmp.num.size(), tmp.sign, 1);
-				if (r.sign == -1 && r.num.back()) {q.addsmall(-1); }
+				integer ql= divide(tmp, xt, tmp);
+				q = addorsub(qview.ptr, qview.len, qview.sign, ql.num.data(), ql.num.size(), ql.sign, 1);
+				if (tmp.sign == -1 && tmp.num.back()) {q.addsmall(-1); }
 			}
 			else { flag = 0; }
 		}
 		if (!flag)
 		{
-			q = tmp / xt;
+			q = divide(tmp,xt,tmp);
 		}
 		q.div2pow(1);
 		xt = xt.shift(p);
@@ -1377,17 +1375,19 @@ integer integer::fsqrt(bool floor)const
 	return xt;
 }
 
-integer integer::root(int m,bool floor)const
+integer integer::root(int m,bool floor,int zero)const//azero是浮点补丁
 {
 	if (!num.back() || m == 1) { return *this; }
-	if (m < 1) { std::cout << "root"; exit(0); }
-	if (m == 2) { return fsqrt(floor); }
-	int ns = num.size();
+	if (m < 1||((m&1)==0&&sign==-1)||(zero&&m==2)) { std::cout << "root"; exit(0); }
+	if (m == 2) { return isqrt(floor); }
+	int ns = num.size()+zero;
 	int f = ns / m + (ns % m != 0);
 	const bool useyk = f > 100;
 	int k = 1 + (f > 1), need = k + 1, b, b1;
-	view h(*this, m * (f - k));
-	double guess = h.len == 1 ? log(h.ptr[0]) : log(((ll)h.ptr[h.len - 1] << Blen) + h.ptr[h.len - 2]) + (h.len - 2) * log(Base);
+	//view h(*this, m * (f - k));
+	//double guess = h.len == 1 ? log(h.ptr[0]) : log(((ll)h.ptr[h.len - 1] << Blen) + h.ptr[h.len - 2]) + (h.len - 2) * log(Base);
+	int  hlen=ns-m*(f-k);
+	double guess = hlen == 1 ? log(num.back()) : log(((ll)num[num.size()- 1] << Blen) + num[num.size() - 2]) + (hlen - 2) * log(Base);
 	integer target = exp(guess / m);
 	integer xt = integer(1).shift(k), q = integer(1).shift(k - 1);
 	int gap = f > 1 ? Base / 10 : 1;
@@ -1395,6 +1395,7 @@ integer integer::root(int m,bool floor)const
 	if (q.absbigger(target, 1)) { target = q + 1; rate >>= 10; }
 	else if (target.absbigger(xt, 1)) { target = xt - 1; rate >>= 10; }
 	int leftshift;
+	//std::cout<<"a\n";
 	while (xt.absbigger(q + gap, 0))
 	{
 		integer mid = (xt + q) / 2;
@@ -1402,7 +1403,8 @@ integer integer::root(int m,bool floor)const
 		b = 0;
 		integer tmp = shiftpow(mid, m, need, b);
 		leftshift = m * (f - k) + b;
-		if (leftshift < ns && !tmp.absbigger(view(*this, leftshift), 0))
+		if (leftshift<zero||(leftshift < ns && !tmp.absbigger(view(*this, leftshift-zero), 0)))
+		//由于tmp.size<2*need,而*this在浮点大小root处大小3*l,所以lefshift<zero就一定小
 		{
 			q = mid;
 			if (rate&&q.absbigger(target, 1)) { target = q + 1; rate >>= 10; }
@@ -1415,6 +1417,7 @@ integer integer::root(int m,bool floor)const
 	}
 	if (f > 1)
 	{
+		//std::cout<<"b\n";
 		do
 		{
 			b = 0;
@@ -1422,8 +1425,9 @@ integer integer::root(int m,bool floor)const
 			b1 = 0;
 			integer tmp1 = shiftmul(xt, tmp, need, b1).shift(b1);
 			leftshift = m * (f - k) + b;
-			if (ns > leftshift) {
-				view nview(*this, leftshift);
+			if (leftshift<zero||ns > leftshift) {
+				//std::cout<<f<<" "<<tmp1.num.size()<<"\n";
+				view nview(*this, leftshift-zero);
 				abssub(tmp1.num.data(), tmp1.num.size(), nview.ptr, nview.len);
 				while (tmp1.num.size() > 1 && tmp1.num.back() == 0) { tmp1.num.pop_back(); }
 			}
@@ -1435,6 +1439,7 @@ integer integer::root(int m,bool floor)const
 		int k1 = f; k1 += ((k1 & 1) == 1);
 		while (k1 > 5) { k1 = k1 / 2 + 1; k1 += ((k1 & 1) == 1); kplan.push_back(k1); }
 		bool again=f<10;
+		//std::cout<<"c\n";
 		while (k < f||again)
 		{
 			again&=k<f;
@@ -1442,10 +1447,11 @@ integer integer::root(int m,bool floor)const
 			else if (!kplan.empty() && kplan.back() > k && kplan.back() - k < p) { p = kplan.back() - k; kplan.pop_back(); }
 			need = xt.num.size() + p + 2, b = 0, b1 = 0;
 			integer tmp = shiftpow(xt, m - 1, need, b);
-			integer tmp1 = shiftmul(xt, tmp, need, b1).shift(b1 + p);
+			integer tmp1 = shiftmul(xt, tmp, need, b1).shift(b1 + p);//tmp1最大,决定*this折叠0边界
 			leftshift = m * (f - k) + b - p;
 			if (ns > leftshift) {
-				view nview(*this, leftshift);
+				//std::cout<<f<<" "<<tmp1.num.size()<<"\n";
+				view nview(*this, leftshift-zero);
 				int check = abssub(tmp1.num.data(), tmp1.num.size(), nview.ptr, nview.len);
 				if (check < 0) { std::cout << "root"; exit(0); }
 				while (tmp1.num.size() > 1 && tmp1.num.back() == 0) { tmp1.num.pop_back(); }
@@ -1481,17 +1487,16 @@ integer integer::root(int m,bool floor)const
 					integer prod = karamul(qview, tmp);
 					tmp1.sign = abssub(tmp1.num.data(), tmp1.num.size(), prod.num.data(), prod.num.size());
 					while (tmp1.num.back() == 0 && tmp1.num.size() > 1) { tmp1.num.pop_back(); }
-					integer r;
-					tmp = divide(tmp1, tmp, r);
-					q = addorsub(qview.ptr, qview.len, qview.sign, tmp.num.data(), tmp.num.size(), tmp.sign, 1);
-					if (r.sign == -1 && r.num.back()) { q.addsmall(-1); }
+					integer q1= divide(tmp1, tmp, tmp1);
+					q = addorsub(qview.ptr, qview.len, qview.sign, q1.num.data(), q1.num.size(), q1.sign, 1);
+					if (tmp1.sign == -1 && tmp1.num.back()) { q.addsmall(-1); }
 					q = q / m;
 				}
 				else { flag = 0; }
 			}
 			if (!flag)
 			{
-				q = (tmp1 / tmp) / m;
+				q = divide(tmp1,tmp,tmp1) / m;
 			}
 			xt = xt.shift(p);
 			abssub(xt.num.data(), xt.num.size(), q.num.data(), q.num.size());
@@ -1505,6 +1510,7 @@ integer integer::root(int m,bool floor)const
 	xt.addsmall(-1);
 	need = num.size() << 1;
 	if (floor&&shiftpow(xt, m, need, b).absbigger(*this, 0)) { xt.addsmall(-1); }
+	xt.sign=sign;
 	return xt;
 }
 
@@ -1521,15 +1527,15 @@ integer integer::shiftpow(const integer& x, int n, int need, int& b)
 	return ans;
 }
 template <bool WantQ>
-integer integer::div_newton(const view& a, const view& b, integer& r)
+integer integer::div_newton(const view& a, const view& b, integer& r,int bzero,bool eps)
 {
-	int la = a.len, lb = b.len;
+	int la = a.len, lb = b.len+bzero;
 	int n =std::min(24.0, la*1.0 / lb+0.2);
 	int l = (la - lb) / n + 3,l0=(la - lb) / (n+1) + 3;
 	while (l >= 512) { l >>= 1;l0>>=1;}
 	if(l>255&&l0<256){n++;}
 	l = (la - lb) / n + lb + 2;
-	integer xt=reciprocal(b,l);
+	integer xt=reciprocal(b,l-bzero);xt.addsmall(-xt.sign);
 	if(r.num.data()!=a.ptr||r.num.size()!=a.len){r=a;}
 	integer q; 
 	if constexpr (WantQ)
@@ -1546,13 +1552,21 @@ integer integer::div_newton(const view& a, const view& b, integer& r)
         if(lastview.sign>0&&need<lastview.len&&need*1.3>lastview.len){need=lastview.len;}
 		integer p = shiftmul(cutview,xt, need, shift);
 		view pview(p, l - shift);
+		if(start==0&&eps)
+		{
+			q.shiftadd(pview,0);
+			if(n>1){endcatch();if(bview.sign>0){delete[]db;}}
+			while (q.num.size() > 1 && q.num.back() == 0) { q.num.pop_back(); }
+			q.sign = a.sign * b.sign;
+			return q;
+		}
         view lastviewtmp;double*lastytmp;
         lastviewtmp=lastview,lastytmp=lasty;
         lastview=bview,lasty=db;
 		integer now = karamul(pview,b);
         bview=lastview,db=lasty;
         lastview=lastviewtmp,lasty=lastytmp;
-		if (abssub(r.num.data() + start, std::min(l, lr), now.num.data(), now.num.size()) < 0) { std::cout << "div_newton1"; exit(0); }
+		if (abssub(r.num.data() + start+bzero, std::min(l, lr)-bzero, now.num.data(), now.num.size()) < 0) { std::cout << "div_newton1"; exit(0); }
 		if constexpr (WantQ)
 		{
 			q.shiftadd(pview, start);
@@ -1563,6 +1577,7 @@ integer integer::div_newton(const view& a, const view& b, integer& r)
 	if (r.num.size() > lb + 4) { std::cout << "div_newton2"; exit(0); }
 	if constexpr (WantQ)
 	{
+		if(bzero){r.div2pow(bzero*Blen);}
 		q.shiftadd(div_native<1>(r, b, r), 0);
 		while (q.num.size() > 1 && q.num.back() == 0) { q.num.pop_back(); }
 		q.sign = a.sign * b.sign;
@@ -1750,6 +1765,7 @@ void integer::mul_core(std::vector<integer>& level, int& zeros)
 		level = std::move(nextlevel);
 	}
 }
+#if  shulun>0
 // ============ 类外自由函数（前半） ============
 
 integer power(const integer& b, const integer& c)
@@ -2156,6 +2172,14 @@ void mont::init()
 	b = f * f % p;
 }
 
+bool mont::karamulchoosemultiply(integer::view a,integer::view b)
+{
+	if (a.len < b.len) { std::swap(a, b); }
+	bool canfft=a.len + b.len <= halflen;
+	if (b.len < 80 || (b.len < 160 &&((!canfft)||a.len * b.len < 30000))) { return 1; }
+	return 0;
+}
+
 integer mont::out(const integer& x)
 {
 	if(!x.num.back()){return 0;}
@@ -2464,8 +2488,9 @@ integer power(const integer& x, const integer& n, const integer& p)
 		integer a(x.mod_positive(p)), ans = m & 1 ? a : 1;
 		while (m >>= 1)
 		{
-			a = a * a % p;
-			if (m & 1) { ans = ans * a % p; }
+			a = a * a;
+			a %=p;
+			if (m & 1) { ans = ans * a ;ans%=p; }
 		}
 		return ans;
 	}
@@ -2473,9 +2498,9 @@ integer power(const integer& x, const integer& n, const integer& p)
 	integer ans = q.out(q.pow_exponent(q.in(x), exponent(n, w), w));
 	return ans.sign < 0 && ans.num.back() ? ans + p : ans;
 }
-// ============ more 段：素性 / QS ============
-
-#if more
+// ============ shulun 段：素性 / QS ============
+#endif
+#if shulun>1
 
 bool inside(int k, const std::initializer_list<int>& t) {
 	for (int v : t) {
@@ -2517,7 +2542,7 @@ bool lucas(const integer& x)
 	integer u;
 	if (x.num[0] % 2 == 0 ||
 		((inside(x.num[0] % 128, { 1, 9, 17, 25, 33, 41, 49, 57, 65, 73, 81, 89, 97, 105, 113, 121 }) &&
-		  ((u = x.fsqrt(0)) * u).num == x.num))) {
+		  ((u = x.isqrt(0)) * u).num == x.num))) {
 		return 0;
 	}
 	int t = 5, s = 1;
@@ -2602,7 +2627,7 @@ int inv_fsp(int q, int p)
 
 void qsinit(integer&d,const integer&n,std::vector<int>&prime,std::vector<int>&root,std::vector<uc>&logp,uc&bound,mont&q,int&m)
 {
-	d = n.fsqrt(0);
+	d = n.isqrt(0);
 	int B = pow(d.getlog() - 2, 1.67 + 0.106 * n.num.size());
 	root.assign((B + B % 2) / 2, 1);
 	for (int i = 1, a; 2 * (a = 2 * i * (i + 1)) <= B - 1; i++)
@@ -2750,7 +2775,7 @@ integer factor(const integer& n, bool& pollard)//不质数幂
 	if (n.num.size() < 3) { std::cout << "pollard"; exit(0); }
 	if (n.getlog()>120) { std::cout << "qs too big"; exit(0); }
 	//qs知乎学的,10^47之内保证不超过10s
-	//11111111111111111111111111122332231111111111111117791这个需要26s,通过euler的参数l调用,不要直接调用factor
+	//11111111111111111111111111122332231111111111111117791这个需要20s,通过euler的参数l调用,不要直接调用factor
 	mont q;
 	std::vector<int>prime;
 	std::vector<int>root;
@@ -2803,8 +2828,9 @@ integer factor(const integer& n, bool& pollard)//不质数幂
 		{
 			int cnt = pcnt[i], j = cnt & 1, t = cnt >> 1;
 			e.mask[i / 64] |= ((unsigned long long)j) << (i % 64);
-			if (t) { e.y = e.y * power(prime[i], t) % n; }
+			if (t) { e.y = e.y * power(prime[i], t); }
 		}
+		e.y%=n;
 		if (y.sign < 0) { e.y = e.y + n; }
 		if (y.num[0] > 1)
 		{
@@ -2812,17 +2838,16 @@ integer factor(const integer& n, bool& pollard)//不质数幂
 			if (s.x.sign < 0) { e.x.sign = y.num[0]; flaw[j] = e; fs++; return 0; }
 			tc++;
 			s.x.sign = 1; e.x = q.out(e.x * s.x); s.x.sign = y.num[0];
-			e.y = (e.y * y.num[0]) * s.y;
+			e.y = (e.y * y.num[0]) * s.y;integer::div_native<0>(e.y,n,e.y);
 			for (c = 0; c < cend; c += 64)
 			{
 				unsigned long long ei = e.mask[c / 64], si = s.mask[c / 64], u = ei & si;
 				for (r = 0; r < ps - c && r < 64; r++, u >>= 1)
 				{
-					if (u & 1) { e.y = e.y * prime[c + r]; }
+					if (u & 1) { e.y = e.y * prime[c + r];integer::div_native<0>(e.y,n,e.y);}
 				}
 				e.mask[c / 64] ^= si;
 			}
-			e.y = e.y % n;
 		}
 		for (c = 0; c < cend && !e.mask[c / 64]; c += 64);
 		unsigned long long bit;
@@ -2833,7 +2858,7 @@ integer factor(const integer& n, bool& pollard)//不质数幂
 			equa& s = smooth[index];
 			e.x = q.out(e.x * s.x);
 			int pre = c;
-			std::vector<integer>l;
+			e.y=e.y*s.y;integer::div_native<0>(e.y,n,e.y);
 			for (; c < cend; c += 64)
 			{
 				unsigned long long ei = e.mask[c / 64], si = s.mask[c / 64], u = ei & si;
@@ -2841,12 +2866,12 @@ integer factor(const integer& n, bool& pollard)//不质数幂
 				{
 					if (u & 1)
 					{
-						l.push_back(prime[c + r]);
+						e.y=e.y*prime[c+r];
+						integer::div_native<0>(e.y,n,e.y);
 					}
 				}
 				e.mask[c / 64] ^= si;
 			}
-			e.y = mul(l) % n * (e.y * s.y) % n;
 			for (c = pre; c < cend && !e.mask[c / 64]; c += 64);
 			if (c < cend) { for (bit = e.mask[c / 64], r = 0; r < ps - c && r < 64 && !(bit & 1); r++, bit >>= 1); }
 		}
@@ -3084,9 +3109,9 @@ bool indexcalculus::smooth(integer tmp,std::vector<int>&right)
 void indexcalculus::prepare()
 {
 	double lg = q.p.getlog();//lnp<42保证7s内
-	if(lg<20||lg>50){std::cout<<"indexcalculus reject";exit(0);}
+	if(lg<20||lg>55){std::cout<<"indexcalculus reject";exit(0);}
 	if(lg>40){
-		std::cout << "\nif mingw64 -O2,ic estimated init time :" << 0.2423 * exp(0.2427 *lg) / 1000.0 << " s\n";
+		std::cout << "\nif mingw64 -O2,ic estimated init time :" << 0.1216* exp(0.2427 *lg) / 1000.0 << " s\n";
 	}//   Performance models (-O2,empirical):
 	int B=(15-lg*0.2)*pow(1.135,lg);
 	bound=lg*4-10;
@@ -3114,6 +3139,70 @@ indexcalculus::indexcalculus(const integer& p0,int r0,const integer&cutoff)
 	q.p=p0,pp=(q.p-1)/cutoff;init(r0);
 }
 
+integer ax_by_pp(const integer&a,const integer&x,const integer&b,const integer&y,std::vector<ll>&ans,const integer&pp)
+{
+	int la=a.num.size(),lx=x.num.size(),lb=b.num.size(),ly=y.num.size();
+	ans.assign(std::max(la+lx,lb+ly),0);
+	for(int i=0;i<la;i++)
+	{
+		for(int j=0;j<lx;j++)
+		{
+			ans[i+j]+=(ll)a.num[i]*x.num[j];
+		}
+	}
+	integer c;c.sign=a.sign*x.sign;
+	bool absadd=c.sign==b.sign*y.sign;
+	if(absadd)
+	{
+		for(int i=0;i<lb;i++)
+		{
+			for(int j=0;j<ly;j++)
+			{
+				ans[i+j]+=(ll)b.num[i]*y.num[j];
+			}
+		}
+	}
+	else
+	{
+		for(int i=0;i<lb;i++)
+		{
+			for(int j=0;j<ly;j++)
+			{
+				ans[i+j]-=(ll)b.num[i]*y.num[j];
+			}
+		}
+	}
+	c.num.reserve(ans.size()+absadd);
+	ll carry=0;
+	for(int i=0;i<ans.size();i++)
+	{
+		carry+=ans[i];
+		c.num.push_back(carry&Bmask);
+		carry>>=Blen;
+	}
+	while(carry>0)
+	{
+		c.num.push_back(carry&Bmask);
+		carry>>=Blen;
+	}
+	if(carry<0){c.num.back()-=Base;}
+	while(c.num.size()>1&&c.num.back()==0){c.num.pop_back();}
+	if(c.num.back()<0)
+	{
+		int k=1;
+		for(int i=0;i<c.num.size();i++)
+		{
+			k+=Bmask-c.num[i];
+			c.num[i]=k&Bmask;
+			k>>=Blen;
+		}
+		while(c.num.size()>1&&c.num.back()==0){c.num.pop_back();}
+		c.sign*=-1;
+	}
+	integer::div_native<0>(c,pp,c);
+	return  c;
+}
+
 void indexcalculus::init(int r0)
 {
 	prepare();
@@ -3131,9 +3220,9 @@ void indexcalculus::init(int r0)
 	std::vector<bool>needb(ps, 1); int indexb = 0, indexbb = 1, indexbbb = ps - 1;
 	std::vector<int>left,right;
 	int maxtry = 24*q.p.num.size()+20,ok=ps+40;
-	equa a(ps, pp);
+	equa a(ps, pp);std::vector<ll>ans;
 	bool needr=1;
-	auto insert_lambda = [&a,&needr,&matrix, &ps, &need, &index, &needb, &indexb, &indexbb, &indexbbb, &maxtry, &left,&right,&ok](const  integer& pp)->void {
+	auto insert_lambda = [&a,&needr,&matrix, &ps, &need, &index, &needb, &indexb, &indexbb, &indexbbb, &maxtry, &left,&right,&ok,&ans](const  integer& pp)->void {
 		if(--ok<0){std::cout<<"p-1 too many factors,use dlsolver";exit(0);}
 		for (int i = 0; i < right.size(); i += 2)
 		{
@@ -3158,15 +3247,24 @@ void indexcalculus::init(int r0)
 					needb[first] = g.num.size() > 1 || g.num[0] > maxtry;
 					for (int i = first + 1; i < ps + 1; i++)
 					{
-						b.h[i] = (a.h[i] * x + b.h[i] * y) % pp;
+						//integer tmp= (a.h[i] * x + b.h[i] * y);
+						//integer::div_native<0>(tmp,pp,tmp);
+						//b.h[i] =tmp;
+						b.h[i]=ax_by_pp(a.h[i],x,b.h[i],y,ans,pp);
 					}
 				}
 				//if(!needb[first]){std::cout<<first<<" good\n";}
 			}
+			a.h[first].sign*=-1;
 			for (int i = first + 1; i < ps + 1; i++)
 			{
-				a.h[i] = (a.h[i] * b.h[first] - b.h[i] * a.h[first]) % pp;
-			}first++;
+				//integer tmp=(a.h[i] * b.h[first] - b.h[i] * a.h[first]);
+				//integer::div_native<0>(tmp,pp,tmp);
+				//a.h[i] = tmp;
+				a.h[i]=ax_by_pp(a.h[i],b.h[first],b.h[i],a.h[first],ans,pp);
+			}
+			a.h[first].sign*=-1;
+			first++;
 			while (a.h[first].num.back() == 0 && first < ps) { first++; }
 		}
 		if (first < ps&& index < ps)
@@ -3380,5 +3478,438 @@ integer dlsolver::dlogp(const integer&a,const integer&b)
 		return ans+(inv(ic.pp,cutoff)*(hellman(a,b)-ans)).mod_positive(cutoff)*ic.pp;
 	}
 	return ans;
+}
+#endif
+#if fudian
+integer floatb::floatbtmp;
+int floatb::minvalidlength=500;
+integer::view floatb::getview() const
+{
+    return integer::view(NUM.num.data(), LOW, NUM.num.size() - 1, NUM.sign);
+}
+
+integer::view floatb::leftshiftview(int&zero,int leftshift) const
+{
+	integer::view a=getview();
+	if(leftshift>ZERO){leftshift-=ZERO;zero=0;return integer::view(a,leftshift);}
+	else{zero=ZERO-leftshift;leftshift=0;return a;}
+}
+
+integer::view floatb::clearview(int&zero,int&exp,int l) const//丢弃指数小于l后的视图
+{
+	integer::view a=getview();
+	int aexp=EXP,azero=ZERO;
+	if(aexp>=l){zero=azero,exp=aexp;return a;}
+	exp=l;
+	if(aexp+azero>=l){zero=azero-l+aexp;return a;}
+	if(aexp+azero+a.len>l){zero=0;return integer::view(a,l-aexp-azero);}
+	zero=-1;return a;
+}
+
+floatb floatb::addorsub(const floatb& a, const floatb& b, bool add,int l)//进一步舍弃结果exp<l的部分
+{
+	if(l<a.EXP){l=a.EXP;}
+	if(l<b.EXP){l=b.EXP;}
+	int azero,bzero,aexp,bexp;
+    integer::view aview = a.clearview(azero,aexp,l), bview = b.clearview(bzero,bexp,l);
+	floatb ans;
+	if(azero==-1)
+	{
+		if(bzero==-1){ans.EXP=l,ans.NUM=0;return ans;}
+		ans.EXP=bexp;ans.ZERO=bzero;
+		ans.NUM=bview;
+		ans.NUM.sign*=add?1:-1;
+		return ans;
+	}
+	if(bzero==-1){ans.NUM=aview;ans.EXP=aexp;ans.ZERO=azero;return ans;}
+	int change=1;
+	if(aexp<bexp){std::swap(aview,bview);std::swap(aexp,bexp);std::swap(azero,bzero);if(!add){change*=-1;}}
+	const bool absadd=(aview.sign==bview.sign)==add;
+	int gap=aexp-bexp;
+	if(gap>=bview.len+bzero){ans.ZERO=azero;ans.EXP=aexp;ans.NUM=aview;ans.NUM.sign*=change;return ans;}
+	if(bzero>gap){bzero-=gap;}
+	else{gap-=bzero;bzero=0;bview=integer::view(bview,gap);}
+	if(azero+aview.len<bzero+bview.len){std::swap(aview,bview);std::swap(azero,bzero);if(!add){change*=-1;}}
+	ans.ZERO=std::min(azero,bzero);
+	ans.EXP=aexp;
+	ans.NUM.num.reserve(azero-ans.ZERO+aview.len+absadd);
+	ans.NUM.num.assign(azero-ans.ZERO,0);
+	for(int i=0;i<aview.len;i++){ans.NUM.num.push_back(aview.ptr[i]);}
+	ans.NUM.sign=aview.sign*change;
+    if(absadd)
+	{
+		ans.NUM.num.push_back(0);
+		ans.NUM.shiftadd(bview,bzero-ans.ZERO);
+		if(!ans.NUM.num.back()){ans.NUM.num.pop_back();}
+	}
+	else 
+	{
+		if(integer::abssub(ans.NUM.num.data(),ans.NUM.num.size(),bview.ptr,bview.len,bzero-ans.ZERO)<0){ans.NUM.sign*=-1;}
+		while(ans.NUM.num.size()>1&&ans.NUM.num.back()==0){ans.NUM.num.pop_back();}
+	}
+	ans.foldzero();
+	return ans;
+}
+
+void floatb::quotient(const integer::view& a, const integer::view& b,int l,int azero,int  bzero, integer& ans)
+{
+    int m = 1, t = b.ptr[b.len - 1];
+    while ((t << m) < Base) { m++; }
+    m -= 1;
+    int m_5 = m + 5;
+    ull bb = ((ull)b.ptr[b.len - 1] << m_5)
+           + (((ull)b.ptr[b.len - 2] << m) >> (Blen - 5));
+    floatbtmp.num.reserve(a.len +azero+1);
+	floatbtmp.num.assign(azero,0);
+	for(int i=0;i<a.len;i++){floatbtmp.num.push_back(a.ptr[i]);}
+    floatbtmp.num.push_back(0);
+    int ln,w=l-b.len-bzero-1;
+	if(w>-1){std::cout<<"quotient request out of range";exit(0);}
+    for (;(t =(ln = floatbtmp.num.size())+w) > 0&&ln>2; floatbtmp.num.pop_back())
+    {
+        int q = (((((ull)floatbtmp.num.back() << Blen) + floatbtmp.num[ln - 2]) << m_5)
+                + (((ull)floatbtmp.num[ln - 3] << m) >> (Blen - 5))) / bb;
+        if (!q) { continue; }
+        int* start = floatbtmp.num.data();
+        ll k = 0;
+        int end = ln-1, gap = b.len - end,istart=std::max(0,-gap);
+        for (int i =istart; i < end; i++)
+        {
+            k += (ll)start[i] - (ll)b.ptr[i + gap] * q;
+            start[i] = k & Bmask;
+            k >>= Blen;
+        }
+        start[end] += k;
+        int top = end;
+        while (top > -1 && start[top] == 0) { top--; }
+        if (top > -1 && start[top] < 0)
+        {
+            int carry = 0;
+            for (int i = istart; i < end; i++)
+            {
+                carry += start[i] + b.ptr[i + gap];
+                start[i] = carry & Bmask;
+                carry >>= Blen;
+            }
+            q--;
+        }
+        ans.num[t] = q;
+    }
+	if(t>-1)
+	{
+		ll u=((ll)floatbtmp.num.back()<< Blen) + floatbtmp.num[ln-2];
+		ans.num[t]=u/b.ptr[b.len-1];
+		if(t>0)
+		{
+			int v=u-(ll)b.ptr[b.len-1]*ans.num[t];
+			ans.num[0]=v/b.ptr[b.len-1];
+		}
+	}
+}
+
+integer floatb::div_native(const integer::view& a, const integer::view& b,int l,int azero,int  bzero)
+{
+	integer ans;
+	ans.num.resize(l+1);
+    if (b.len == 1)
+    {
+        ull n = b.ptr[0], now = 0;
+		int i=a.len-1,gap=azero+l-bzero,end=-gap-1;
+        for (int end1=std::max(-1,end); i >end1; i--)
+        {
+            now = (now << Blen) + a.ptr[i];
+            ans.num[i+gap] = now / n;
+            now %= n;
+        }
+		for (;i >end&&now; i--)
+        {
+            now<<=Blen;
+            ans.num[i+gap] = now / n;
+            now %= n;
+        }
+    }
+	else{quotient(a, b,l,azero,bzero,ans);}
+    ans.sign = a.sign * b.sign;
+    while (ans.num.size() > 1 && ans.num.back() == 0) { ans.num.pop_back(); }
+	return ans;
+}
+
+integer floatb::divide_core(const integer::view& a, const integer::view& b,int l,int azero,int  bzero)
+{
+	if(a.len+azero!=b.len+bzero||l>b.len+bzero){std::cout<<"divide_core";exit(0);}
+	if(l>50&&b.len>50&&(b.len>bzero?(b.len>700-bzero*550.0/b.len):(b.len+bzero>300)))
+	{
+		int n=azero+l;
+		if(n>bzero)
+		{
+			n-=bzero;
+			floatbtmp.num.reserve(n+a.len);
+			floatbtmp.num.assign(n,0);
+			for(int i=0;i<a.len;i++){floatbtmp.num.push_back(a.ptr[i]);}
+			floatbtmp.sign=a.sign;
+			return integer::div_newton(floatbtmp,b,floatbtmp,0,1);
+		}
+		else
+		{
+			bzero-=n;
+			floatbtmp=a;
+			return integer::div_newton(floatbtmp,b,floatbtmp,bzero,1);
+		}
+	}
+	else
+	{
+		return div_native(a,b,l,azero,bzero);
+	}
+}
+
+floatb floatb::multiply(const floatb& b,int l) const//尝试结果validlehgth=l
+{
+	integer::view aview = getview(), bview = b.getview();
+	int azero=ZERO,bzero=b.ZERO,la = aview.len+azero, lb = bview.len+bzero;
+	if(l>la){l=la;}
+	if(l>lb){l=lb;}
+	if(l<1){l=1;}
+	floatb ans;ans.EXP=EXP+b.EXP;
+	int gap=la-l;
+	if(gap>0){aview=leftshiftview(azero,gap);ans.EXP+=gap;}
+	gap=lb-l;
+	if(gap>0){bview=b.leftshiftview(bzero,gap);ans.EXP+=gap;}
+	ans.EXP+=azero+bzero;
+	ans.NUM = integer::shiftmul(aview,bview,l+ 2, ans.EXP);
+    ans.setvalidlength(l);
+	ans.foldzero();
+	return ans;
+}
+
+floatb floatb::divide(const floatb& b,int l) const//尝试NUM层面a*base^l/b,尝试结果validlehgth=l
+{
+	if(!b.NUM.num.back()){std::cout<<"/0";exit(0);}
+	integer::view aview = getview(), bview = b.getview();
+	int azero=ZERO,bzero=b.ZERO,la = aview.len+azero, lb = bview.len+bzero;
+	if(l>la){l=la;}
+	if(l>lb){l=lb;}
+	if(l<1){l=1;}
+	floatb ans;ans.EXP=EXP-b.EXP-l;
+	int gap=la-l;
+	if(gap>0){aview=leftshiftview(azero,gap);ans.EXP+=gap;}
+	gap=lb-l;
+	if(gap>0){bview=b.leftshiftview(bzero,gap);ans.EXP-=gap;}
+	ans.NUM=divide_core(aview,bview,l,azero,bzero);
+	ans.setvalidlength(l);
+	ans.foldzero();
+	return ans;
+}
+
+floatb floatb::calpower(int n,int l)const
+{
+	floatb c=integer(NUM.num.back()?1:0);
+	int l0=validlength();
+	if(l>l0){l=l0;}
+	if(l<1){l=1;}
+	c.setvalidlength(l);
+	if(!n||!NUM.num.back()){return c;}
+	floatb a;
+	if(n<0){a=c.divide(*this,l);n=-n;}
+	else{a=*this;a.setvalidlength(l);}
+	floatb ans=n&1?a:c;
+	while (n >>= 1)
+	{
+		a = a.multiply(a,l);
+		if (n & 1) { ans = ans.multiply(a,l); }
+	}
+	ans.foldzero();
+	return ans;
+}
+
+floatb floatb::calroot(int n,int l)const
+{
+	floatb c=integer(NUM.num.back()?1:0);
+	int l0=validlength();
+	if(l>l0){l=l0;}
+	if(l<1){l=1;}
+	c.setvalidlength(l);
+	if(!n||!NUM.num.back()){return c;}
+	floatb a;
+	if(n<0){a=c.divide(*this,l);n=-n;}
+	else{a=*this;}
+	a.setvalidlength(l);
+	if(n==1){return a;}
+	ll t=l*n,gap=(t-l)*Blen,h=(n-(gap-(ll)a.EXP*Blen)%n)%n;
+	gap+=h;
+	floatbtmp=a.getview();
+	//std::cout<<floatbtmp.num.size()<<"\n";
+	ll diff=gap+a.ZERO*Blen;
+	ll mindiff=(l*3+10-(int)floatbtmp.num.size())*Blen+diff%Blen;
+	//std::cout<<diff<<" "<<mindiff<<"\n";
+	int hiddenzero;
+	if(diff>mindiff){floatbtmp.mul2pow(mindiff);hiddenzero=(diff-mindiff)/Blen;}
+	else{floatbtmp.mul2pow(diff);hiddenzero=0;}
+	//std::cout<<floatbtmp.num.size()<<"\n";
+	a.NUM=floatbtmp.root(n,0,hiddenzero);
+	ll aexp2=(a.EXP*Blen-gap)/n;
+	int aexp=aexp2/Blen,v=aexp2%Blen;
+	if(v<0){v+=Blen,aexp--;}
+	if(v){a.NUM.mul2pow(v);}
+	a.EXP=aexp;
+	a.ZERO=0;
+	a.LOW=0;
+	a.setvalidlength(l);
+	a.foldzero();
+	return a;
+}
+
+integer floatb::stringtob28(const std::string&s,int&e1)
+{
+	integer tmp;
+	int i=s.size()-1,end=std::max(-1,i-11);
+	while(i>end&&s[i]!='e'){i--;}if(i==end){i=s.size();}
+	int j=0;
+	for(;j<i&&s[j]!='.';j++);if(j==i){j=-1;}
+	e1=j>-1?-(i-j-1):0;
+	if(i+1<s.size()){e1+=std::stoi(s.substr(i+1));}
+	int k=i-8;
+	for (; k> j&&k>0; k -= 8)
+	{
+		int a = s[k] - 48;
+		for (int t = 1; t < 8; t++)
+		{
+			a *= 10;
+			a += s[k + t] - 48;
+		}
+		tmp.num.push_back(a);
+	}
+	if(k>0)
+	{
+		k--;
+		int a =s[k] - 48;
+		int t=1;
+		for (; t < j-k; t++)
+		{
+			a *= 10;
+			a += s[k + t] - 48;
+		}
+		for (t++; t <9; t++)
+		{
+			a *= 10;
+			a += s[k + t] - 48;
+		}
+		tmp.num.push_back(a);
+		k-=8;
+	}
+	for (; k> 0; k -= 8)
+	{
+		int a = s[k] - 48;
+		for (int t = 1; t < 8; t++)
+		{
+			a *= 10;
+			a += s[k + t] - 48;
+		}
+		tmp.num.push_back(a);
+	}
+	k += 8;
+	int a = 0, l = 0;
+	if (s[0] == '-') { l = 1; tmp.sign = -1; }
+	for (; l < k; l++)
+	{
+		if(l==j){continue;}
+		a *= 10;
+		a += s[l] - 48;
+	}
+	if (a || tmp.num.empty()) { tmp.num.push_back(a); }
+	//for(auto&e:tmp.num){std::cout<<e<<" ";}std::cout<<"\n"<<exp*8<<"\n";
+	tmp.e8tob28();
+	return tmp;
+}
+
+floatb::floatb(const std::string&s)
+{
+	int e1;
+	floatb tmp(stringtob28(s,e1),0);
+	int l=std::max(minvalidlength,(int)tmp.NUM.num.size());
+	tmp.setvalidlength(l);
+	floatb h=integer(10);
+	h.setvalidlength(l);
+	*this=h.calpower(e1,l).multiply(tmp,l);
+	foldzero();
+}
+
+void floatb::get()
+{
+	std::string s;
+	std::cin>>s;
+	*this=floatb(s);
+}
+
+std::string floatb::tostring(int m) const
+{
+	if(!NUM.num.back()){return std::string("0");}
+    // 有一定误差
+    integer::view aview = getview();
+	integer tmp;
+	tmp.num.reserve(aview.len+ZERO);
+	tmp.num.assign(ZERO,0);
+	for(int i=0;i<aview.len;i++){tmp.num.push_back(aview.ptr[i]);}
+	aview=tmp;
+    if (m > aview.len || m < 1) { m = aview.len; }
+    int endexp = aview.len - m + EXP;
+    int n = abs(endexp) * (log(Base) / log(e8));
+    const bool flag = endexp < 0;
+    if (flag) { n++; }
+    else { n -= (n != 0); }
+    int need = m + 2, b = 0;
+    integer u = integer::shiftpow(e8, n, need, b);
+    integer v;
+    int vexp = EXP;
+    if (flag)
+    {
+        v = integer::shiftmul(u, aview, need, b);
+        vexp += b;
+    }
+    else
+    {
+        int gap = (int)u.num.size() - need;
+        integer::view uview;
+        if (gap > 0) { b += gap; uview = integer::view(u, gap); }
+        else { uview = u; }
+        gap = aview.len - need - uview.len;
+        // 本来只要商 m 位的,商 need 保证 vexp<0
+        vexp += gap;
+        if (gap > 0) { floatbtmp = integer::view(aview, gap); }
+        else
+        {
+            floatbtmp.num.reserve(-gap + aview.len);
+            floatbtmp.num.assign(-gap, 0);
+            for (int i = 0; i < aview.len; i++) { floatbtmp.num.push_back(aview.ptr[i]); }
+        }
+        v = integer::divide(floatbtmp, uview, floatbtmp);
+        // 这里不能调用 floatb::divide, 完整算也还好
+        vexp -= b;
+    }
+    if (vexp <= 0) { v.div2pow(-Blen * vexp); }
+    else { std::cout << "print"; exit(0); }
+    v.sign = NUM.sign;
+    return v.tostring(m, flag ? -n : n);
+}
+
+void floatb::print(bool stdendl, int m) const
+{
+    std::cout << tostring(m);
+    if (stdendl) { std::cout << '\n'; }
+    else { std::cout << ' '; }
+}
+bool floatb::absbigger(const floatb&b)
+{
+	if(!NUM.num.back()){return 0;}
+	int gap=validlength()+EXP-b.validlength()-b.EXP;
+	if(gap){return gap>0;}
+	integer::view  av=getview(),bv=b.getview();
+	gap=bv.len-av.len;
+	int i=av.len-1,end=std::max(-1,-gap-1);
+	for(;i>end;i--)
+	{
+		if(av.ptr[i]!=bv.ptr[i+gap]){break;}
+	}
+	if(i==end){return av.len>bv.len;}
+	return av.ptr[i]>bv.ptr[i+gap];
 }
 #endif
