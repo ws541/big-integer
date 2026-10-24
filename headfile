@@ -21,7 +21,8 @@ g++ -O2 a.cpp -L. -lintegerb -o a.exe
 #include <cmath>
 #include <complex>
 #include <string>
-#define more 1
+#define shulun 2
+#define fudian 1
 typedef long long ll;
 typedef unsigned long long ull;
 typedef std::complex<double> cd;
@@ -114,7 +115,7 @@ public:
         view(const view& x, int leftshift) {
             ptr = x.ptr + leftshift;
             len = x.len - leftshift;
-            if (len < 1 || leftshift < 0) { std::cout << "view"; exit(0); }
+            if (len < 1 || leftshift < 0) { std::cout << "view leftshift"; exit(0); }
             sign = x.sign;
         }
     };
@@ -151,10 +152,11 @@ public:
     integer(const view& v);
     integer(ll n);
     integer(const std::string& s);
+    void e8tob28();
     void get();
     ll toll() const;
     double getlog() const;
-    std::string tostring(int m = 0) const;
+    std::string tostring(int m = 0,int floatbe8=0) const;
     void print(bool stdendl = 1, int m = 5) const;
     bool absbigger(const view& that, bool equal) const;
     integer operator-() const;
@@ -165,7 +167,7 @@ public:
     integer operator%(const integer& that) const;
     void operator%=(const integer& that);
     void shiftadd(const view& b, int i);
-    static int abssub(int* a, int la, const int* b, int lb);
+    static int abssub(int* a, int la, const int* b, int lb,int bshift=0);
     template <bool WantQ>
     static integer div_native(const view& a, const view& b, integer& r);
     static integer addorsub(const int* a, int la, int asign, const int* b, int lb, int bsign, bool isadd);
@@ -176,11 +178,11 @@ public:
     static integer fftmul(const view&a,const view&b);
     static integer nttmul(const view& a, const view& b);
     static integer reciprocal(const view& n, int l);
-    integer fsqrt(bool floor = 1) const;
-    integer root(int m, bool floor = 1) const;
+    integer isqrt(bool floor = 1) const;
+    integer root(int m, bool floor = 1,int zero=0) const;
     static integer shiftpow(const integer& x, int n, int need, int& b);
     template <bool WantQ = true>
-    static integer div_newton(const view& a, const view& b, integer& r);
+    static integer div_newton(const view& a, const view& b, integer& r,int bzero=0,bool eps=0);
     static integer div_bz(const view& a, const view& b, integer& r);
     static integer divide(const view& a, const view& b, integer& r,bool wantq=1);
     integer mod_positive(const integer& b) const;
@@ -193,6 +195,7 @@ public:
     static void mul_core(std::vector<integer>& level, int& zeros);
 };
 // 自由函数声明（类外）
+#if  shulun>0
 integer power(const integer& b, const integer& c);
 integer C_core(int e, int s, int e_s, int& zeros);
 integer mul(std::vector<integer>& level);
@@ -257,7 +260,8 @@ public:
 std::vector<int> exponent(const integer& a, int w = 5);
 int getw(const integer& n);
 integer power(const integer& x, const integer& n, const integer& p);
-#if more
+#endif
+#if shulun>1
 bool inside(int k, const std::initializer_list<int>& t);
 bool miller(const integer& n, const std::initializer_list<int> t = { 2, 3, 5, 7, 11, 13, 17 });
 bool lucas(const integer& x);
@@ -277,6 +281,7 @@ int mobius(const integer& x, bool p = 1);
 int primeroot(const integer& p, const std::vector<integer>*k0 = 0);
 integer order(const integer&a, const integer&n, integer phi, const std::vector<integer>&l0);
 pairs fib(int n);
+integer ax_by_pp(const integer&a,const integer&x,const integer&b,const integer&y,std::vector<ll>&ans,const integer&pp);
 class indexcalculus
 {
 private:
@@ -310,6 +315,211 @@ public:
     integer ord(const integer&a, std::vector<int>*s = 0);
     integer dlogp(const integer&a, const integer&b);
 };
+#endif
+#if fudian
+class floatb//(num.size-1~num.low,zero个0)*Base^exp
+{
+private:
+    static integer floatbtmp;
+    integer::view getview() const;
+    integer::view leftshiftview(int&zero,int leftshift) const;
+    integer::view clearview(int&zero,int&exp,int l) const;
+    static void quotient(const integer::view& a, const integer::view& b,int l,int azero,int  bzero,integer& ans);
+    static  integer div_native(const integer::view& a, const integer::view& b,int l,int azero,int  bzero);
+    static integer divide_core(const integer::view& a, const integer::view& b,int l,int azero,int  bzero);
+    static integer stringtob28(const std::string&s,int&e1);
+    void foldzero()
+    {
+        while(LOW+1<NUM.num.size()&&NUM.num[LOW]==0){LOW++,ZERO++;}
+    }
+public:
+    class expr
+    {
+        private:
+        struct infomation
+        {
+            public:
+            int lowexp,length;
+            infomation(){}
+        };
+        expr(){}
+        enum optype{LEAF,ADD,SUB,MUL,DIV} op;//其它的定点非常困难
+        int extra=0;
+        infomation info;
+        const floatb*leaf=0;
+        expr*l=0;
+        expr*r=0;
+        void getinfo()//从已知推结果,写入info
+        {
+            if(op==LEAF){return;}
+            l->getinfo();
+            r->getinfo();
+            infomation left=l->info,right=r->info;
+            int& lowexp=info.lowexp,&length=info.length;
+            if(op==ADD||op==SUB)
+            {
+                lowexp=std::max(left.lowexp,right.lowexp);
+                length=std::max(left.lowexp+left.length,right.lowexp+right.length)-lowexp;
+                
+            }
+            else  if(op==MUL)
+            {
+                length=std::min(left.length,right.length);
+                lowexp=left.lowexp+left.length+right.lowexp+right.length-length;
+            }
+            else
+            {
+                length=std::min(left.length,right.length);
+                lowexp=left.lowexp+left.length-right.lowexp-right.length-length;
+            }
+        }
+        void setinfo()//从结果推需求,裁剪子info
+        {
+            if(op==LEAF){return;}
+            if(op==ADD||op==SUB)
+            {
+                if(l->info.lowexp<info.lowexp)
+                {
+                    l->info.length+=l->info.lowexp-info.lowexp;
+                    l->info.lowexp=info.lowexp;
+                }
+                if(r->info.lowexp<info.lowexp)
+                {
+                    r->info.length+=r->info.lowexp-info.lowexp;
+                    r->info.lowexp=info.lowexp;
+                }
+            }
+            else//mul,div
+            {
+                if(l->info.length>info.length)
+                {
+                    l->info.lowexp+=l->info.length-info.length;
+                    l->info.length=info.length;
+                }
+                if(r->info.length>info.length)
+                {
+                    r->info.lowexp+=r->info.length-info.length;
+                    r->info.length=info.length;
+                }
+            }
+            l->setinfo();
+            r->setinfo();
+        }
+        floatb cal()const
+        {
+            int lowexp=info.lowexp-20,length=info.length+20;
+            if(op==LEAF){return *leaf;}
+            if(op==ADD){return addorsub(l->cal(),r->cal(),1,lowexp);}
+            if(op==SUB){return addorsub(l->cal(),r->cal(),0,lowexp);}
+            if(op==MUL){return l->cal().multiply(r->cal(),length);}
+            return l->cal().divide(r->cal(),length);
+        }
+        void destroy()
+        {
+            if(l){l->destroy();delete l;}
+            if(r){r->destroy();delete r;}
+        }
+        public:
+        expr(const floatb& a){op=LEAF;leaf=&a,info.lowexp=a.EXP,info.length=a.validlength();}
+        expr operator+(const expr&b)const
+        {
+            expr now;now.op=ADD;
+            now.l=new expr(*this),now.r=new  expr(b);
+            return now;
+        }
+        expr operator-(const expr&b)const
+        {
+            expr now;now.op=SUB;
+            now.l=new expr(*this),now.r=new  expr(b);
+            return now;
+        }
+        expr operator*(const expr&b)const
+        {
+            expr now;now.op=MUL;
+            now.l=new expr(*this),now.r=new  expr(b);
+            return now;
+        }
+        expr operator/(const expr&b)const
+        {
+            expr now;now.op=DIV;
+            now.l=new expr(*this),now.r=new  expr(b);
+            return now;
+        }
+        operator floatb()
+        {
+            getinfo();
+            setinfo();
+            floatb ans=cal();
+            destroy();
+            return ans;
+        }
+    };
+    #define fb(x) floatb::expr(floatb(#x))
+    //floatb a=fb(34.56)*(fb(47.38)+fb(2.3))+froot(fb(3.7e456),99)+fb(34.557e123);
+    //1.这里搭了一颗树,必须立即用floatb接收从而触发树从顶部释放,否则不仅树没释放,节点也悬空
+    //2.精度传导对a*(b-c)采用a*b-a*c的理解
+    static int minvalidlength;//默认500
+    integer NUM;
+    int EXP = 0;
+    int LOW = 0;
+    int  ZERO=0;
+    floatb() {}
+    floatb(const integer& a):NUM(a){foldzero();}
+    floatb(const integer& a, int l) : NUM(a), EXP(l) {foldzero();}
+    floatb(const std::string&s);
+    floatb(const floatb&) = default;
+    floatb(floatb&&) noexcept = default;
+    std::string tostring(int m =0) const;
+    void print(bool stdendl=1, int m=5) const;
+    void get();
+    int validlength()const
+    {
+        return (int)NUM.num.size()-LOW+ZERO;
+    }
+    void setvalidlength(int l)
+    //这是用来调大的,若调小,low的增加不可逆
+    {
+        int gap = validlength()- l;
+        EXP += gap;
+        if(ZERO>gap){ZERO-=gap;}
+        else{gap-=ZERO,ZERO=0;LOW+=gap;}
+        if(LOW>=NUM.num.size()){std::cout<<"setvalidlength";exit(0);}//l>0就到不了这里
+    }
+    floatb& operator=(const floatb& other)
+    {
+        if (this == &other) return *this;
+        NUM  = integer(other.getview());
+        LOW  = 0;
+        ZERO = other.ZERO;
+        EXP  = other.EXP;
+        return *this;
+    }
+    floatb& operator=(floatb&&) noexcept = default;
+    static floatb addorsub(const floatb& a, const floatb& b, bool add,int l);
+    floatb divide(const floatb& b,int l) const;
+    floatb multiply(const floatb& b,int l) const;
+    floatb calpower(int n,int l)const;
+    floatb calroot(int n,int l)const;
+    bool absbigger(const floatb&b);//等于在浮点下不精确,无意义,返回不定
+    expr operator+(const expr&b)const
+    {
+        return  (floatb::expr)*this+b;
+    }
+    expr operator-(const expr&b)const
+    {
+        return  (floatb::expr)*this-b;
+    }
+    expr operator*(const expr&b)const
+    {
+        return  (floatb::expr)*this*b;
+    }
+    expr operator/(const expr&b)const
+    {
+        return  (floatb::expr)*this/b;
+    }
+};
+inline floatb fpow(const floatb&a,int n,int l=1<<30){return  a.calpower(n,l);}
+inline floatb froot(const floatb&a,int n,int l=1<<30){return  a.calroot(n,l);}
 #endif
 #endif
 //g++ -O2 a.cpp -L. -lintegerb -I D:\mingw64download\mingw64\include -L D:\mingw64download\mingw64\lib -lgmp -lgmpxx -o a.exe
