@@ -1,10 +1,10 @@
+
 #include "integerb.h"
 #include <chrono>
 #include <iomanip>
 #include <sstream>
 using namespace std;
 using namespace chrono;
-
 string format_time(double ms) {
     int sec = (int)(ms / 1000);
     int msec = (int)ms % 1000;
@@ -15,7 +15,6 @@ string format_time(double ms) {
     ss << msec << " s";
     return ss.str();
 }
-
 int main() {
     cout << "=====================================\n";
     cout << "   integer.h 测试结果\n";
@@ -52,7 +51,7 @@ int main() {
     
     // 4. 计算 d = sqrt(a)
     t1 = high_resolution_clock::now();
-    integer d = a.fsqrt();
+    integer d = a.isqrt();
     t2 = high_resolution_clock::now();
     ms = duration_cast<microseconds>(t2 - t1).count() / 1000.0;
     cout << "4. d = sqrt(a) = ";
@@ -83,13 +82,13 @@ int main() {
     // 6.5 验证 exgcd: coeff_a * f + coeff_b * g_shift == g
     cout << "6.5. 验证 exgcd: coeff_a * f + coeff_b * g_shift == g: ";
     integer verify_exgcd = coeff_a * f + coeff_b * g_shift;
-    cout << (verify_exgcd.num == g.num ? "✓ 通过" : "✗ 失败") << "\n\n";
+    cout << (verify_exgcd.num == g.num ? " 通过" : " 失败") << "\n\n";
     
     // 6.6 验证 100000! 的 tostring 和 string 构造
     cout << "6.6. 验证 100000! tostring/string构造: ";
     string fact_str = f.tostring();
     integer fact_from_str(fact_str);
-    cout << (f.num == fact_from_str.num ? "✓ 通过" : "✗ 失败") << "\n\n";
+    cout << (f.num == fact_from_str.num ? " 通过" : " 失败") << "\n\n";
     
     // 7. 计算 h = power(300!, 400!, 500!)
     t1 = high_resolution_clock::now();
@@ -119,7 +118,7 @@ int main() {
     
     t1 = high_resolution_clock::now();
     cout << "8.5. p=320!+1, jacobi(sqrt(p)+a,p)=1 计数 (a=1~10000): ";
-    integer p320 = fac(320) + 1,m=p320.fsqrt();
+    integer p320 = fac(320) + 1,m=p320.isqrt();
     int count_jacobi = 0;
     for (int n = 1; n <= 10000; n++) {
         if (jacobi(m+n, p320) == 1) {
@@ -145,14 +144,14 @@ int main() {
     {
         integer p = fac(20);
         while(!isprime(p)) p.addsmall(1);
-        integer bb = p.fsqrt() + 2345991;
+        integer bb = p.isqrt() + 2345991;
         int g_prim = primeroot(p);
         dlsolver solver(p);
         integer logb = solver.dlogp(g_prim, bb);
         integer verify = power(g_prim, logb, p);
         cout << "    验证: " << g_prim << "^" << logb.tostring() << " mod " 
         << p.tostring() << " = " << verify.tostring() << " == " << bb.tostring() 
-        << " ? " << (verify.num == bb.num ? "✓ 通过" : "✗ 失败") << "\n";
+        << " ? " << (verify.num == bb.num ? " 通过" : " 失败") << "\n";
     }
     auto ic_end = high_resolution_clock::now();
     double ic_ms = duration_cast<microseconds>(ic_end - ic_start).count() / 1000.0;
