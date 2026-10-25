@@ -3376,30 +3376,42 @@ integer indexcalculus::dlogr(const integer& x)//不要传0
 	}
 }
 
-int dlsolver::bsgs(const integer&a,const integer&b,int m)
+ll dlsolver::bsgs(const integer& a, const integer& b, int m)
 {
-	if(b.num==ic.q.f.num){return 0;}
-	if(a.num==b.num){return 1;}
-	integer c=ic.q.pow_binary(a,m),now=c;
-	std::vector<int>t(m);
-	for(int j=0;j<m;j++)
-	{
-		t[j]=now.num[0];now=ic.q.out(now*c);
-	}now=b;
-	for(int i=0;i<m;i++)
-	{
-		for(int j=0;j<m;j++)
-		{
-			if(t[j]==now.num[0]&&ic.q.pow_binary(c,j+1).num==now.num){return (j+1)*m-i;}
-		}
-		now=ic.q.out(now*a);
-	}
-	std::cout<<"bsgs";exit(0);
+    if (b.num == ic.q.f.num) return 0;
+    if (a.num == b.num) return 1;
+
+    integer c = ic.q.pow_binary(a, m);
+
+    // key = num[0]，value = 所有该 num[0] 下的 j
+    std::unordered_map<int, std::vector<int>> T;
+    T.reserve(m);
+
+    integer now = c;
+    for (int j = 0; j < m; ++j) {
+        T[now.num[0]].push_back(j);      // 同 key 追加，不覆盖
+        now = ic.q.out(now * c);
+    }
+
+    // giant step
+    integer now2 = b;
+    for (int i = 0; i < m; ++i) {
+        auto it = T.find(now2.num[0]);
+        if (it != T.end()) {
+            for (int j : it->second) {              // 遍历桶内所有 j
+                if (ic.q.pow_binary(c, j + 1).num == now2.num) {   // 完整值验证
+                    return (ll)(j + 1) * m - i;                 // 按你原返回式
+                }
+            }
+        }
+        now2 = ic.q.out(now2 * a);              // 你原代码是 *a
+    }
+    std::cout << "bsgs"; exit(0);
 }
 
 integer dlsolver::hellman(const integer&a,const integer&b)
 {
-	std::vector<int>s;
+	std::vector<ll>s;
 	integer a0=ic.q.pow_binary(ic.q.in(a),ic.pp),b0=ic.q.pow_binary(ic.q.in(b),ic.pp),o=ord(a0,&s);
 	integer u=0,v=1;
 	for(int i=0;i<s.size();i+=2)
@@ -3413,7 +3425,7 @@ integer dlsolver::hellman(const integer&a,const integer&b)
 			integer f=ic.q.pow_binary(a0,h);
 			f=ic.q.pow_binary(f,ic.q.p-2);
 			f=ic.q.out(f*b0);
-			int ans=bsgs(unit,ic.q.pow_binary(f,o/power(pi,j+1)),m);
+			ll ans=bsgs(unit,ic.q.pow_binary(f,o/power(pi,j+1)),m);
 			h=basep*ans+h;
 			basep=basep*pi;
 		}
@@ -3425,7 +3437,16 @@ integer dlsolver::hellman(const integer&a,const integer&b)
 
 dlsolver::dlsolver(integer p)
 {
-	integer small=p.num.size()>2?2147483647:1000000;
+	integer small;
+	if(p.num.size()>2)
+	{
+		ll  h=1000000000000;
+		double t=0.1216* exp(0.2427 *p.getlog()) / 1000.0;
+		if(t<2.4){h/=10;}
+		if(t<1){h/=10;}
+		small=h;
+	}
+	else{small=1000000;}
 	ic.q.p=p;p.addsmall(-1);
 	euler(p,&k);
 	for(auto&e:k)
@@ -3450,7 +3471,7 @@ dlsolver::dlsolver(integer p)
 	else{ic.q.init();}
 }
 
-integer dlsolver::ord(const integer&a,std::vector<int>*s)
+integer dlsolver::ord(const integer&a,std::vector<ll>*s)
 {
 	integer a0=s?a:ic.q.in(a),o=s?(ic.q.p-1)/ic.pp:ic.q.p-1;
 	for(int i=0;i<l.size();i+=2)
