@@ -3638,6 +3638,7 @@ integer floatb::div_native(const integer::view& a, const integer::view& b,int l,
 integer floatb::divide_core(const integer::view& a, const integer::view& b,int l,int azero,int  bzero)
 {
 	if(a.len+azero!=b.len+bzero||l>b.len+bzero){std::cout<<"divide_core";exit(0);}
+	if(a.ptr[a.len-1]==0){return 0;}
 	if(l>50&&b.len>50&&(b.len>bzero?(b.len>700-bzero*550.0/b.len):(b.len+bzero>300)))
 	{
 		int n=azero+l;
@@ -3722,7 +3723,7 @@ floatb floatb::calpower(int n,int l)const//指数容易静默溢出,超大指数
 	return ans;
 }
 
-floatb floatb::calroot(int n,int l)const//validlenth()*n要在int一定余量以内,否则溢出,之前太多int了,改不过来了,范围就小点吧
+floatb floatb::calroot(int n,int l)const//validlenth()*n要在int一定余量以内,否则integer::root内部参数溢出,超高精度开超大次根用floatb自己写牛顿迭代
 {
 	floatb c=integer(NUM.num.back()?1:0);
 	int l0=validlength();
