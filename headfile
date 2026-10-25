@@ -262,6 +262,7 @@ int getw(const integer& n);
 integer power(const integer& x, const integer& n, const integer& p);
 #endif
 #if shulun>1
+#include<unordered_map>
 bool inside(int k, const std::initializer_list<int>& t);
 bool miller(const integer& n, const std::initializer_list<int> t = { 2, 3, 5, 7, 11, 13, 17 });
 bool lucas(const integer& x);
@@ -306,13 +307,13 @@ class dlsolver
 {
 private:
     std::vector<integer>k;
-    std::vector<int>l;
+    std::vector<ll>l;
     indexcalculus ic;
-    int bsgs(const integer&a, const integer&b, int m);
+    ll bsgs(const integer&a, const integer&b, int m);
     integer hellman(const integer&a, const integer&b);
 public:
     dlsolver(integer p);
-    integer ord(const integer&a, std::vector<int>*s = 0);
+    integer ord(const integer&a, std::vector<ll>*s = 0);
     integer dlogp(const integer&a, const integer&b);
 };
 #endif
