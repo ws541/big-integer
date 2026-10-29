@@ -618,6 +618,7 @@ void integer::e8tob28()
 	for (int len = 1; len < n;)
 	{
 		int len2 = len << 1;
+		trycatch();
 		for (int i = 0; i < n; i += len2)
 		{
 			view high(num.data() + i, len, len2 - 1, 1);
@@ -631,6 +632,7 @@ void integer::e8tob28()
 			}
 			for (; j < len2; j++) { num[i + j] = 0; }
 		}
+		endcatch();
 		len = len2;
 		if (len < n) { h = h * h; }
 		else { break; }
@@ -3505,6 +3507,187 @@ integer dlsolver::dlogp(const integer&a,const integer&b)
 #if fudian
 integer floatb::floatbtmp;
 int floatb::minvalidlength=500;
+// ---- floatb::expr::getinfo ----
+void floatb::expr::getinfo(int& guard)
+{
+    if (op == POW || op == ROOT) { guard += 5; return; }
+    if (op == LEAF) { return; }
+
+    guard += 2;
+    l->getinfo(guard);
+    r->getinfo(guard);
+
+    infomation left = l->info, right = r->info;
+    int& lowexp = info.lowexp, &length = info.length;
+
+    if (op == ADD || op == SUB)
+    {
+        lowexp = std::max(left.lowexp, right.lowexp);
+        length = std::max(left.lowexp + left.length, right.lowexp + right.length) - lowexp;
+    }
+    else if (op == MUL)
+    {
+        length = std::min(left.length, right.length);
+        lowexp = left.lowexp + left.length + right.lowexp + right.length - length;
+    }
+    else // DIV
+    {
+        length = std::min(left.length, right.length);
+        lowexp = left.lowexp + left.length - right.lowexp - right.length - length;
+    }
+}
+
+// ---- floatb::expr::setinfo ----
+void floatb::expr::setinfo()
+{
+    if (op == LEAF || op == POW || op == ROOT) { return; }
+
+    if (op == ADD || op == SUB)
+    {
+        if (l->info.lowexp < info.lowexp)
+        {
+            l->info.length += l->info.lowexp - info.lowexp;
+            l->info.lowexp = info.lowexp;
+        }
+        if (r->info.lowexp < info.lowexp)
+        {
+            r->info.length += r->info.lowexp - info.lowexp;
+            r->info.lowexp = info.lowexp;
+        }
+    }
+    else // MUL, DIV
+    {
+        if (l->info.length > info.length)
+        {
+            l->info.lowexp += l->info.length - info.length;
+            l->info.length = info.length;
+        }
+        if (r->info.length > info.length)
+        {
+            r->info.lowexp += r->info.length - info.length;
+            r->info.length = info.length;
+        }
+    }
+    l->setinfo();
+    r->setinfo();
+}
+
+// ---- floatb::expr::cal ----
+floatb floatb::expr::cal(int guard) const
+{
+    int lowexp = info.lowexp - guard, length = info.length + guard;
+
+    if (op == LEAF) { return *leaf; }
+    if (op == POW)  { return leaf->calpower(extra, length); }
+    if (op == ROOT) { return leaf->calroot(extra, length); }
+    if (op == ADD)  { return addorsub(l->cal(guard), r->cal(guard), 1, lowexp); }
+    if (op == SUB)  { return addorsub(l->cal(guard), r->cal(guard), 0, lowexp); }
+    if (op == MUL)  { return l->cal(guard).multiply(r->cal(guard), length); }
+    return l->cal(guard).divide(r->cal(guard), length);
+}
+
+// ---- floatb::expr::destroy ----
+void floatb::expr::destroy()
+{
+    if (l) { l->destroy(); delete l; }
+    if (r) { r->destroy(); delete r; }
+}
+
+// ---- 四个 operator（顺带移出，因为它们要 new expr） ----
+floatb::expr floatb::expr::operator+(const expr& b) const
+{
+    expr now; now.op = ADD;
+    now.l = new expr(*this), now.r = new expr(b);
+    return now;
+}
+floatb::expr floatb::expr::operator-(const expr& b) const
+{
+    expr now; now.op = SUB;
+    now.l = new expr(*this), now.r = new expr(b);
+    return now;
+}
+floatb::expr floatb::expr::operator*(const expr& b) const
+{
+    expr now; now.op = MUL;
+    now.l = new expr(*this), now.r = new expr(b);
+    return now;
+}
+floatb::expr floatb::expr::operator/(const expr& b) const
+{
+    expr now; now.op = DIV;
+    now.l = new expr(*this), now.r = new expr(b);
+    return now;
+}
+
+// ---- operator floatb ----
+floatb::expr::operator floatb()
+{
+    int guard = 10;
+    getinfo(guard);
+    setinfo();
+    floatb ans = cal(guard);
+    destroy();
+    return ans;
+}
+
+// ============ floatb 私有函数 ============
+
+void floatb::foldzero()
+{
+    while (LOW + 1 < NUM.num.size() && NUM.num[LOW] == 0) { LOW++, ZERO++; }
+}
+
+// ============ floatb 公有（原内联）函数 ============
+
+double floatb::getlog() const
+{
+    int l = (int)NUM.num.size() - LOW;
+    if (l == 1) { return log(NUM.num.back()) + (ZERO + EXP) * log(Base); }
+    return log(((ll)NUM.num.back() << Blen) + NUM.num[NUM.num.size() - 2])
+           + (l - 2 + ZERO + EXP) * log(Base);
+}
+
+int floatb::validlength() const
+{
+    return (int)NUM.num.size() - LOW + ZERO;
+}
+
+void floatb::setvalidlength(int l)
+{
+    int gap = validlength() - l;
+    EXP += gap;
+    if (ZERO > gap) { ZERO -= gap; }
+    else { gap -= ZERO, ZERO = 0; LOW += gap; }
+    if (LOW >= NUM.num.size()) { std::cout << "setvalidlength"; exit(0); }//l>0就到不了这里
+}
+
+floatb& floatb::operator=(const floatb& other)
+{
+    if (this == &other) return *this;
+    NUM  = integer(other.getview());
+    LOW  = 0;
+    ZERO = other.ZERO;
+    EXP  = other.EXP;
+    return *this;
+}
+
+floatb::expr floatb::operator+(const expr& b) const
+{
+    return (floatb::expr)*this + b;
+}
+floatb::expr floatb::operator-(const expr& b) const
+{
+    return (floatb::expr)*this - b;
+}
+floatb::expr floatb::operator*(const expr& b) const
+{
+    return (floatb::expr)*this * b;
+}
+floatb::expr floatb::operator/(const expr& b) const
+{
+    return (floatb::expr)*this / b;
+}
+
 integer::view floatb::getview() const
 {
     return integer::view(NUM.num.data(), LOW, NUM.num.size() - 1, NUM.sign);
@@ -3934,5 +4117,26 @@ bool floatb::absbigger(const floatb&b)
 	}
 	if(i==end){return av.len>bv.len;}
 	return av.ptr[i]>bv.ptr[i+gap];
+}
+floatb::expr fpow(const floatb& a, int n)
+{
+    floatb::expr now;
+    now.info.length = a.validlength();
+    now.info.lowexp = a.getlog() * n / log(Base) - now.info.length;
+    now.leaf = &a;
+    now.op = floatb::expr::optype::POW;
+    now.extra = n;
+    return now;
+}
+
+floatb::expr froot(const floatb& a, int n)
+{
+    floatb::expr now;
+    now.info.length = a.validlength();
+    now.info.lowexp = a.getlog() / (n * log(Base)) - now.info.length;
+    now.leaf = &a;
+    now.op = floatb::expr::optype::ROOT;
+    now.extra = n;
+    return now;
 }
 #endif
