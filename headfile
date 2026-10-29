@@ -141,6 +141,8 @@ private:
     static cd Wi(int i, int&index, int&ilog2, int mlog2);
     static void b14rrii(int*l, int mlog2, c2*xx);
     static double* b14rrii(const view& a, int n);
+    static void trycatch();//危险
+    static void endcatch();
 public:
     int sign = 1;
     std::vector<int> num;
@@ -173,8 +175,6 @@ public:
     static integer addorsub(const int* a, int la, int asign, const int* b, int lb, int bsign, bool isadd);
     static integer karamul(view a, view b,int i=0,int iend=1<<30);
     static integer shiftmul(const view& a, const view& b, int need, int& offset);
-    static void trycatch();//危险函数,中间只能夹karamul,不能夹div_newton
-    static void endcatch();
     static integer fftmul(const view&a,const view&b);
     static integer nttmul(const view& a, const view& b);
     static integer reciprocal(const view& n, int l);
@@ -329,135 +329,35 @@ private:
     static  integer div_native(const integer::view& a, const integer::view& b,int l,int azero,int  bzero);
     static integer divide_core(const integer::view& a, const integer::view& b,int l,int azero,int  bzero);
     static integer stringtob28(const std::string&s,int&e1);
-    void foldzero()
-    {
-        while(LOW+1<NUM.num.size()&&NUM.num[LOW]==0){LOW++,ZERO++;}
-    }
+    void foldzero();
 public:
     class expr
     {
-        public:
+    private:
         struct infomation
         {
-            public:
-            int lowexp,length;
-            infomation(){}
+        public:
+            int lowexp, length;
+            infomation() {}
         };
-        expr(){}
-        enum optype{LEAF,ADD,SUB,MUL,DIV,ROOT,POW} op;
+        void getinfo(int& guard);
+        void setinfo();
+        floatb cal(int guard) const;
+        void destroy();
+        expr* l = 0;
+        expr* r = 0;
+    public:
+        expr() {}
+        enum optype { LEAF, ADD, SUB, MUL, DIV, ROOT, POW } op;
         infomation info;
-        const floatb*leaf=0;
-        expr*l=0;
-        expr*r=0;
+        const floatb* leaf = 0;
         int extra;
-        void getinfo(int&guard)//从已知推结果,写入info
-        {
-            if(op==POW||op==ROOT){guard+=5;return;}
-            if(op==LEAF){return;}
-            guard+=2;
-            l->getinfo(guard);
-            r->getinfo(guard);
-            infomation left=l->info,right=r->info;
-            int& lowexp=info.lowexp,&length=info.length;
-            if(op==ADD||op==SUB)
-            {
-                lowexp=std::max(left.lowexp,right.lowexp);
-                length=std::max(left.lowexp+left.length,right.lowexp+right.length)-lowexp;
-                
-            }
-            else  if(op==MUL)
-            {
-                length=std::min(left.length,right.length);
-                lowexp=left.lowexp+left.length+right.lowexp+right.length-length;
-            }
-            else
-            {
-                length=std::min(left.length,right.length);
-                lowexp=left.lowexp+left.length-right.lowexp-right.length-length;
-            }
-        }
-        void setinfo()//从结果推需求,裁剪子info
-        {
-            if(op==LEAF||op==POW||op==ROOT){return;}
-            if(op==ADD||op==SUB)
-            {
-                if(l->info.lowexp<info.lowexp)
-                {
-                    l->info.length+=l->info.lowexp-info.lowexp;
-                    l->info.lowexp=info.lowexp;
-                }
-                if(r->info.lowexp<info.lowexp)
-                {
-                    r->info.length+=r->info.lowexp-info.lowexp;
-                    r->info.lowexp=info.lowexp;
-                }
-            }
-            else//mul,div
-            {
-                if(l->info.length>info.length)
-                {
-                    l->info.lowexp+=l->info.length-info.length;
-                    l->info.length=info.length;
-                }
-                if(r->info.length>info.length)
-                {
-                    r->info.lowexp+=r->info.length-info.length;
-                    r->info.length=info.length;
-                }
-            }
-            l->setinfo();
-            r->setinfo();
-        }
-        floatb cal(int guard)const
-        {
-            int lowexp=info.lowexp-guard,length=info.length+guard;
-            if(op==LEAF){return *leaf;}
-            if(op==POW){return leaf->calpower(extra,length);}
-            if(op==ROOT){return leaf->calroot(extra,length);}
-            if(op==ADD){return addorsub(l->cal(guard),r->cal(guard),1,lowexp);}
-            if(op==SUB){return addorsub(l->cal(guard),r->cal(guard),0,lowexp);}
-            if(op==MUL){return l->cal(guard).multiply(r->cal(guard),length);}
-            return l->cal(guard).divide(r->cal(guard),length);
-        }
-        void destroy()
-        {
-            if(l){l->destroy();delete l;}
-            if(r){r->destroy();delete r;}
-        }
-        expr(const floatb& a){op=LEAF;leaf=&a,info.lowexp=a.EXP,info.length=a.validlength();}
-        expr operator+(const expr&b)const
-        {
-            expr now;now.op=ADD;
-            now.l=new expr(*this),now.r=new  expr(b);
-            return now;
-        }
-        expr operator-(const expr&b)const
-        {
-            expr now;now.op=SUB;
-            now.l=new expr(*this),now.r=new  expr(b);
-            return now;
-        }
-        expr operator*(const expr&b)const
-        {
-            expr now;now.op=MUL;
-            now.l=new expr(*this),now.r=new  expr(b);
-            return now;
-        }
-        expr operator/(const expr&b)const
-        {
-            expr now;now.op=DIV;
-            now.l=new expr(*this),now.r=new  expr(b);
-            return now;
-        }
-        operator floatb()
-        {
-            int guard=10;
-            getinfo(guard);
-            setinfo();
-            floatb ans=cal(guard);
-            destroy();
-            return ans;
-        }
+        expr(const floatb& a) { op = LEAF; leaf = &a, info.lowexp = a.EXP, info.length = a.validlength(); }
+        expr operator+(const expr& b) const;
+        expr operator-(const expr& b) const;
+        expr operator*(const expr& b) const;
+        expr operator/(const expr& b) const;
+        operator floatb();
     };
     #define fb(x) floatb::expr(floatb(#x))
     //floatb a=fb(34.56)*(fb(47.38)+fb(2.3))+froot(fb(3.7e456),99)+fb(34.557e123);
@@ -477,33 +377,10 @@ public:
     std::string tostring(int m =0) const;
     void print(bool stdendl=1, int m=5) const;
     void get();
-    double getlog()const
-    {
-        int l=(int)NUM.num.size()-LOW;
-        if(l==1){return log(NUM.num.back())+(ZERO+EXP)*log(Base);}
-        return log(((ll)NUM.num.back()<<Blen)+NUM.num[NUM.num.size()-2])+(l-2+ZERO+EXP)*log(Base);
-    }
-    int validlength()const
-    {
-        return (int)NUM.num.size()-LOW+ZERO;
-    }
-    void setvalidlength(int l)
-    {
-        int gap = validlength()- l;
-        EXP += gap;
-        if(ZERO>gap){ZERO-=gap;}
-        else{gap-=ZERO,ZERO=0;LOW+=gap;}
-        if(LOW>=NUM.num.size()){std::cout<<"setvalidlength";exit(0);}//l>0就到不了这里
-    }
-    floatb& operator=(const floatb& other)
-    {
-        if (this == &other) return *this;
-        NUM  = integer(other.getview());
-        LOW  = 0;
-        ZERO = other.ZERO;
-        EXP  = other.EXP;
-        return *this;
-    }
+    double getlog() const;    
+    int validlength() const;     
+    void setvalidlength(int l);   
+    floatb& operator=(const floatb& other);   
     floatb& operator=(floatb&&) noexcept = default;
     static floatb addorsub(const floatb& a, const floatb& b, bool add,int l);
     floatb divide(const floatb& b,int l) const;
@@ -511,43 +388,13 @@ public:
     floatb calpower(int n,int l)const;
     floatb calroot(int n,int l)const;
     bool absbigger(const floatb&b);//等于在浮点下不精确,无意义,返回不定
-    expr operator+(const expr&b)const
-    {
-        return  (floatb::expr)*this+b;
-    }
-    expr operator-(const expr&b)const
-    {
-        return  (floatb::expr)*this-b;
-    }
-    expr operator*(const expr&b)const
-    {
-        return  (floatb::expr)*this*b;
-    }
-    expr operator/(const expr&b)const
-    {
-        return  (floatb::expr)*this/b;
-    }
+     expr operator+(const expr& b) const;  
+    expr operator-(const expr& b) const;   
+    expr operator*(const expr& b) const;  
+    expr operator/(const expr& b) const; 
 };
-inline floatb::expr fpow(const floatb&a,int n)
-{
-    floatb::expr now;
-    now.info.length=a.validlength();
-    now.info.lowexp=a.getlog()*n/log(Base)-now.info.length;
-    now.leaf=&a;
-    now.op=floatb::expr::optype::POW;
-    now.extra=n;
-    return now;
-}
-inline floatb::expr froot(const floatb&a,int n)
-{
-    floatb::expr now;
-    now.info.length=a.validlength();
-    now.info.lowexp=a.getlog()/(n*log(Base))-now.info.length;
-    now.leaf=&a;
-    now.op=floatb::expr::optype::ROOT;
-    now.extra=n;
-    return now;
-}
+floatb::expr fpow(const floatb& a, int n);
+floatb::expr froot(const floatb& a, int n);
 #endif
 #endif
 //g++ -O2 a.cpp -L. -lintegerb -I D:\mingw64download\mingw64\include -L D:\mingw64download\mingw64\lib -lgmp -lgmpxx -o a.exe
