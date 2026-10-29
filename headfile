@@ -336,7 +336,7 @@ private:
 public:
     class expr
     {
-        private:
+        public:
         struct infomation
         {
             public:
@@ -344,17 +344,19 @@ public:
             infomation(){}
         };
         expr(){}
-        enum optype{LEAF,ADD,SUB,MUL,DIV} op;//其它的定点非常困难
-        int extra=0;
+        enum optype{LEAF,ADD,SUB,MUL,DIV,ROOT,POW} op;
         infomation info;
         const floatb*leaf=0;
         expr*l=0;
         expr*r=0;
-        void getinfo()//从已知推结果,写入info
+        int extra;
+        void getinfo(int&guard)//从已知推结果,写入info
         {
+            if(op==POW||op==ROOT){guard+=5;return;}
             if(op==LEAF){return;}
-            l->getinfo();
-            r->getinfo();
+            guard+=2;
+            l->getinfo(guard);
+            r->getinfo(guard);
             infomation left=l->info,right=r->info;
             int& lowexp=info.lowexp,&length=info.length;
             if(op==ADD||op==SUB)
@@ -376,7 +378,7 @@ public:
         }
         void setinfo()//从结果推需求,裁剪子info
         {
-            if(op==LEAF){return;}
+            if(op==LEAF||op==POW||op==ROOT){return;}
             if(op==ADD||op==SUB)
             {
                 if(l->info.lowexp<info.lowexp)
@@ -406,21 +408,22 @@ public:
             l->setinfo();
             r->setinfo();
         }
-        floatb cal()const
+        floatb cal(int guard)const
         {
-            int lowexp=info.lowexp-20,length=info.length+20;
+            int lowexp=info.lowexp-guard,length=info.length+guard;
             if(op==LEAF){return *leaf;}
-            if(op==ADD){return addorsub(l->cal(),r->cal(),1,lowexp);}
-            if(op==SUB){return addorsub(l->cal(),r->cal(),0,lowexp);}
-            if(op==MUL){return l->cal().multiply(r->cal(),length);}
-            return l->cal().divide(r->cal(),length);
+            if(op==POW){return leaf->calpower(extra,length);}
+            if(op==ROOT){return leaf->calroot(extra,length);}
+            if(op==ADD){return addorsub(l->cal(guard),r->cal(guard),1,lowexp);}
+            if(op==SUB){return addorsub(l->cal(guard),r->cal(guard),0,lowexp);}
+            if(op==MUL){return l->cal(guard).multiply(r->cal(guard),length);}
+            return l->cal(guard).divide(r->cal(guard),length);
         }
         void destroy()
         {
             if(l){l->destroy();delete l;}
             if(r){r->destroy();delete r;}
         }
-        public:
         expr(const floatb& a){op=LEAF;leaf=&a,info.lowexp=a.EXP,info.length=a.validlength();}
         expr operator+(const expr&b)const
         {
@@ -448,9 +451,10 @@ public:
         }
         operator floatb()
         {
-            getinfo();
+            int guard=10;
+            getinfo(guard);
             setinfo();
-            floatb ans=cal();
+            floatb ans=cal(guard);
             destroy();
             return ans;
         }
@@ -458,8 +462,8 @@ public:
     #define fb(x) floatb::expr(floatb(#x))
     //floatb a=fb(34.56)*(fb(47.38)+fb(2.3))+froot(fb(3.7e456),99)+fb(34.557e123);
     //1.这里搭了一颗树,必须立即用floatb接收从而触发树从顶部释放,否则不仅树没释放,节点也悬空
-    //2.精度传导对a*(b-c)采用a*b-a*c的理解
-    static int minvalidlength;//默认500
+    //2.精度传导对a*(b-c)对于b=c采用b-c=base^(min(b.exp,c.exp))理解
+    static int minvalidlength;//字符串构造
     integer NUM;
     int EXP = 0;
     int LOW = 0;
@@ -473,12 +477,17 @@ public:
     std::string tostring(int m =0) const;
     void print(bool stdendl=1, int m=5) const;
     void get();
+    double getlog()const
+    {
+        int l=(int)NUM.num.size()-LOW;
+        if(l==1){return log(NUM.num.back())+(ZERO+EXP)*log(Base);}
+        return log(((ll)NUM.num.back()<<Blen)+NUM.num[NUM.num.size()-2])+(l-2+ZERO+EXP)*log(Base);
+    }
     int validlength()const
     {
         return (int)NUM.num.size()-LOW+ZERO;
     }
     void setvalidlength(int l)
-    //这是用来调大的,若调小,low的增加不可逆
     {
         int gap = validlength()- l;
         EXP += gap;
@@ -519,8 +528,26 @@ public:
         return  (floatb::expr)*this/b;
     }
 };
-inline floatb fpow(const floatb&a,int n,int l=1<<30){return  a.calpower(n,l);}
-inline floatb froot(const floatb&a,int n,int l=1<<30){return  a.calroot(n,l);}
+inline floatb::expr fpow(const floatb&a,int n)
+{
+    floatb::expr now;
+    now.info.length=a.validlength();
+    now.info.lowexp=a.getlog()*n/log(Base)-now.info.length;
+    now.leaf=&a;
+    now.op=floatb::expr::optype::POW;
+    now.extra=n;
+    return now;
+}
+inline floatb::expr froot(const floatb&a,int n)
+{
+    floatb::expr now;
+    now.info.length=a.validlength();
+    now.info.lowexp=a.getlog()/(n*log(Base))-now.info.length;
+    now.leaf=&a;
+    now.op=floatb::expr::optype::ROOT;
+    now.extra=n;
+    return now;
+}
 #endif
 #endif
 //g++ -O2 a.cpp -L. -lintegerb -I D:\mingw64download\mingw64\include -L D:\mingw64download\mingw64\lib -lgmp -lgmpxx -o a.exe
