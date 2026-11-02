@@ -1763,6 +1763,9 @@ void integer::mul_core(std::vector<integer>& level, int& zeros)
 			while (i < (int)b.num.size() - 1 && b.num[i] == 0) i++;
 			zeros += i; view b_view(b, i);
 			nextlevel.push_back(karamul(a_view, b_view));
+			integer u,v;
+			std::swap(a,u);
+		 	std::swap(b,v);
 		}
 		if (s % 2) { nextlevel.push_back(level.back()); }
 		level = std::move(nextlevel);
@@ -4168,6 +4171,9 @@ floatb mathb::chudnovsky(int n,int need,bool pos)
          now.q=left.q*right.q;now.q.setvalidlength(need);
          now.t=left.t*right.q+right.t*left.p;now.t.setvalidlength(need);
          nextl.push_back(now);
+		 bst l,r;
+		 std::swap(l,left);
+		 std::swap(r,right);
       }
       l=std::move(nextl);
    }
