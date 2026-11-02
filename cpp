@@ -4127,7 +4127,8 @@ floatb mathb::mathbpi;
 floatb mathb::chudnovsky(int n,int need,bool pos)
 {
    struct bst
-   {
+   { 
+	  int start;
       floatb p;
       floatb q;
       floatb t;
@@ -4141,13 +4142,13 @@ floatb mathb::chudnovsky(int n,int need,bool pos)
       {
          now.p=j?integer((12*j-11)*(4*j-3))*integer((12*j-7)*(12*j-5))*integer((4*j-1)*(12*j-1)):1;
          now.q=j?power((2*j-1)*j,3)*k:1;
-         now.t=(a*(2*j)+b)*now.p.NUM;
+         now.t=(a*(now.start=2*j)+b)*now.p.NUM;
       }
       else
       {
          now.p=j?integer((12*j-5)*(4*j-1))*integer((12*j-1)*(12*j+1))*integer((4*j+1)*(12*j+5)):1;
          now.q=j?power(j*(2*j+1),3)*k:k1;
-         now.t=(a*(2*j+1)+b)*now.p.NUM;
+         now.t=(a*(now.start=2*j+1)+b)*now.p.NUM;
       }
       now.p.setvalidlength(need);
       now.q.setvalidlength(need);
@@ -4162,14 +4163,17 @@ floatb mathb::chudnovsky(int n,int need,bool pos)
       {
          nextl.push_back(l[0]);i=1;
       }
+	  float f=log(Base)/(log(10)*14.15);
       for(;i+1<l.size();i+=2)
       {
          bst &left=l[i],&right=l[i+1];
          bst now;
+		 now.start=left.start;
+		 int nowneed=need-f*now.start;
          bool needp=(i+2!=l.size());
-         if(needp){now.p=right.p*left.p;now.p.setvalidlength(need);}
-         now.q=left.q*right.q;now.q.setvalidlength(need);
-         now.t=left.t*right.q+right.t*left.p;now.t.setvalidlength(need);
+         if(needp){now.p=right.p.multiply(left.p,nowneed);now.p.setvalidlength(need);}
+         now.q=left.q.multiply(right.q,nowneed);now.q.setvalidlength(need);
+         now.t=left.t.multiply(right.q,nowneed)+right.t.multiply(left.p,nowneed);now.t.setvalidlength(need);
          nextl.push_back(now);
 		 bst l,r;
 		 std::swap(l,left);
