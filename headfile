@@ -21,8 +21,8 @@ g++ -O2 a.cpp -L. -lintegerb -o a.exe
 #include <cmath>
 #include <complex>
 #include <string>
-#define shulun 2
-#define fudian 1
+#define shulun 0
+#define fudian 2
 typedef long long ll;
 typedef unsigned long long ull;
 typedef std::complex<double> cd;
@@ -194,9 +194,9 @@ public:
     void addsmall(int n);
     static void mul_core(std::vector<integer>& level, int& zeros);
 };
+integer power(const integer& b, const integer& c);
 // 自由函数声明（类外）
 #if  shulun>0
-integer power(const integer& b, const integer& c);
 integer C_core(int e, int s, int e_s, int& zeros);
 integer mul(std::vector<integer>& level);
 integer A_core(int e, int s, int& zeros);
@@ -317,14 +317,11 @@ public:
     integer dlogp(const integer&a, const integer&b);
 };
 #endif
-#if fudian
+#if fudian>0
 class floatb//(num.size-1~num.low,zero个0)*Base^exp
 {
 private:
     static integer floatbtmp;
-    integer::view getview() const;
-    integer::view leftshiftview(int&zero,int leftshift) const;
-    integer::view clearview(int&zero,int&exp,int l) const;
     static void quotient(const integer::view& a, const integer::view& b,int l,int azero,int  bzero,integer& ans);
     static  integer div_native(const integer::view& a, const integer::view& b,int l,int azero,int  bzero);
     static integer divide_core(const integer::view& a, const integer::view& b,int l,int azero,int  bzero);
@@ -374,6 +371,9 @@ public:
     floatb(const std::string&s);
     floatb(const floatb&) = default;
     floatb(floatb&&) noexcept = default;
+    integer::view getview() const;
+    integer::view leftshiftview(int&zero,int leftshift) const;
+    integer::view clearview(int&zero,int&exp,int l) const;
     std::string tostring(int m =0) const;
     void print(bool stdendl=1, int m=5) const;
     void get();
@@ -395,6 +395,16 @@ public:
 };
 floatb::expr fpow(const floatb& a, int n);
 floatb::expr froot(const floatb& a, int n);
+#endif
+#if fudian>1
+class mathb
+{
+private:
+static floatb chudnovsky(int n,int need,bool pos);
+static floatb mathbpi;
+public:
+static floatb getpi(int n);
+};
 #endif
 #endif
 //g++ -O2 a.cpp -L. -lintegerb -I D:\mingw64download\mingw64\include -L D:\mingw64download\mingw64\lib -lgmp -lgmpxx -o a.exe
