@@ -4165,7 +4165,7 @@ floatb mathb::chudnovsky(int n,int need,bool pos)
       for(;i+1<l.size();i+=2)
       {
          bst &left=l[i],&right=l[i+1];
-         bst now=left;
+         bst now;
          bool needp=(i+2!=l.size());
          if(needp){now.p=right.p*left.p;now.p.setvalidlength(need);}
          now.q=left.q*right.q;now.q.setvalidlength(need);
