@@ -1768,9 +1768,6 @@ void integer::mul_core(std::vector<integer>& level, int& zeros)
 		level = std::move(nextlevel);
 	}
 }
-#if  shulun>0
-// ============ 类外自由函数（前半） ============
-
 integer power(const integer& b, const integer& c)
 {
 	if (c.sign == -1 || c.num.size() > 1) { std::cout << "power"; exit(0); }
@@ -1783,7 +1780,8 @@ integer power(const integer& b, const integer& c)
 	}
 	return ans;
 }
-
+#if  shulun>0
+// ============ 类外自由函数（前半） ============
 integer C_core(int e, int s, int  e_s, int& zeros)
 {
 	int a, b = (e + e % 2) / 2;
@@ -3504,7 +3502,7 @@ integer dlsolver::dlogp(const integer&a,const integer&b)
 	return ans;
 }
 #endif
-#if fudian
+#if fudian>0
 integer floatb::floatbtmp;
 int floatb::minvalidlength=500;
 // ---- floatb::expr::getinfo ----
@@ -3973,8 +3971,10 @@ integer floatb::stringtob28(const std::string&s,int&e1)
 	for(;j<i&&s[j]!='.';j++);if(j==i){j=-1;}
 	e1=j>-1?-(i-j-1):0;
 	if(i+1<s.size()){e1+=std::stoi(s.substr(i+1));}
+	int l = 0;
+	if (s[0] == '-') { l = 1; tmp.sign = -1; }
 	int k=i-8;
-	for (; k> j&&k>0; k -= 8)
+	for (; k> j&&k>l; k -= 8)
 	{
 		int a = s[k] - 48;
 		for (int t = 1; t < 8; t++)
@@ -3984,7 +3984,7 @@ integer floatb::stringtob28(const std::string&s,int&e1)
 		}
 		tmp.num.push_back(a);
 	}
-	if(k>0)
+	if(k>l)
 	{
 		k--;
 		int a =s[k] - 48;
@@ -4002,7 +4002,7 @@ integer floatb::stringtob28(const std::string&s,int&e1)
 		tmp.num.push_back(a);
 		k-=8;
 	}
-	for (; k> 0; k -= 8)
+	for (; k> l; k -= 8)
 	{
 		int a = s[k] - 48;
 		for (int t = 1; t < 8; t++)
@@ -4013,8 +4013,7 @@ integer floatb::stringtob28(const std::string&s,int&e1)
 		tmp.num.push_back(a);
 	}
 	k += 8;
-	int a = 0, l = 0;
-	if (s[0] == '-') { l = 1; tmp.sign = -1; }
+	int a = 0;
 	for (; l < k; l++)
 	{
 		if(l==j){continue;}
@@ -4026,7 +4025,6 @@ integer floatb::stringtob28(const std::string&s,int&e1)
 	tmp.e8tob28();
 	return tmp;
 }
-
 floatb::floatb(const std::string&s)
 {
 	int e1;
@@ -4049,52 +4047,33 @@ void floatb::get()
 std::string floatb::tostring(int m) const
 {
 	if(!NUM.num.back()){return std::string("0");}
-    // 有一定误差
-    integer::view aview = getview();
-	integer tmp;
-	tmp.num.reserve(aview.len+ZERO);
-	tmp.num.assign(ZERO,0);
-	for(int i=0;i<aview.len;i++){tmp.num.push_back(aview.ptr[i]);}
-	aview=tmp;
-    if (m > aview.len || m < 1) { m = aview.len; }
-    int endexp = aview.len - m + EXP;
-    int n = abs(endexp) * (log(Base) / log(e8));
+	int l0=validlength();//如果l0太小打印不精确
+	if (m > l0 || m < 1) { m = l0; }
+	if(m<5)
+	{
+		if(l0<5)
+		{
+			floatb tmp=*this;
+			tmp.setvalidlength(5);
+			return tmp.tostring();
+		}
+		m=5;
+	}
+	int endexp=l0-m+EXP;
+	int n = abs(endexp) * (log(Base) / log(e8));
     const bool flag = endexp < 0;
-    if (flag) { n++; }
-    else { n -= (n != 0); }
-    int need = m + 2, b = 0;
-    integer u = integer::shiftpow(e8, n, need, b);
-    integer v;
-    int vexp = EXP;
-    if (flag)
-    {
-        v = integer::shiftmul(u, aview, need, b);
-        vexp += b;
-    }
-    else
-    {
-        int gap = (int)u.num.size() - need;
-        integer::view uview;
-        if (gap > 0) { b += gap; uview = integer::view(u, gap); }
-        else { uview = u; }
-        gap = aview.len - need - uview.len;
-        // 本来只要商 m 位的,商 need 保证 vexp<0
-        vexp += gap;
-        if (gap > 0) { floatbtmp = integer::view(aview, gap); }
-        else
-        {
-            floatbtmp.num.reserve(-gap + aview.len);
-            floatbtmp.num.assign(-gap, 0);
-            for (int i = 0; i < aview.len; i++) { floatbtmp.num.push_back(aview.ptr[i]); }
-        }
-        v = integer::divide(floatbtmp, uview, floatbtmp);
-        // 这里不能调用 floatb::divide, 完整算也还好
-        vexp -= b;
-    }
-    if (vexp <= 0) { v.div2pow(-Blen * vexp); }
-    else { std::cout << "print"; exit(0); }
-    v.sign = NUM.sign;
-    return v.tostring(m, flag ? -n : n);
+	floatb h=integer(e8);h.setvalidlength(m);
+	if (flag) { n-=(n!=0);h=multiply(h.calpower(n,m),m); }
+	else { n++;h=divide(h.calpower(n,m),m);}
+	if(h.EXP>0){std::cout<<"tostring";exit(0);}
+	int hzero;
+	integer::view hview=h.leftshiftview(hzero,-h.EXP);
+	integer ans;
+	ans.num.reserve(hzero+hview.len);
+	ans.num.assign(hzero,0);
+	for(int i=0;i<hview.len;i++){ans.num.push_back(hview.ptr[i]);}
+	ans.sign=NUM.sign;
+	return ans.tostring(m, flag ? -n : n);
 }
 
 void floatb::print(bool stdendl, int m) const
@@ -4138,5 +4117,80 @@ floatb::expr froot(const floatb& a, int n)
     now.op = floatb::expr::optype::ROOT;
     now.extra = n;
     return now;
+}
+#endif
+#if fudian>1
+floatb mathb::mathbpi;
+floatb mathb::chudnovsky(int n,int need,bool pos)
+{
+   struct bst
+   {
+      floatb p;
+      floatb q;
+      floatb t;
+   };
+   integer c=640320,k=power(c,6)/(9<<3),k1=power(c,3)/120,a=545140134,b=13591409;
+   std::vector<bst>l;
+   for(ll j=0;j<n;j++)
+   {
+      bst now;
+      if(pos)
+      {
+         now.p=j?integer((12*j-11)*(4*j-3))*integer((12*j-7)*(12*j-5))*integer((4*j-1)*(12*j-1)):1;
+         now.q=j?power((2*j-1)*j,3)*k:1;
+         now.t=(a*(2*j)+b)*now.p.NUM;
+      }
+      else
+      {
+         now.p=j?integer((12*j-5)*(4*j-1))*integer((12*j-1)*(12*j+1))*integer((4*j+1)*(12*j+5)):1;
+         now.q=j?power(j*(2*j+1),3)*k:k1;
+         now.t=(a*(2*j+1)+b)*now.p.NUM;
+      }
+      now.p.setvalidlength(need);
+      now.q.setvalidlength(need);
+      now.t.setvalidlength(need);
+      l.push_back(now);
+   }
+   while(l.size()>1)
+   {
+      std::vector<bst>nextl;
+      int i=0;
+      if(l.size()&1)
+      {
+         nextl.push_back(l[0]);i=1;
+      }
+      for(;i+1<l.size();i+=2)
+      {
+         bst &left=l[i],&right=l[i+1];
+         bst now=left;
+         bool needp=(i+2!=l.size());
+         if(needp){now.p=right.p*left.p;now.p.setvalidlength(need);}
+         now.q=left.q*right.q;now.q.setvalidlength(need);
+         now.t=left.t*right.q+right.t*left.p;now.t.setvalidlength(need);
+         nextl.push_back(now);
+      }
+      l=std::move(nextl);
+   }
+   return l.back().t/l.back().q;
+}
+floatb mathb::getpi(int n0)
+{
+	int gap=mathbpi.validlength()-n0;
+	if(gap<0)
+	{
+		int n=std::max(n0,100);
+		int term=n*log(Base)/(log(10)*14.15)+2;
+		int need=n+3;
+		floatb y=integer(640320);y.setvalidlength(need);
+		floatb z=integer(12);z.setvalidlength(need);
+		mathbpi=y*froot(y,2)/((chudnovsky(term/2,need,1)-chudnovsky(term/2,need,0))*z);
+		mathbpi.setvalidlength(n);
+	}
+	gap=mathbpi.validlength()-n0;
+	floatb ans;
+	ans.NUM=mathbpi.leftshiftview(ans.ZERO,gap);
+	ans.EXP=mathbpi.EXP+gap;
+	return ans;
+
 }
 #endif
