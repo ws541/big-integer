@@ -1533,8 +1533,8 @@ integer integer::shiftpow(const integer& x, int n, int need, int& b)
 }
 integer integer::div_newton(const view& a, const view& b, integer& r,int bzero,bool eps)//bzero,eps是浮点补丁,bzero复用为wantqflag
 {
-	bool wantq=bzero<0;
-	if(wantq){bzero=0;}
+	bool wantq=bzero<0||eps;
+	if(bzero<0){bzero=0;}
 	int la = a.len, lb = b.len+bzero;
 	int n =std::min(24.0, la*1.0 / lb+0.2);
 	int l = (la - lb) / n + 3,l0=(la - lb) / (n+1) + 3;
