@@ -10,7 +10,7 @@ std::vector<double> table(int f)
 	for (int len = 4; len <= lenmax; len <<= 1)
 	{
 		int l2 = len >> 1;
-		double t = (double)3.1415926535897932384626433832795 * f / l2, c0 = cos(t), s0 = sin(t);
+		double t = fftpi* f / l2, c0 = cos(t), s0 = sin(t);
 		for (int i = l2, j = len; i < len; i += 2, j += 4)
 		{
 			double c = l[i], s = l[i + 1];
@@ -32,7 +32,7 @@ std::vector<double> table1 = table(1), table3 = table(3);
 std::vector<cd> unit = []() {
 	std::vector<cd> l;
 	for (int i = 0; i < log2lenmax; i++) {
-		double t = -(double)3.1415926535897932384626433832795 / (1 <<(i+1));
+		double t = -fftpi / (1 <<(i+1));
 		l.push_back(cd(cos(t), sin(t)));
 	}
 	return l;
@@ -140,6 +140,7 @@ void ifft(c2* x, int n)
 	double inv = 0.5L / n;
 	for (int i = 0; i < n; i++) { x[i] = x[i].mul(inv); }
 }
+
 
 void middle(c2*xx, c2*yy, int n4)
 {
@@ -652,7 +653,7 @@ ll integer::toll()const
 double integer::getlog()const
 {
 	int l = num.size();
-	return l == 1 ? log(num[0]) : log((ll)num.back() * Base + num[l - 2]) + (l - 2) * log(Base);
+	return l == 1 ? log(num[0]) : log((ll)num.back() * Base + num[l - 2]) + (l - 2) * logBase;
 };
 
 std::string integer::tostring(int m,int floatbe8)const
@@ -665,7 +666,7 @@ std::string integer::tostring(int m,int floatbe8)const
 		int l = num.size(), n = 0; integer tmp;
 		if (l > m)
 		{
-			n = (l - m) * (log(Base) / log(e8)) - 1;
+			n = (l - m) * (logBase / log(e8)) - 1;
 		}
 		if (n < 1)
 		{
@@ -1274,6 +1275,7 @@ integer integer::reciprocal(const view& n,int l)
 
 integer integer::isqrt(bool floor)const
 {
+	
 	int ns = num.size();
 	if (ns < 3)
 	{
@@ -1387,9 +1389,9 @@ integer integer::root(int m,bool floor,int zero)const//zero是浮点补丁
 	const bool useyk = f > 100;
 	int k = 1 + (f > 1), need = k + 1, b, b1;
 	//view h(*this, m * (f - k));
-	//double guess = h.len == 1 ? log(h.ptr[0]) : log(((ll)h.ptr[h.len - 1] << Blen) + h.ptr[h.len - 2]) + (h.len - 2) * log(Base);
+	//double guess = h.len == 1 ? log(h.ptr[0]) : log(((ll)h.ptr[h.len - 1] << Blen) + h.ptr[h.len - 2]) + (h.len - 2) * logBase;
 	int  hlen=ns-m*(f-k);
-	double guess = hlen == 1 ? log(num.back()) : log(((ll)num[num.size()- 1] << Blen) + num[num.size() - 2]) + (hlen - 2) * log(Base);
+	double guess = hlen == 1 ? log(num.back()) : log(((ll)num[num.size()- 1] << Blen) + num[num.size() - 2]) + (hlen - 2) * logBase;
 	integer target = exp(guess / m);
 	integer xt = integer(1).shift(k), q = integer(1).shift(k - 1);
 	int gap = f > 1 ? Base / 10 : 1;
@@ -1529,9 +1531,10 @@ integer integer::shiftpow(const integer& x, int n, int need, int& b)
 	}
 	return ans;
 }
-template <bool WantQ>
-integer integer::div_newton(const view& a, const view& b, integer& r,int bzero,bool eps)//bzero,eps是浮点补丁
+integer integer::div_newton(const view& a, const view& b, integer& r,int bzero,bool eps)//bzero,eps是浮点补丁,bzero复用为wantqflag
 {
+	bool wantq=bzero<0;
+	if(wantq){bzero=0;}
 	int la = a.len, lb = b.len+bzero;
 	int n =std::min(24.0, la*1.0 / lb+0.2);
 	int l = (la - lb) / n + 3,l0=(la - lb) / (n+1) + 3;
@@ -1541,10 +1544,7 @@ integer integer::div_newton(const view& a, const view& b, integer& r,int bzero,b
 	integer xt=reciprocal(b,l-bzero);xt.addsmall(-xt.sign);
 	if(r.num.data()!=a.ptr||r.num.size()!=a.len){r=a;}
 	integer q; 
-	if constexpr (WantQ)
-	{
-		q.num.assign(la - lb + 1, 0);
-	}
+	if(wantq){q.num.assign(la - lb + 1, 0);}
     view bview;double*db;
     if(n>1){trycatch();bview.sign=0;}
 	for (int i = 0; i < n && r.num.size() > lb + 4; i++) {
@@ -1570,22 +1570,19 @@ integer integer::div_newton(const view& a, const view& b, integer& r,int bzero,b
         bview=lastview,db=lasty;
         lastview=lastviewtmp,lasty=lastytmp;
 		if (abssub(r.num.data() + start+bzero, std::min(l, lr)-bzero, now.num.data(), now.num.size()) < 0) { std::cout << "div_newton1"; exit(0); }
-		if constexpr (WantQ)
-		{
-			q.shiftadd(pview, start);
-		}
+		if(wantq){q.shiftadd(pview, start);}
 		while (!r.num.back() && r.num.size() > 1) { r.num.pop_back(); }
 	}
     if(n>1){endcatch();if(bview.sign>0){delete[]db;}}
 	if (r.num.size() > lb + 4) { std::cout << "div_newton2"; exit(0); }
-	if constexpr (WantQ)
+	if(bzero>0){r.div2pow(bzero*Blen);}
+	if(wantq)
 	{
-		if(bzero){r.div2pow(bzero*Blen);}
 		q.shiftadd(div_native<1>(r, b, r), 0);
 		while (q.num.size() > 1 && q.num.back() == 0) { q.num.pop_back(); }
-		q.sign = a.sign * b.sign;
 	}
 	else{div_native<0>(r, b, r);}
+	q.sign = a.sign * b.sign;
 	r.sign = a.sign;
 	return q;
 }
@@ -1630,8 +1627,8 @@ integer integer::divide(const view& a, const view& b, integer& r, bool wantq)
     if (la > 200 && lb > 50 && (la - lb > 100 || f > 3))
     {
         if (lb < 400 - f * 30 && f < 2.6) { return div_bz(a, b, r); }
-        if (wantq) { return div_newton<true>(a, b, r); }
-        else       { return div_newton<false>(a, b, r); }
+        if (wantq) { return div_newton(a, b, r,-1); }
+        else       { return div_newton(a, b, r); }
     }
     if (wantq) { return div_native<true>(a, b, r); }
     else       { return div_native<false>(a, b, r); }
@@ -3507,7 +3504,7 @@ integer dlsolver::dlogp(const integer&a,const integer&b)
 #endif
 #if fudian>0
 integer floatb::floatbtmp;
-int floatb::minvalidlength=500;
+int floatb::fbvalidlength=500;
 // ---- floatb::expr::getinfo ----
 void floatb::expr::getinfo(int& guard)
 {
@@ -3631,21 +3628,18 @@ floatb::expr::operator floatb()
     return ans;
 }
 
-// ============ floatb 私有函数 ============
 
 void floatb::foldzero()
 {
     while (LOW + 1 < NUM.num.size() && NUM.num[LOW] == 0) { LOW++, ZERO++; }
 }
 
-// ============ floatb 公有（原内联）函数 ============
-
 double floatb::getlog() const
 {
     int l = (int)NUM.num.size() - LOW;
-    if (l == 1) { return log(NUM.num.back()) + (ZERO + EXP) * log(Base); }
+    if (l == 1) { return log(NUM.num.back()) + (ZERO + EXP) * logBase; }
     return log(((ll)NUM.num.back() << Blen) + NUM.num[NUM.num.size() - 2])
-           + (l - 2 + ZERO + EXP) * log(Base);
+           + (l - 2 + ZERO + EXP) * logBase;
 }
 
 int floatb::validlength() const
@@ -3906,6 +3900,35 @@ floatb floatb::divide(const floatb& b,int l) const//尝试NUM层面a*base^l/b,�
 	ans.foldzero();
 	return ans;
 }
+integer floatb::intdiv(const floatb&b,floatb&r,bool wantq)const
+{
+	if(b.validlength()+b.EXP<=EXP){std::cout<<"intdiv";exit(0);}
+	if(validlength()+EXP<=b.EXP){r=*this;return 0;}
+	int gap=EXP-b.EXP;
+	integer::view aview=getview(),bview=b.getview();
+	int azero=ZERO,bzero=b.ZERO;
+	//std::cout<<gap<<" "<<validlength()<<" "<<b.validlength()<<"\n";
+	if(gap>0){aview=getview(),bview=b.leftshiftview(bzero,gap),azero=ZERO;}
+	else{bview=b.getview(),aview=leftshiftview(azero,-gap),bzero=b.ZERO;}
+	r.ZERO=std::min(azero,bzero);
+	r.EXP=std::max(EXP,b.EXP);
+	azero-=r.ZERO,bzero-=r.ZERO;
+	int la=aview.len+azero,lb=bview.len+bzero;
+	gap=la-lb;
+	if(gap<0){r=*this;return 0;}
+	r.NUM.num.reserve(la+1);
+	r.NUM.num.assign(azero,0);
+	for(int i=0;i<aview.len;i++){r.NUM.num.push_back(aview.ptr[i]);}
+	r.NUM.sign=NUM.sign;
+	integer bb;
+	bb.num.reserve(lb);
+	bb.num.assign(bzero,0);
+	for(int i=0;i<bview.len;i++){bb.num.push_back(bview.ptr[i]);}
+	bb.sign=b.NUM.sign;
+	integer q=integer::divide(r.NUM,bb,r.NUM,wantq);
+	r.foldzero();
+	return q;
+}
 
 floatb floatb::calpower(int n,int l)const//指数容易静默溢出,超大指数floatb乘法也是,不检查
 {
@@ -4031,12 +4054,12 @@ integer floatb::stringtob28(const std::string&s,int&e1)
 floatb::floatb(const std::string&s)
 {
 	int e1;
-	floatb tmp(stringtob28(s,e1),0);
-	int l=std::max(minvalidlength,(int)tmp.NUM.num.size());
+	floatb tmp=stringtob28(s,e1);
+	int l=std::max(fbvalidlength,(int)tmp.NUM.num.size());
 	tmp.setvalidlength(l);
-	floatb h=integer(10);
-	h.setvalidlength(l);
-	*this=h.calpower(e1,l).multiply(tmp,l);
+	floatb h(10,l);
+	if(e1>0){*this=h.calpower(e1,l).multiply(tmp,l);}
+	else{*this=tmp.divide(h.calpower(-e1,l),l);}
 	foldzero();
 }
 
@@ -4063,7 +4086,7 @@ std::string floatb::tostring(int m) const
 		m=5;
 	}
 	int endexp=l0-m+EXP;
-	int n = abs(endexp) * (log(Base) / log(e8));
+	int n = abs(endexp) * (logBase / log(e8));
     const bool flag = endexp < 0;
 	floatb h=integer(e8);h.setvalidlength(m);
 	if (flag) { n-=(n!=0);h=multiply(h.calpower(n,m),m); }
@@ -4104,7 +4127,7 @@ floatb::expr fpow(const floatb& a, int n)
 {
     floatb::expr now;
     now.info.length = a.validlength();
-    now.info.lowexp = a.getlog() * n / log(Base) - now.info.length;
+    now.info.lowexp = a.getlog() * n / logBase - now.info.length;
     now.leaf = &a;
     now.op = floatb::expr::optype::POW;
     now.extra = n;
@@ -4115,7 +4138,7 @@ floatb::expr froot(const floatb& a, int n)
 {
     floatb::expr now;
     now.info.length = a.validlength();
-    now.info.lowexp = a.getlog() / (n * log(Base)) - now.info.length;
+    now.info.lowexp = a.getlog() / (n * logBase) - now.info.length;
     now.leaf = &a;
     now.op = floatb::expr::optype::ROOT;
     now.extra = n;
@@ -4124,83 +4147,195 @@ floatb::expr froot(const floatb& a, int n)
 #endif
 #if fudian>1
 floatb mathb::mathbpi;
+floatb mathb::mathbln2;
 floatb mathb::chudnovsky(int n,int need,bool pos)
 {
-   struct bst
-   { 
-	  int start;
-      floatb p;
-      floatb q;
-      floatb t;
-   };
-   integer c=640320,k=power(c,6)/(9<<3),k1=power(c,3)/120,a=545140134,b=13591409;
-   std::vector<bst>l;
-   for(ll j=0;j<n;j++)
-   {
-      bst now;
-      if(pos)
-      {
-         now.p=j?integer((12*j-11)*(4*j-3))*integer((12*j-7)*(12*j-5))*integer((4*j-1)*(12*j-1)):1;
-         now.q=j?power((2*j-1)*j,3)*k:1;
-         now.t=(a*(now.start=2*j)+b)*now.p.NUM;
-      }
-      else
-      {
-         now.p=j?integer((12*j-5)*(4*j-1))*integer((12*j-1)*(12*j+1))*integer((4*j+1)*(12*j+5)):1;
-         now.q=j?power(j*(2*j+1),3)*k:k1;
-         now.t=(a*(now.start=2*j+1)+b)*now.p.NUM;
-      }
-      now.p.setvalidlength(need);
-      now.q.setvalidlength(need);
-      now.t.setvalidlength(need);
-      l.push_back(now);
-   }
-   while(l.size()>1)
-   {
-      std::vector<bst>nextl;
-      int i=0;
-      if(l.size()&1)
-      {
-         nextl.push_back(l[0]);i=1;
-      }
-	  float f=log(Base)/(log(10)*14.15);
-      for(;i+1<l.size();i+=2)
-      {
-         bst &left=l[i],&right=l[i+1];
-         bst now;
-		 now.start=left.start;
-		 int nowneed=need-f*now.start;
-         bool needp=(i+2!=l.size());
-         if(needp){now.p=right.p.multiply(left.p,nowneed);now.p.setvalidlength(need);}
-         now.q=left.q.multiply(right.q,nowneed);now.q.setvalidlength(need);
-         now.t=left.t.multiply(right.q,nowneed)+right.t.multiply(left.p,nowneed);now.t.setvalidlength(need);
-         nextl.push_back(now);
-		 bst l,r;
-		 std::swap(l,left);
-		 std::swap(r,right);
-      }
-      l=std::move(nextl);
-   }
-   return l.back().t/l.back().q;
+	integer c=640320,k=power(c,6)/(9<<3),k1=power(c,3)/120,a=545140134,b=13591409;
+	std::vector<bst>l;
+	double f=(log(10)*14.15)/logBase;
+	for(ll j=0;j<n;j++)
+	{
+		bst now;
+		if(pos)
+		{
+			now.need=std::max((int)(need-(2*j)*f),1);
+			now.p=j?integer((12*j-11)*(4*j-3))*integer((12*j-7)*(12*j-5))*integer((4*j-1)*(12*j-1)):1;
+			now.q=j?power((2*j-1)*j,3)*k:1;
+			now.t=(a*(2*j)+b)*now.p.NUM;
+		}
+		else
+		{
+			now.need=std::max((int)(need-(2*j+1)*f),1);
+			now.p=j?integer((12*j-5)*(4*j-1))*integer((12*j-1)*(12*j+1))*integer((4*j+1)*(12*j+5)):1;
+			now.q=j?power(j*(2*j+1),3)*k:k1;
+			now.t=(a*(2*j+1)+b)*now.p.NUM;
+		}
+		now.p.setvalidlength(need);
+		now.q.setvalidlength(need);
+		now.t.setvalidlength(need);
+		l.push_back(now);
+	}
+	abssum(l,need);
+	return l.back().t/l.back().q;
+}
+void mathb::abssum(std::vector<bst>&l,int need)
+{
+	while(l.size()>1)
+	{
+		std::vector<bst>nextl;
+		int i=0;
+		if(l.size()&1)
+		{
+			nextl.push_back(l[0]);i=1;
+		}
+		for(;i+1<l.size();i+=2)
+		{
+			bst &left=l[i],&right=l[i+1];
+			bst now;
+			now.need=left.need;
+			bool needp=(i+2!=l.size());
+			if(needp){now.p=right.p.multiply(left.p,now.need);now.p.setvalidlength(need);}
+			now.q=left.q.multiply(right.q,now.need);now.q.setvalidlength(need);
+			now.t=left.t.multiply(right.q,now.need)+right.t.multiply(left.p,now.need);now.t.setvalidlength(need);
+			nextl.push_back(now);
+			bst l,r;
+			std::swap(l,left);
+			std::swap(r,right);
+		}
+		l=std::move(nextl);
+	}
 }
 floatb mathb::getpi(int n0)
 {
 	int gap=mathbpi.validlength()-n0;
 	if(gap<0)
 	{
-		int n=std::max(n0,100);
-		int term=n*log(Base)/(log(10)*14.15)+2;
+		int n=std::max(n0+50,100);
+		int term=n*logBase/(log(10)*14.15)+2;
 		int need=n+3;
-		floatb y=integer(640320);y.setvalidlength(need);
-		floatb z=integer(12);z.setvalidlength(need);
+		floatb y(640320,need),z(12,need);
 		mathbpi=y*froot(y,2)/((chudnovsky(term/2,need,1)-chudnovsky(term/2,need,0))*z);
 		mathbpi.setvalidlength(n);
+		gap=mathbpi.validlength()-n0;
 	}
-	gap=mathbpi.validlength()-n0;
 	floatb ans;
 	ans.NUM=mathbpi.leftshiftview(ans.ZERO,gap);
 	ans.EXP=mathbpi.EXP+gap;
 	return ans;
-
+}
+int mathb::samelimb(floatb&a,floatb&b)
+{
+    if(a.EXP+a.validlength()!=b.EXP+b.validlength()||a.NUM.num.back()!=b.NUM.num.back()){return 0;}
+	a.foldzero();b.foldzero();
+    const floatb*u=&a,*v=&b;
+    if(a.EXP<b.EXP){std::swap(u,v);}
+    int gap1=u->EXP-v->EXP,vzero;
+    integer::view vview=v->leftshiftview(vzero,gap1),uview=u->getview();
+    int cnt=0,i=vview.len-1,gap=vview.len-uview.len,end=std::max(-1,gap-1);
+    for(;i>end&&vview.ptr[i]==uview.ptr[i-gap];i--,cnt++);
+    if(i==end&&gap==0){cnt+=vzero;}
+    return cnt;
+}
+floatb mathb::agm(floatb a,floatb b,int l)
+{
+    int la=a.validlength(),lb=b.validlength();
+    if(l>la){l=la;}
+    if(l>lb){l=lb;}
+    if(l<10){l=10;}
+    int good=0,need=l+3;
+    floatb  two(2,need);
+    while(good<need-1)
+    {
+        a.setvalidlength(need);
+        b.setvalidlength(need);
+        floatb c=(a+b)/two;
+        b=a.multiply(b,need).calroot(2,need);
+        a=std::move(c);
+        good=samelimb(a,b);
+		//std::cout<<good<<"\n";
+    }
+    a.setvalidlength(l);
+    return a;
+}
+floatb mathb::atanh_1divm_mulm(int m,int n,int need,bool odd)//atanh(1/m)*m
+{
+    std::vector<bst>l;
+    integer m4=power(m,4);
+	double f=2*log(m)/logBase;
+    for(ll j=0;j<n;j++)
+    {
+        bst now;
+		if(odd)
+		{
+			now.p.NUM=j?4*j-1:1;
+			now.q.NUM=j?m4*(4*j+3):(m*m*3);
+			now.need=std::max((int)(need-(2*j+1)*f),1);
+		}
+        else
+		{
+			now.p.NUM=j?4*j-3:1;
+			now.q.NUM=j?m4*(4*j+1):integer(1);
+			now.need=std::max((int)(need-(2*j)*f),1);
+		}
+        now.t=now.p.NUM;
+        now.t.setvalidlength(need);
+        now.p.setvalidlength(need);
+        now.q.setvalidlength(need);
+        l.push_back(now);
+    }
+    abssum(l,need);
+	return l.back().t/l.back().q;
+}
+floatb mathb::getln2(int n0)
+{
+	int gap=mathbln2.validlength()-n0;
+	if(gap<0)
+	{
+		int n=std::max(n0+50,100);
+		int a=26,b=4801,c=8749;
+		int term=logBase*n/(4*log(a))+2,need=n+3;
+		floatb aa=(atanh_1divm_mulm(a,term,need,0)+atanh_1divm_mulm(a,term,need,1))/floatb(integer(a),need);
+		term=logBase*n/(4*log(b))+2;
+		floatb bb=(atanh_1divm_mulm(b,term,need,0)+atanh_1divm_mulm(b,term,need,1))/floatb(integer(b),need);
+		term=logBase*n/(4*log(c))+2;
+		floatb cc=(atanh_1divm_mulm(c,term,need,0)+atanh_1divm_mulm(c,term,need,1))/floatb(integer(c),need);
+		mathbln2=floatb(18,need)*aa-floatb(2,need)*bb+floatb(8,need)*cc;
+		mathbln2.setvalidlength(n);
+		gap=mathbln2.validlength()-n0;
+	}
+	floatb ans;
+	ans.NUM=mathbln2.leftshiftview(ans.ZERO,gap);
+	ans.EXP=mathbln2.EXP+gap;
+	return ans;
+}
+int mathb::mod_pidiv4(const floatb&a,floatb&r)
+{
+	if(a.EXP>=0){std::cout<<"mod_pidiv4";exit(0);}
+	int h=a.intdiv(getpi(-a.EXP+2)/floatb(4,-a.EXP+2),r).num[0]&3;
+	if(a.NUM.sign<0){h=4-h;}
+	return h;
+}
+integer mathb::mod_ln2(const floatb&a,floatb&r)
+{
+	if(a.EXP>=0){std::cout<<"mod_ln2";exit(0);}
+	return a.intdiv(getln2(-a.EXP+1),r);
+}
+floatb mathb::ln_useagm(const floatb&a)
+{
+	int l=a.validlength();
+	floatb q=getpi(l).divide(floatb(2,l),l);
+	ll h=(l+a.EXP-1)*Blen,k=l*Blen,m=k/2-h;
+	while((h+m)*2<k){m++;}
+	int q1=m/Blen,r1=m%Blen;
+	if(r1<0){r1+=Blen,q1--;}
+	floatb b;
+	b.NUM=a.getview();
+	b.NUM.mul2pow(r1);
+	b.ZERO=a.ZERO;
+	b.EXP=a.EXP+q1;
+	floatb ans=q/agm(floatb(1,l),floatb(4,l).divide(b,l),l);
+	if(m){ans=ans-floatb(m,l+3)*getln2(l+3);}
+	ans.setvalidlength(l);
+	return  ans;
 }
 #endif
