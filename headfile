@@ -21,7 +21,7 @@ g++ -O2 a.cpp -L. -lintegerb -o a.exe
 #include <cmath>
 #include <complex>
 #include <string>
-#define shulun 0
+#define shulun 2
 #define fudian 2
 typedef long long ll;
 typedef unsigned long long ull;
@@ -31,6 +31,7 @@ const int log2lenmax = 20, lenmax = 1 << log2lenmax, halflen = lenmax >> 1, e8 =
 //你可以调小log2lenmax,会初始表小一点,慢一倍左右(更早进入nttmul分支),但是不能大于20
 //log2lenmax =13足以胜任10,000,000!任务(48s,如果是默认20要19s)
 constexpr int Blen = 28, Base = 1 << Blen, Bmask = Base - 1, Flen = Blen >> 1, Fmask = (1 << Flen) - 1;
+constexpr double fftpi=3.1415926535897932384626433832795,logBase=log(Base);
 struct c2
 {
 private:
@@ -181,7 +182,6 @@ public:
     integer isqrt(bool floor = 1) const;
     integer root(int m, bool floor = 1,int zero=0) const;
     static integer shiftpow(const integer& x, int n, int need, int& b);
-    template <bool WantQ = true>
     static integer div_newton(const view& a, const view& b, integer& r,int bzero=0,bool eps=0);
     static integer div_bz(const view& a, const view& b, integer& r);
     static integer divide(const view& a, const view& b, integer& r,bool wantq=1);
@@ -326,7 +326,6 @@ private:
     static  integer div_native(const integer::view& a, const integer::view& b,int l,int azero,int  bzero);
     static integer divide_core(const integer::view& a, const integer::view& b,int l,int azero,int  bzero);
     static integer stringtob28(const std::string&s,int&e1);
-    void foldzero();
 public:
     class expr
     {
@@ -360,14 +359,14 @@ public:
     //floatb a=fb(34.56)*(fb(47.38)+fb(2.3))+froot(fb(3.7e456),99)+fb(34.557e123);
     //1.这里搭了一颗树,必须立即用floatb接收从而触发树从顶部释放,否则不仅树没释放,节点也悬空
     //2.精度传导对a*(b-c)对于b=c采用b-c=base^(min(b.exp,c.exp))理解
-    static int minvalidlength;//字符串构造
+    static int fbvalidlength;//字符串构造
     integer NUM;
     int EXP = 0;
     int LOW = 0;
     int  ZERO=0;
     floatb() {}
     floatb(const integer& a):NUM(a){foldzero();}
-    floatb(const integer& a, int l) : NUM(a), EXP(l) {foldzero();}
+    floatb(const integer& a, int l) : NUM(a){setvalidlength(l);foldzero();}
     floatb(const std::string&s);
     floatb(const floatb&) = default;
     floatb(floatb&&) noexcept = default;
@@ -380,10 +379,12 @@ public:
     double getlog() const;    
     int validlength() const;     
     void setvalidlength(int l);   
+    void foldzero();
     floatb& operator=(const floatb& other);   
     floatb& operator=(floatb&&) noexcept = default;
     static floatb addorsub(const floatb& a, const floatb& b, bool add,int l);
     floatb divide(const floatb& b,int l) const;
+    integer intdiv(const floatb&b,floatb&r,bool wantq=1)const;
     floatb multiply(const floatb& b,int l) const;
     floatb calpower(int n,int l)const;
     floatb calroot(int n,int l)const;
@@ -401,9 +402,22 @@ class mathb
 {
 private:
 static floatb chudnovsky(int n,int need,bool pos);
-static floatb mathbpi;
+static floatb atanh_1divm_mulm(int m,int n,int need,bool odd);
+static floatb mathbpi,mathbln2;
 public:
+struct bst
+{
+    int need;
+    floatb  p,q,t;
+};
+static void abssum(std::vector<bst>&l,int need);
 static floatb getpi(int n);
+static int samelimb(floatb&a,floatb&b);
+static floatb agm(floatb a,floatb b,int l);
+static floatb getln2(int n);
+static int mod_pidiv4(const floatb&a,floatb&r);
+static integer mod_ln2(const floatb&a,floatb&r);
+static floatb ln_useagm(const floatb&a);
 };
 #endif
 #endif
