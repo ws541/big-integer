@@ -277,7 +277,7 @@ void qsseive(std::vector<int>&root, std::vector<int>&inva, std::vector<int>&prim
 integer factor(const integer& n, bool& pollard);
 integer primepow(const integer& x);
 integer euler(const integer& x, std::vector<integer>* l = 0, bool p = 1);
-integer euler(const integer&n, std::vector<integer>&l, std::vector<integer>&l0);
+integer euler_(const integer&n,std::vector<integer>&l0);
 int mobius(const integer& x, bool p = 1);
 int primeroot(const integer& p, const std::vector<integer>*k0 = 0);
 integer order(const integer&a, const integer&n, integer phi, const std::vector<integer>&l0);
@@ -359,14 +359,14 @@ public:
     //floatb a=fb(34.56)*(fb(47.38)+fb(2.3))+froot(fb(3.7e456),99)+fb(34.557e123);
     //1.这里搭了一颗树,必须立即用floatb接收从而触发树从顶部释放,否则不仅树没释放,节点也悬空
     //2.精度传导对a*(b-c)对于b=c采用b-c=base^(min(b.exp,c.exp))理解
-    static int fbvalidlength;//字符串构造
+    static int fblen;//字符串构造
     integer NUM;
     int EXP = 0;
     int LOW = 0;
     int  ZERO=0;
     floatb() {}
     floatb(const integer& a):NUM(a){foldzero();}
-    floatb(const integer& a, int l) : NUM(a){setvalidlength(l);foldzero();}
+    floatb(const integer& a, int validlen) : NUM(a){setvalidlength(validlen);foldzero();}
     floatb(const std::string&s);
     floatb(const floatb&) = default;
     floatb(floatb&&) noexcept = default;
@@ -386,7 +386,7 @@ public:
     floatb divide(const floatb& b,int l) const;
     integer intdiv(const floatb&b,floatb&r,bool wantq=1)const;
     floatb multiply(const floatb& b,int l) const;
-    floatb calpower(int n,int l)const;
+    floatb calpower(ll n,int l)const;
     floatb calroot(int n,int l)const;
     bool absbigger(const floatb&b);//等于在浮点下不精确,无意义,返回不定
      expr operator+(const expr& b) const;  
@@ -403,6 +403,7 @@ class mathb
 private:
 static floatb chudnovsky(int n,int need,bool pos);
 static floatb atanh_1divm_mulm(int m,int n,int need,bool odd);
+static floatb exp_bst(const floatb&x,int n,int need);
 static floatb mathbpi,mathbln2;
 public:
 struct bst
@@ -418,6 +419,7 @@ static floatb getln2(int n);
 static int mod_pidiv4(const floatb&a,floatb&r);
 static integer mod_ln2(const floatb&a,floatb&r);
 static floatb ln_useagm(const floatb&a);
+static floatb exp_usebs(const floatb&a);
 };
 #endif
 #endif
