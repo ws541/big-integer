@@ -2977,8 +2977,9 @@ integer euler(const integer& x, std::vector<integer>* l, bool p)
 	return x / k * euler(k, l, p);
 }
 
-integer euler(const integer&n,std::vector<integer>&l,std::vector<integer>&l0)
+integer euler_(const integer&n,std::vector<integer>&l0)
 {
+	std::vector<integer>l;
 	integer phi=euler(n,&l);
 	for(int i=0;i<l.size();i++)
 	{
@@ -3504,7 +3505,7 @@ integer dlsolver::dlogp(const integer&a,const integer&b)
 #endif
 #if fudian>0
 integer floatb::floatbtmp;
-int floatb::fbvalidlength=500;
+int floatb::fblen=500;
 // ---- floatb::expr::getinfo ----
 void floatb::expr::getinfo(int& guard)
 {
@@ -3713,15 +3714,16 @@ floatb floatb::addorsub(const floatb& a, const floatb& b, bool add,int l)//进�
 	int azero,bzero,aexp,bexp;
     integer::view aview = a.clearview(azero,aexp,l), bview = b.clearview(bzero,bexp,l);
 	floatb ans;
-	if(azero==-1)
+	bool asmall=azero==-1||!a.NUM.num.back(),bsmall=bzero==-1||!b.NUM.num.back();
+	if(asmall)
 	{
-		if(bzero==-1){ans.EXP=l,ans.NUM=0;return ans;}
+		if(bsmall){ans.EXP=l,ans.NUM=0;return ans;}
 		ans.EXP=bexp;ans.ZERO=bzero;
 		ans.NUM=bview;
 		ans.NUM.sign*=add?1:-1;
 		return ans;
 	}
-	if(bzero==-1){ans.NUM=aview;ans.EXP=aexp;ans.ZERO=azero;return ans;}
+	if(bsmall){ans.NUM=aview;ans.EXP=aexp;ans.ZERO=azero;return ans;}
 	int change=1;
 	if(aexp<bexp){std::swap(aview,bview);std::swap(aexp,bexp);std::swap(azero,bzero);if(!add){change*=-1;}}
 	const bool absadd=(aview.sign==bview.sign)==add;
@@ -3930,7 +3932,7 @@ integer floatb::intdiv(const floatb&b,floatb&r,bool wantq)const
 	return q;
 }
 
-floatb floatb::calpower(int n,int l)const//指数容易静默溢出,超大指数floatb乘法也是,不检查
+floatb floatb::calpower(ll n,int l)const//指数容易静默溢出,超大指数floatb乘法也是,不检查
 {
 	floatb c=integer(NUM.num.back()?1:0);
 	int l0=validlength();
@@ -4055,7 +4057,7 @@ floatb::floatb(const std::string&s)
 {
 	int e1;
 	floatb tmp=stringtob28(s,e1);
-	int l=std::max(fbvalidlength,(int)tmp.NUM.num.size());
+	int l=std::max(fblen,(int)tmp.NUM.num.size());
 	tmp.setvalidlength(l);
 	floatb h(10,l);
 	if(e1>0){*this=h.calpower(e1,l).multiply(tmp,l);}
@@ -4221,6 +4223,7 @@ floatb mathb::getpi(int n0)
 	floatb ans;
 	ans.NUM=mathbpi.leftshiftview(ans.ZERO,gap);
 	ans.EXP=mathbpi.EXP+gap;
+	ans.foldzero();
 	return ans;
 }
 int mathb::samelimb(floatb&a,floatb&b)
@@ -4238,23 +4241,39 @@ int mathb::samelimb(floatb&a,floatb&b)
 }
 floatb mathb::agm(floatb a,floatb b,int l)
 {
-    int la=a.validlength(),lb=b.validlength();
+     int la=a.validlength(),lb=b.validlength();
     if(l>la){l=la;}
     if(l>lb){l=lb;}
-    if(l<10){l=10;}
-    int good=0,need=l+3;
+    if(l<5){l=5;}
+    int good=samelimb(a,b),need=l+3;
     floatb  two(2,need);
     while(good<need-1)
     {
+        if(good*10>need)
+        {
+            int n=need/(2*good);
+            if(!n)
+            {
+                a=(a+b)/two;break;
+            }
+            floatb z=(a-b)/(a+b),h(16384,need+1),z2=z*z,z4;
+            h=h-floatb(4096,need+1)*z2;
+            if(n>1){h=h-floatb(1280,need+1)*(z4=z2*z2);}
+            if(n>2){h=h-floatb(704,need+1)*(z4*z2);}
+            if(n>3){h=h-floatb(469,need+1)*(z4*z4);}
+            floatb tmp;tmp.NUM=h.NUM;
+            tmp.NUM.mul2pow(Blen-15);tmp.EXP=h.EXP-1;tmp.ZERO=h.ZERO;
+            a=(a+b)*tmp;break;
+        }
         a.setvalidlength(need);
         b.setvalidlength(need);
         floatb c=(a+b)/two;
         b=a.multiply(b,need).calroot(2,need);
         a=std::move(c);
         good=samelimb(a,b);
-		//std::cout<<good<<"\n";
     }
     a.setvalidlength(l);
+	a.foldzero();
     return a;
 }
 floatb mathb::atanh_1divm_mulm(int m,int n,int need,bool odd)//atanh(1/m)*m
@@ -4306,6 +4325,7 @@ floatb mathb::getln2(int n0)
 	floatb ans;
 	ans.NUM=mathbln2.leftshiftview(ans.ZERO,gap);
 	ans.EXP=mathbln2.EXP+gap;
+	ans.foldzero();
 	return ans;
 }
 int mathb::mod_pidiv4(const floatb&a,floatb&r)
@@ -4336,6 +4356,65 @@ floatb mathb::ln_useagm(const floatb&a)
 	floatb ans=q/agm(floatb(1,l),floatb(4,l).divide(b,l),l);
 	if(m){ans=ans-floatb(m,l+3)*getln2(l+3);}
 	ans.setvalidlength(l);
+	ans.foldzero();
 	return  ans;
+}
+floatb mathb::exp_bst(const floatb&x,int n,int need)
+{
+    std::vector<mathb::bst>l;
+    double f=-x.getlog()/logBase;
+    for(ll  j=0;j<n;j++)
+    {
+        mathb::bst now;
+        now.need=std::max((int)(need-f*j),0);
+        now.p=j?x:floatb(1,need);
+        now.q=floatb(j?j:1,need);
+        now.t=now.p;
+        l.push_back(now);
+    }
+    mathb::abssum(l,need);
+    return l.back().t/l.back().q;
+}
+floatb mathb::exp_usebs(const floatb&a)
+{
+    int l=a.validlength();
+	floatb b;
+    int m=std::max((int)(a.getlog()/log(2)+30),0);
+    if(m)
+    {
+        int q=m/Blen,r=m%Blen;
+        if(r){q++,r-=Blen;}
+        b.NUM=a.getview();
+        b.NUM.mul2pow(-r);
+        b.EXP=a.EXP-q;
+        b.ZERO=a.ZERO;
+    }
+    else{b=a;}
+	b.NUM.sign=1;
+    integer::view  bview=b.getview();
+    int lb=bview.len,bexp=b.ZERO+b.EXP;
+    int need=l+2;
+    floatb ans(1,need);
+    int gap=2,nextlb;
+    do
+    {
+        floatb h;
+        nextlb=std::max(lb-1-gap,0);
+        h.NUM=integer::view(bview.ptr,nextlb,lb-1,bview.sign);
+        if(h.NUM.num.back())
+        {
+            h.EXP=bexp+nextlb;
+            h.setvalidlength(need);
+            h.foldzero();
+            int term=logBase*l/(-h.getlog())+1;
+			ans=ans.multiply(exp_bst(h,term,need),need);
+        }
+        gap<<=1;
+    }while(lb=nextlb);
+    for(int i=0;i<m;i++){ans=ans.multiply(ans,need);}
+    ans.setvalidlength(l);
+    ans.foldzero();
+	if(a.NUM.sign<0){return floatb(1,l).divide(ans,l);}
+    return ans;
 }
 #endif
