@@ -21,7 +21,7 @@ g++ -O2 a.cpp -L. -lintegerb -o a.exe
 #include <cmath>
 #include <complex>
 #include <string>
-#define shulun 2
+#define shulun 0
 #define fudian 2
 typedef long long ll;
 typedef unsigned long long ull;
@@ -388,7 +388,7 @@ public:
     floatb multiply(const floatb& b,int l) const;
     floatb calpower(ll n,int l)const;
     floatb calroot(int n,int l)const;
-    bool absbigger(const floatb&b);//等于在浮点下不精确,无意义,返回不定
+    bool absbigger(const floatb&b,bool equal)const;//规范foldzero形式
      expr operator+(const expr& b) const;  
     expr operator-(const expr& b) const;   
     expr operator*(const expr& b) const;  
@@ -403,6 +403,7 @@ class mathb
 private:
 static floatb chudnovsky(int n,int need,bool pos);
 static floatb atanh_1divm_mulm(int m,int n,int need,bool odd);
+static  floatb atan_m_divm(const floatb&m4,const floatb&m2,int n,int need,bool odd);
 static floatb exp_bst(const floatb&x,int n,int need);
 static floatb mathbpi,mathbln2;
 public:
@@ -411,7 +412,7 @@ struct bst
     int need;
     floatb  p,q,t;
 };
-static void abssum(std::vector<bst>&l,int need);
+static void samesign_sum(std::vector<bst>&l,int need);
 static floatb getpi(int n);
 static int samelimb(floatb&a,floatb&b);
 static floatb agm(floatb a,floatb b,int l);
@@ -420,6 +421,7 @@ static int mod_pidiv4(const floatb&a,floatb&r);
 static integer mod_ln2(const floatb&a,floatb&r);
 static floatb ln_useagm(const floatb&a);
 static floatb exp_usebs(const floatb&a);
+static floatb atan_usebs(const floatb&x);
 };
 #endif
 #endif
