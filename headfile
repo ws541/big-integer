@@ -21,7 +21,7 @@ g++ -O2 a.cpp -L. -lintegerb -o a.exe
 #include <cmath>
 #include <complex>
 #include <string>
-#define shulun 0
+#define shulun 2
 #define fudian 2
 typedef long long ll;
 typedef unsigned long long ull;
@@ -318,7 +318,7 @@ public:
 };
 #endif
 #if fudian>0
-class floatb//(num.size-1~num.low,zero个0)*Base^exp
+class floatb//(num.size-1~num.low,zero个0)*Base^exp,规范foldzero格式
 {
 private:
     static integer floatbtmp;
@@ -366,7 +366,7 @@ public:
     int  ZERO=0;
     floatb() {}
     floatb(const integer& a):NUM(a){foldzero();}
-    floatb(const integer& a, int validlen) : NUM(a){setvalidlength(validlen);foldzero();}
+    floatb(const integer& a, int validlen) : NUM(a){setvalidlength(validlen);}
     floatb(const std::string&s);
     floatb(const floatb&) = default;
     floatb(floatb&&) noexcept = default;
@@ -374,21 +374,23 @@ public:
     integer::view leftshiftview(int&zero,int leftshift) const;
     integer::view clearview(int&zero,int&exp,int l) const;
     std::string tostring(int m =0) const;
+    floatb from(int validlen)const;
     void print(bool stdendl=1, int m=5) const;
     void get();
     double getlog() const;    
     int validlength() const;     
     void setvalidlength(int l);   
     void foldzero();
+    void clear(int lowexp);
     floatb& operator=(const floatb& other);   
     floatb& operator=(floatb&&) noexcept = default;
     static floatb addorsub(const floatb& a, const floatb& b, bool add,int l);
     floatb divide(const floatb& b,int l) const;
     integer intdiv(const floatb&b,floatb&r,bool wantq=1)const;
     floatb multiply(const floatb& b,int l) const;
-    floatb calpower(ll n,int l)const;
+    floatb calpower(int n,int l)const;
     floatb calroot(int n,int l)const;
-    bool absbigger(const floatb&b,bool equal)const;//规范foldzero形式
+    bool absbigger(const floatb&b,bool equal)const;
      expr operator+(const expr& b) const;  
     expr operator-(const expr& b) const;   
     expr operator*(const expr& b) const;  
@@ -404,7 +406,8 @@ private:
 static floatb chudnovsky(int n,int need,bool pos);
 static floatb atanh_1divm_mulm(int m,int n,int need,bool odd);
 static  floatb atan_m_divm(const floatb&m4,const floatb&m2,int n,int need,bool odd);
-static floatb exp_bst(const floatb&x,int n,int need);
+static floatb exp_bst(const floatb&x,int endexp,int need);
+static floatb sinx_divx(const floatb&x4,const floatb&x2,int endexp,int need,bool odd);
 static floatb mathbpi,mathbln2;
 public:
 struct bst
@@ -414,15 +417,21 @@ struct bst
 };
 static void samesign_sum(std::vector<bst>&l,int need);
 static floatb getpi(int n);
-static int samelimb(floatb&a,floatb&b);
+static int samelimb(const floatb&a,const floatb&b);
 static floatb agm(floatb a,floatb b,int l);
 static floatb getln2(int n);
-static int mod_pidiv4(const floatb&a,floatb&r);
-static integer mod_ln2(const floatb&a,floatb&r);
+static int mod_pidiv2(floatb a,floatb&r);
 static floatb ln_useagm(const floatb&a);
 static floatb exp_usebs(const floatb&a);
 static floatb atan_usebs(const floatb&x);
+static floatb sincos_usebs(const floatb&x,bool returnsin,int l,floatb*another=0);
 };
+floatb fln(const floatb&a);
+floatb fexp(const floatb&a);
+floatb fatan(const floatb&a);
+floatb fsin(const floatb&a);
+floatb fcos(const floatb&a);
+floatb ftan(const floatb&a);
 #endif
 #endif
 //g++ -O2 a.cpp -L. -lintegerb -I D:\mingw64download\mingw64\include -L D:\mingw64download\mingw64\lib -lgmp -lgmpxx -o a.exe
