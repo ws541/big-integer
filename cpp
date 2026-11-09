@@ -825,7 +825,7 @@ void integer::operator%=(const integer& that)
 template <bool WantQ>
 integer integer::div_native(const view& a, const view& b, integer& r)
 {
-	if (!b.ptr[b.len - 1]) { std::cout << "div0"; exit(0); }
+	if (!b.ptr[b.len - 1]) { std::cout << "integerdiv0"; exit(0); }
 	if(a.len<b.len){r=a;return 0;}
 	integer c;
 	if constexpr (WantQ)
@@ -3900,7 +3900,7 @@ integer floatb::divide_core(const integer::view& a, const integer::view& b,int l
 		return div_native(a,b,l,azero,bzero);
 	}
 }
-
+//不检查超大指数的mul,div,pow溢出
 floatb floatb::multiply(const floatb& b,int l) const//尝试结果validlehgth=l
 {
 	integer::view aview = getview(), bview = b.getview();
@@ -3921,7 +3921,7 @@ floatb floatb::multiply(const floatb& b,int l) const//尝试结果validlehgth=l
 
 floatb floatb::divide(const floatb& b,int l) const//尝试NUM层面a*base^l/b,尝试结果validlehgth=l
 {
-	if(!b.NUM.num.back()){std::cout<<"/0";exit(0);}
+	if(!b.NUM.num.back()){std::cout<<"floatbdiv0";exit(0);}
 	integer::view aview = getview(), bview = b.getview();
 	int azero=ZERO,bzero=b.ZERO,la = aview.len+azero, lb = bview.len+bzero;
 	if(l>la){l=la;}
@@ -3966,7 +3966,7 @@ integer floatb::intdiv(const floatb&b,floatb&r,bool wantq)const
 	return q;
 }
 
-floatb floatb::calpower(int n,int l)const//指数容易静默溢出,超大指数floatb乘法也是,不检查
+floatb floatb::calpower(int n,int l)const
 {
 	floatb c=integer(NUM.num.back()?1:0);
 	int l0=validlength();
@@ -4000,6 +4000,7 @@ floatb floatb::calroot(int n,int l)const//validlenth()*n要在int一定余量以
 	a.setvalidlength(l);
 	if(n==1){return a;}
 	ll t=l*n,gap=(t-l)*Blen,h=(n-(gap-(ll)a.EXP*Blen)%n)%n;
+	if(t>1e9){std::cout<<"calroot";exit(0);}
 	gap+=h;
 	floatbtmp=a.getview();
 	//std::cout<<floatbtmp.num.size()<<"\n";
@@ -4386,6 +4387,7 @@ int mathb::mod_pidiv2(floatb a,floatb&r)
 }
 floatb mathb::ln_useagm(const floatb&a)
 {
+	if(a.NUM.num.back()==0||a.NUM.sign<0){std::cout<<"ln";exit(0);}
 	int l=a.validlength();
 	floatb q=getpi(l).divide(floatb(2,l),l);
 	ll h=(l+a.EXP-1)*Blen,k=l*Blen,m=k/2-h;
@@ -4426,6 +4428,7 @@ floatb mathb::exp_bst(const floatb&x,int endexp,int need)
 }
 floatb mathb::exp_usebs(const floatb&a)//exp(x*(1+r))约x*(1+r),结果相对误差约等于输入,维持validlength不变,ln同理
 {
+	if(a.getlog()>19.5){std::cout<<"exp";exit(0);}
     int l=a.validlength();
 	floatb b;
     int m=std::max((int)(a.getlog()/log(2)+30),0);
@@ -4604,7 +4607,7 @@ floatb mathb::sincos_usebs(const floatb&x,bool returnsin,int l,floatb*another)//
         a.EXP-=q;
     }
     a.NUM.sign=1;
-    int endexp=l-1;
+    int endexp=l-3;
     integer::view aview=a.getview();
     floatb s0(0,3-endexp),c0(1,3-endexp);
     int gap=2,lb=aview.len,nextlb,bexp=a.EXP+a.ZERO;
