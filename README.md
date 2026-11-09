@@ -1,6 +1,6 @@
 # big-integer
 
-headonly 2k行 见 integerb.h
+headonly 4.6k行 见 headfile,cpp
 
 Base = 2^28
 
@@ -8,9 +8,11 @@ Base = 2^28
 
 支持快速乘法(karatsuba和FFT),高效除法(牛顿迭代法bunikel除法和原生除法),组合数学函数(阶乘、排列、组合计算),模运算系统(Montgomery模运算和通用模类),高精度开平方,高精度开n次方,最大公约数(hgcd、lehmer包含扩展欧几里得算法),模逆元,快速模幂运算,素数判定(Miller-Rabin和Lucas测试),jacobi,shanks模开方,质因数分解(Pollard Rho和二次筛法),欧拉函数,莫比乌斯函数计算以及原根求解,斐波那契数列,离散对数求解(bsgs+hellman+indexcalculus)
 
+高精度浮点 `floatb` 支持任意精度十进制浮点(字符串构造、加减乘除、幂、开方、有效位裁剪、表达式树),基于 BST(binary splitting) 的超越函数 `mathb` 覆盖 pi、ln2、exp、ln、sin、cos、tan、atan、AGM,支持按目标有效位计算与常数缓存。
+
 ## 性能
 
-速度比专业库慢 3 到 13 倍，超大数字渐进行为良好。以下是部分测试结果（测试代码见 full_test.cpp）。
+速度比专业库慢 3 到 13 倍，超大数字渐进行为良好。以下是部分测试结果
 
 ### integer Euclid vs GMP exGCD (Fibonacci)
 
@@ -42,6 +44,19 @@ Base = 2^28
 | construct | 65 | 31 | 2.10x |
 | total | 314 | 115 | 2.73x |
 
+### mathb 超越函数 vs MPFR (fblen=10000 limb, 预热一次计时一次)
+
+| 函数 | integerb(ms) | MPFR(ms) | MPFR快几倍 | 与 MPFR 一致位数 |
+|------|-------------|----------|-----------|------------------|
+| sin(0.2) | 539 | 314 | 1.72x | ~84187 |
+| cos(2.7) | 522 | 308 | 1.70x | ~84177 |
+| tan(5.6) | 541 | 331 | 1.63x | ~84115 |
+| exp(4.8) | 241 | 216 | 1.12x | ~84266 |
+| ln(123) | 276 | 154 | 1.79x | ~84267 |
+| atan(23.45) | 520 | 324 | 1.60x | ~84265 |
+
 ## 说明
 
 数论方面函数因为小数字 heavy 慢；二次筛法和 Index Calculus 进一步因为没有线性代数支持、光滑界保守，差距可达几百倍。
+
+浮点方面超越函数中小规模差距很大，而且其实flint比mpfr快很多
