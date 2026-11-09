@@ -1316,6 +1316,7 @@ integer integer::isqrt(bool floor)const
 	while (k1 > 5) { k1 = k1 / 2 + 1; k1 += ((k1 & 1) == 0); kplan.push_back(k1); }
 	while (k < f)
 	{
+		xt.addsmall(1);
 		if (p + k > f) { p = f - k; }
 		else if (!kplan.empty() && kplan.back() > k && kplan.back() - k < p)
 		{
@@ -1382,7 +1383,7 @@ integer integer::isqrt(bool floor)const
 integer integer::root(int m,bool floor,int zero)const//zero是浮点补丁
 {
 	if (!num.back() || m == 1) { return *this; }
-	if (m < 1||((m&1)==0&&sign==-1)||(zero&&m==2)) { std::cout << "root"; exit(0); }
+	if (m < 1||(zero&&m==2)) { std::cout << "root1"; exit(0); }
 	if (m == 2) { return isqrt(floor); }
 	int ns = num.size()+zero;
 	int f = ns / m + (ns % m != 0);
@@ -1446,6 +1447,7 @@ integer integer::root(int m,bool floor,int zero)const//zero是浮点补丁
 		//std::cout<<"c\n";
 		while (k < f||again)
 		{
+			xt.addsmall(1);
 			again&=k<f;
 			if (p + k > f) { p = f - k;}
 			else if (!kplan.empty() && kplan.back() > k && kplan.back() - k < p) { p = kplan.back() - k; kplan.pop_back(); }
@@ -1457,7 +1459,7 @@ integer integer::root(int m,bool floor,int zero)const//zero是浮点补丁
 				//std::cout<<f<<" "<<tmp1.num.size()<<"\n";
 				view nview(*this, leftshift-zero);
 				int check = abssub(tmp1.num.data(), tmp1.num.size(), nview.ptr, nview.len);
-				if (check < 0) { std::cout << "root"; exit(0); }
+				if (check < 0) { std::cout << "root2"; exit(0); }
 				while (tmp1.num.size() > 1 && tmp1.num.back() == 0) { tmp1.num.pop_back(); }
 			}
 			bool flag = useyk;
@@ -3635,6 +3637,22 @@ void floatb::foldzero()
     while (LOW + 1 < NUM.num.size() && NUM.num[LOW] == 0) { LOW++, ZERO++; }
 }
 
+void floatb::clear(int lowexp)
+{
+	int gap=lowexp-EXP;
+	if(gap<1){}
+	if(gap>=validlength()){NUM=integer(0);LOW=ZERO=0;}
+	else if(gap>ZERO)
+	{
+		gap-=ZERO;ZERO=0;
+		NUM.div2pow(Blen*(gap+LOW));
+		LOW=0;
+	}
+	else{ZERO-=gap;}
+	EXP=lowexp;
+	foldzero();
+}
+
 double floatb::getlog() const
 {
     int l = (int)NUM.num.size() - LOW;
@@ -3653,8 +3671,9 @@ void floatb::setvalidlength(int l)
     int gap = validlength() - l;
     EXP += gap;
     if (ZERO > gap) { ZERO -= gap; }
-    else { gap -= ZERO, ZERO = 0; LOW += gap; }
+    else { gap -= ZERO, ZERO = 0; LOW += gap;}
     if (LOW >= NUM.num.size()) { std::cout << "setvalidlength"; exit(0); }//l>0就到不了这里
+	foldzero();
 }
 
 floatb& floatb::operator=(const floatb& other)
@@ -3705,6 +3724,23 @@ integer::view floatb::clearview(int&zero,int&exp,int l) const//丢弃指数小�
 	if(aexp+azero>=l){zero=azero-l+aexp;return a;}
 	if(aexp+azero+a.len>l){zero=0;return integer::view(a,l-aexp-azero);}
 	zero=-1;return a;
+}
+
+floatb floatb::from(int validlen)const
+{
+	floatb b;
+	int l=validlength();
+	if(validlen>l)
+	{
+		b=*this;
+		b.setvalidlength(validlen);
+		return b;
+	}
+	int gap=l-validlen;
+	b.NUM=leftshiftview(b.ZERO,gap);
+	b.EXP=EXP+gap;
+	b.foldzero();
+	return b;
 }
 
 floatb floatb::addorsub(const floatb& a, const floatb& b, bool add,int l)//进一步舍弃结果exp<l的部分
@@ -3880,7 +3916,6 @@ floatb floatb::multiply(const floatb& b,int l) const//尝试结果validlehgth=l
 	ans.EXP+=azero+bzero;
 	ans.NUM = integer::shiftmul(aview,bview,l+ 2, ans.EXP);
     ans.setvalidlength(l);
-	ans.foldzero();
 	return ans;
 }
 
@@ -3899,7 +3934,6 @@ floatb floatb::divide(const floatb& b,int l) const//尝试NUM层面a*base^l/b,�
 	if(gap>0){bview=b.leftshiftview(bzero,gap);ans.EXP-=gap;}
 	ans.NUM=divide_core(aview,bview,l,azero,bzero);
 	ans.setvalidlength(l);
-	ans.foldzero();
 	return ans;
 }
 integer floatb::intdiv(const floatb&b,floatb&r,bool wantq)const
@@ -3908,7 +3942,7 @@ integer floatb::intdiv(const floatb&b,floatb&r,bool wantq)const
 	if(validlength()+EXP<=b.EXP){r=*this;return 0;}
 	int gap=EXP-b.EXP;
 	integer::view aview=getview(),bview=b.getview();
-	int azero=ZERO,bzero=b.ZERO;
+	int azero,bzero;
 	//std::cout<<gap<<" "<<validlength()<<" "<<b.validlength()<<"\n";
 	if(gap>0){aview=getview(),bview=b.leftshiftview(bzero,gap),azero=ZERO;}
 	else{bview=b.getview(),aview=leftshiftview(azero,-gap),bzero=b.ZERO;}
@@ -3932,7 +3966,7 @@ integer floatb::intdiv(const floatb&b,floatb&r,bool wantq)const
 	return q;
 }
 
-floatb floatb::calpower(ll n,int l)const//指数容易静默溢出,超大指数floatb乘法也是,不检查
+floatb floatb::calpower(int n,int l)const//指数容易静默溢出,超大指数floatb乘法也是,不检查
 {
 	floatb c=integer(NUM.num.back()?1:0);
 	int l0=validlength();
@@ -3949,7 +3983,6 @@ floatb floatb::calpower(ll n,int l)const//指数容易静默溢出,超大指数f
 		a = a.multiply(a,l);
 		if (n & 1) { ans = ans.multiply(a,l); }
 	}
-	ans.foldzero();
 	return ans;
 }
 
@@ -3986,7 +4019,6 @@ floatb floatb::calroot(int n,int l)const//validlenth()*n要在int一定余量以
 	a.ZERO=0;
 	a.LOW=0;
 	a.setvalidlength(l);
-	a.foldzero();
 	return a;
 }
 
@@ -4062,7 +4094,6 @@ floatb::floatb(const std::string&s)
 	floatb h(10,l);
 	if(e1>0){*this=h.calpower(e1,l).multiply(tmp,l);}
 	else{*this=tmp.divide(h.calpower(-e1,l),l);}
-	foldzero();
 }
 
 void floatb::get()
@@ -4074,7 +4105,15 @@ void floatb::get()
 
 std::string floatb::tostring(int m) const
 {
-	if(!NUM.num.back()){return std::string("0");}
+	if(!NUM.num.back())
+	{
+		std::string s;s.reserve(20);
+		s.push_back('0');
+		s.push_back('e');
+		int h=EXP*logBase/log(10)+0.5;
+		s+=std::to_string(h);
+		return s;
+	}
 	int l0=validlength();//如果l0太小打印不精确
 	if (m > l0 || m < 1) { m = l0; }
 	if(m<5)
@@ -4223,10 +4262,9 @@ floatb mathb::getpi(int n0)
 	ans.foldzero();
 	return ans;
 }
-int mathb::samelimb(floatb&a,floatb&b)
+int mathb::samelimb(const floatb&a,const floatb&b)
 {
     if(a.EXP+a.validlength()!=b.EXP+b.validlength()||a.NUM.num.back()!=b.NUM.num.back()){return 0;}
-	a.foldzero();b.foldzero();
     const floatb*u=&a,*v=&b;
     if(a.EXP<b.EXP){std::swap(u,v);}
     int gap1=u->EXP-v->EXP,vzero;
@@ -4242,7 +4280,7 @@ floatb mathb::agm(floatb a,floatb b,int l)
     if(l>la){l=la;}
     if(l>lb){l=lb;}
     if(l<1){l=1;}
-    int good=samelimb(a,b),need=l+3;
+    int good=samelimb(a,b),need=l+2;
     floatb  two(2,need);
     while(good<need-1)
     {
@@ -4270,7 +4308,6 @@ floatb mathb::agm(floatb a,floatb b,int l)
         good=samelimb(a,b);
     }
     a.setvalidlength(l);
-	a.foldzero();
     return a;
 }
 floatb mathb::atanh_1divm_mulm(int m,int n,int need,bool odd)//atanh(1/m)*m
@@ -4324,17 +4361,28 @@ floatb mathb::getln2(int n0)
 	ans.foldzero();
 	return ans;
 }
-int mathb::mod_pidiv4(const floatb&a,floatb&r)
+int mathb::mod_pidiv2(floatb a,floatb&r)
 {
-	if(a.EXP>=0){std::cout<<"mod_pidiv4";exit(0);}
-	int h=a.intdiv(getpi(-a.EXP+2)/floatb(4,-a.EXP+2),r).num[0]&3;
-	if(a.NUM.sign<0){h=4-h;}
-	return h;
-}
-integer mathb::mod_ln2(const floatb&a,floatb&r)
-{
-	if(a.EXP>=0){std::cout<<"mod_ln2";exit(0);}
-	return a.intdiv(getln2(-a.EXP+1),r);
+	if(a.EXP>=0){std::cout<<"mod_pidiv2";exit(0);}
+	int avl=a.validlength(),aexp=a.EXP,need=avl+2;
+	int gap=need+aexp;
+	bool fake=avl+aexp>0&&gap>0;
+	if(fake){a.setvalidlength(avl+gap);}
+	//参与运算的除数长度超过商长度才能商确定性
+	//a=b*q+r,b*q要a.exp精确,q是a.exp+avl量级,b需精确到-avl参与运算
+	//此时b长度avl超过商长度a.exp+avl
+	floatb pidiv2=getpi(need);
+	pidiv2.NUM.mul2pow(Blen-1);pidiv2.EXP--;
+	int q=a.intdiv(pidiv2,r).num[0];
+	q*=a.NUM.sign;
+	floatb flag=integer((ll)(fftpi/4*Base));flag.EXP=-1;
+	if(r.absbigger(flag,1))
+	{
+		if(r.NUM.sign>0){r=r-pidiv2;q++;}
+		else{r=r+pidiv2;q--;}
+	}
+	if(fake){r.clear(aexp);}
+	return (q%4+4)&3;//a=q*(pi/2)+r mod 2pi
 }
 floatb mathb::ln_useagm(const floatb&a)
 {
@@ -4352,26 +4400,31 @@ floatb mathb::ln_useagm(const floatb&a)
 	floatb ans=q/agm(floatb(1,l),floatb(4,l).divide(b,l),l);
 	if(m){ans=ans-floatb(m,l+3)*getln2(l+3);}
 	ans.setvalidlength(l);
-	ans.foldzero();
 	return  ans;
 }
-floatb mathb::exp_bst(const floatb&x,int n,int need)
+floatb mathb::exp_bst(const floatb&x,int endexp,int need)
 {
     std::vector<mathb::bst>l;
-    double f=-x.getlog()/logBase;
-    for(ll  j=0;j<n;j++)
+	floatb h=x.from(1),u(1,1),v=u;
+    for(ll j=0;;j++)
     {
         mathb::bst now;
-        now.need=std::max((int)(need-f*j),0);
         now.p=j?x:floatb(1,need);
         now.q=floatb(j?j:1,need);
         now.t=now.p;
+		if(j)
+		{
+			u=u.multiply(h,1);
+			v=v.multiply(integer(j),1);
+		}
+		now.need=u.EXP-v.EXP-endexp+1;
+		if(now.need<1){break;}
         l.push_back(now);
     }
     mathb::samesign_sum(l,need);
     return l.back().t/l.back().q;
 }
-floatb mathb::exp_usebs(const floatb&a)
+floatb mathb::exp_usebs(const floatb&a)//exp(x*(1+r))约x*(1+r),结果相对误差约等于输入,维持validlength不变,ln同理
 {
     int l=a.validlength();
 	floatb b;
@@ -4401,15 +4454,13 @@ floatb mathb::exp_usebs(const floatb&a)
         {
             h.EXP=bexp+nextlb;
             h.setvalidlength(need);
-            h.foldzero();
-            int term=logBase*l/(-h.getlog())+1;
-			ans=ans.multiply(exp_bst(h,term,need),need);
+            int endexp=-l-2;
+			ans=ans.multiply(exp_bst(h,endexp,need),need);
         }
         gap<<=1;
     }while(lb=nextlb);
     for(int i=0;i<m;i++){ans=ans.multiply(ans,need);}
     ans.setvalidlength(l);
-    ans.foldzero();
 	if(a.NUM.sign<0){return floatb(1,l).divide(ans,l);}
     return ans;
 }
@@ -4455,7 +4506,7 @@ floatb mathb::atan_usebs(const floatb&x)
         floatb b=a.multiply(a,l)+one;
         a=a.divide(b.calroot(2,l)+one,l);
     }
-    int endexp=flag?-l-2:a.EXP-1;
+    int endexp=flag?-l-2:a.EXP-1;//flag情形为了维持结果不长于输入会损失一定精度
     int gap=2,highexp;
     floatb sum(0,3-endexp);
     while(a.NUM.num.back()&&(highexp=a.EXP+a.validlength())>endexp)
@@ -4487,7 +4538,141 @@ floatb mathb::atan_usebs(const floatb&x)
     if(flag){ans=mathb::getpi(l)/floatb(2,l)-ans;}
     if(x.NUM.sign<0){ans.NUM.sign=-1;}
     ans.setvalidlength(l);
-    ans.foldzero();
     return ans;
+}
+floatb mathb::sinx_divx(const floatb&x4,const floatb&x2,int endexp,int need,bool odd)
+{
+    std::vector<mathb::bst>l;
+    floatb h=x4.from(1),u,v;
+    for(ll j=0;;j++)
+    {
+        mathb::bst now;
+        if(odd)
+        {
+            now.p=j?x4:x2;
+            now.q.NUM=j?integer((4*j+3)*(4*j+2))*integer((4*j+1)*(4*j)):integer(6);
+        }
+        else
+        {
+            now.p=j?x4:floatb(1,need);
+            now.q.NUM=j?integer((4*j+1)*(4*j))*integer((4*j-1)*(4*j-2)):integer(1);
+        }
+        if(j)
+        {
+            u=u.multiply(h,1);
+            v=v.multiply(now.q.from(1),1);
+        }
+        else
+        {
+            u=now.p.from(1);
+            v=now.q.from(1);
+        }
+        now.need=u.EXP-v.EXP-endexp+1;
+        if(now.need<1){break;}
+        now.p.setvalidlength(need);
+        now.q.setvalidlength(need);
+        now.t=now.p;
+        l.push_back(now);
+    }
+    if(l.empty()){return floatb(0,(1<<30));}
+    mathb::samesign_sum(l,need);
+    return l.back().t/l.back().q;
+}
+floatb mathb::sincos_usebs(const floatb&x,bool returnsin,int l,floatb*another)//尝试误差Base^l
+//a先规约到+-pi/4,再/2到很小,a误差a.exp级别
+//sin,cos误差a.exp级别,cosa当a->0精度扩展,但是保守到a.exp级别
+//s0<-c0s1+s0c1,c0<-c0c1-s0s1
+//s1,c1的最低有效级别为endexp,这样更新误差传递合法(因s,c<1)
+//s1量级u=b.exp+b.validlength,sneed=u-endexp;
+{
+    floatb a;
+    int  h=mathb::mod_pidiv2(x,a);
+	int  g;//x的象限0,1,2,3
+	if(a.NUM.sign<0){g=(h+3)&3;}
+	else{g=h;}
+	int ssign=g<2?1:-1;//sinx的符号
+	int csign=(g==0||g==3)?1:-1;
+	bool change=h&1;
+	if(l<a.EXP){l=a.EXP;}
+	else{a.clear(l-2);}
+    int m=(a.getlog()+logBase*0.5)/log(2);
+    if(m>0)
+    {
+        int q=m/Blen,r=m%Blen;
+        if(r){r-=Blen;q++;}
+        a.NUM.mul2pow(-r);
+        a.EXP-=q;
+    }
+    a.NUM.sign=1;
+    int endexp=l-1;
+    integer::view aview=a.getview();
+    floatb s0(0,3-endexp),c0(1,3-endexp);
+    int gap=2,lb=aview.len,nextlb,bexp=a.EXP+a.ZERO;
+	bool both=another&&m<=0,returns0=(returnsin!=change);//返回sina
+    do
+    {
+        floatb b;
+        nextlb=std::max(lb-1-gap,0);
+        b.NUM=integer::view(aview.ptr,nextlb,lb-1,aview.sign);
+        if(b.NUM.num.back())
+        {
+            b.EXP=bexp+nextlb;
+            int sneed=std::max(b.EXP+b.validlength()-endexp,0)+1;
+            b.setvalidlength(sneed);
+            floatb b2=b*b,b4=b2*b2;
+            floatb s1=(sinx_divx(b4,b2,endexp,sneed,0)-sinx_divx(b4,b2,endexp,sneed,1))*b;
+            floatb c1=floatb(floatb(1,1<<30)-s1*s1).calroot(2,1<<30);
+            if(nextlb||both)
+            {
+                floatb o=(c0+s0)*(c1+s1),p=c0*c1,q=s0*s1;
+                c0=p-q,s0=o-p-q;
+            }
+			else if(returns0&&m<=0){s0=s0*c1+c0*s1;}
+            else{c0=c0*c1-s0*s1;}
+        }
+        gap<<=1;
+    }while(lb=nextlb);
+	//s0=sina,c0=cosa
+	if(both)
+	{
+		if(change){std::swap(s0,c0);}//s0=sinx,c0=cosx
+		s0.clear(l),c0.clear(l);
+		s0.NUM.sign=ssign,c0.NUM.sign=csign;
+		if(returnsin){*another=std::move(c0);return s0;}
+		else{*another=std::move(s0);return c0;}
+	}
+	if(returns0&&m<=0)
+	{
+		s0.clear(l);
+		s0.NUM.sign=change?csign:ssign;
+		return s0;
+	}
+    for(int i=0;i<m;i++)
+    {
+        floatb b=c0*c0;
+        b.NUM.mul2pow(1);
+        c0=b-floatb(1,1<<30);
+    }
+	if(returns0||another){s0=floatb(floatb(1,1<<30)-c0*c0).calroot(2,1<<30);}
+	s0.clear(l),c0.clear(l);
+	s0.NUM.sign=change?csign:ssign;
+	c0.NUM.sign=change?ssign:csign;
+	if(returns0)
+	{
+		if(another){*another=std::move(c0);}
+		return s0;
+	}
+	if(another){*another=std::move(s0);}
+	return c0;
+}
+floatb fln(const floatb&a){return mathb::ln_useagm(a);}
+floatb fexp(const floatb&a){return mathb::exp_usebs(a);}
+floatb fatan(const floatb&a){return mathb::atan_usebs(a);}
+floatb fsin(const floatb&a){return mathb::sincos_usebs(a,1,-floatb::fblen);}
+floatb fcos(const floatb&a){return mathb::sincos_usebs(a,0,-floatb::fblen);}
+floatb ftan(const floatb&a)
+{
+	floatb c,s=mathb::sincos_usebs(a,1,-floatb::fblen,&c);
+	return s.divide(c,1<<30);
 }
 #endif
