@@ -13,8 +13,14 @@ g++ -O2 a.cpp -L. -lintegerb -o a.exe
 .\a.exe
 */
 //isprime不提供试除,qs,dlsolver是玩具级
-//div_newton,recip,div_bz对商最小长度有要求,类似接口虽然公开不能随意调用
-// g++ -O2 a.cpp -L. -lintegerb -o a.exe
+//非通用接口对输入可能有要求,例如div_newton,recip,div_bz对商最小长度有要求,公开这种接口是因为具有演示意义或者外部需要复用
+//参考来源:
+//用户withsky(github)的fft和div,view思想
+//mathu的介绍
+//网上的qs个人实现
+//ai辅助推导
+//mpfr的古早版本
+//大量实现是自推导原理(比如isqrt,lehmer的shift2),经过海量验证,但是无法保证一定正确
 //[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 #include <iostream>
 #include <vector>
@@ -344,7 +350,7 @@ public:
         expr* r = 0;
     public:
         expr() {}
-        enum optype { LEAF, ADD, SUB, MUL, DIV, ROOT, POW } op;
+        enum optype { LEAF, ADD, SUB, MUL, DIV, ROOT, POW} op;
         infomation info;
         const floatb* leaf = 0;
         int extra;
@@ -359,7 +365,8 @@ public:
     //floatb a=fb(34.56)*(fb(47.38)+fb(2.3))+froot(fb(3.7e456),99)+fb(34.557e123);
     //1.这里搭了一颗树,必须立即用floatb接收从而触发树从顶部释放,否则不仅树没释放,节点也悬空
     //2.精度传导对a*(b-c)对于b=c采用b-c=base^(min(b.exp,c.exp))理解
-    static int fblen;//字符串构造
+    //3.使用表达式树而不是调用函数自动精度管理
+    static int fblen;//fb字符串构造精度(初始精度),fsin,fcos的误差最小base^(-fblen)
     integer NUM;
     int EXP = 0;
     int LOW = 0;
@@ -400,6 +407,7 @@ floatb::expr fpow(const floatb& a, int n);
 floatb::expr froot(const floatb& a, int n);
 #endif
 #if fudian>1
+//4.所有超越函数,validlength维护输出严格小于等于输入,防止不期望的越算越慢
 class mathb
 {
 private:
