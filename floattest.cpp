@@ -28,7 +28,7 @@ int main() {
     std::vector<Case> cases = {
         {"sin(0.2)",  mk("0.2"),  [](const floatb& x){ return fsin(x); }},
         {"cos(2.7)",  mk("2.7"),  [](const floatb& x){ return fcos(x); }},
-        {"tan(5.6)",  mk("5.6"),  [](const floatb& x){ return ftan(x); }},
+        {"atan(5.6)",  mk("5.6"),  [](const floatb& x){ return fatan(x); }},
         {"exp(4.8)",  mk("4.8"),  [](const floatb& x){ return fexp(x); }},
         {"ln(123)",   mk("123"),  [](const floatb& x){ return fln(x); }},
     };
@@ -56,33 +56,30 @@ int main() {
     return 0;
 }
 /*
-
-
 PS D:\mycpp> ./a
 case               time(ms)   validlen
-sin(0.2)             26.599       1000
-cos(2.7)             25.831        999
-tan(5.6)             26.200        999
-exp(4.8)             17.078       1000
-ln(123)              12.059       1000
+sin(0.2)             25.038       1000
+cos(2.7)             24.457        999
+atan(5.6)            27.607       1000
+exp(4.8)             13.121       1000
+ln(123)              11.221       1000
 written result.txt
 PS D:\mycpp> & C:\Users\lenovo\AppData\Local\Programs\Python\Python39\python.exe d:/mycpp/test.py
 === 正确位数: good_limbs = -log(rel)/log(2^28), good_digits = -log10(rel) ===
 case             good_limbs    good_digits
 sin(0.2)            998.398         8415.3
 cos(2.7)            997.578         8408.4
-tan(5.6)            997.573         8408.4
+atan(5.6)           997.572         8408.4
 exp(4.8)            997.817         8410.4
 ln(123)             997.617         8408.8
 
 === MPFR 计时 (prec=28256 bits) ===
 case               time(ms)
-sin(0.2)             14.339
-cos(2.7)             17.355
-tan(5.6)             18.868
-exp(4.8)             12.099
-ln(123)               4.625
-
+sin(0.2)             14.673
+cos(2.7)             10.391
+atan(5.6)             8.666
+exp(4.8)              6.024
+ln(123)               4.155
 
 
 # & C:\Users\lenovo\AppData\Local\Programs\Python\Python39\python.exe d:/mycpp/test.py
@@ -105,7 +102,7 @@ def _f(name):
         return getattr(gmpy2, name)
     return lambda x: getattr(x, name)()
 
-sin, cos, tan, exp, log = _f("sin"), _f("cos"), _f("tan"), _f("exp"), _f("log")
+sin, cos, atan, exp, log = _f("sin"), _f("cos"), _f("atan"), _f("exp"), _f("log")
 
 gmpy2.get_context().precision = 1000 * 28 + 256
 gmpy2.get_context().round = gmpy2.RoundToNearest
@@ -113,7 +110,7 @@ gmpy2.get_context().round = gmpy2.RoundToNearest
 std = {
     "sin(0.2)": sin(mpfr("0.2")),
     "cos(2.7)": cos(mpfr("2.7")),
-    "tan(5.6)": tan(mpfr("5.6")),
+    "atan(5.6)": atan(mpfr("5.6")),
     "exp(4.8)": exp(mpfr("4.8")),
     "ln(123)":  log(mpfr("123")),
 }
@@ -140,7 +137,7 @@ for i in range(0, len(lines) - 1, 2):
 timing = [
     ("sin(0.2)",  sin, mpfr("0.2")),
     ("cos(2.7)",  cos, mpfr("2.7")),
-    ("tan(5.6)",  tan, mpfr("5.6")),
+    ("atan(5.6)",  atan, mpfr("5.6")),
     ("exp(4.8)",  exp, mpfr("4.8")),
     ("ln(123)",   log, mpfr("123")),
 ]
@@ -153,5 +150,4 @@ for name, fn, x in timing:
     y = fn(x)
     t = (time.perf_counter() - t0) * 1000.0
     print("%-12s %14.3f" % (name, t))
-
 */
