@@ -1400,7 +1400,6 @@ integer integer::root(int m,bool floor,int zero)const//zero是浮点补丁
 	if (q.absbigger(target, 1)) { target = q + 1; rate >>= 10; }
 	else if (target.absbigger(xt, 1)) { target = xt - 1; rate >>= 10; }
 	int leftshift;
-	//std::cout<<"a\n";
 	while (xt.absbigger(q + gap, 0))
 	{
 		integer mid = (xt + q) / 2;
@@ -1408,7 +1407,7 @@ integer integer::root(int m,bool floor,int zero)const//zero是浮点补丁
 		b = 0;
 		integer tmp = shiftpow(mid, m, need, b);
 		leftshift = m * (f - k) + b;
-		if (leftshift<zero||(leftshift-zero < ns && !tmp.absbigger(view(*this, leftshift-zero), 0)))
+		if (leftshift<zero||(leftshift-zero < num.size() && !tmp.absbigger(view(*this, leftshift-zero), 0)))
 		//由于tmp.size<2*need,而*this在浮点大小root处大小3*l,所以lefshift<zero就一定小
 		{
 			q = mid;
@@ -1422,7 +1421,6 @@ integer integer::root(int m,bool floor,int zero)const//zero是浮点补丁
 	}
 	if (f > 1)
 	{
-		//std::cout<<"b\n";
 		do
 		{
 			b = 0;
@@ -1430,7 +1428,7 @@ integer integer::root(int m,bool floor,int zero)const//zero是浮点补丁
 			b1 = 0;
 			integer tmp1 = shiftmul(xt, tmp, need, b1).shift(b1);
 			leftshift = m * (f - k) + b;
-			if (ns > leftshift-zero) {
+			if (num.size() > leftshift-zero) {
 				//std::cout<<f<<" "<<tmp1.num.size()<<"\n";
 				view nview(*this, leftshift-zero);
 				abssub(tmp1.num.data(), tmp1.num.size(), nview.ptr, nview.len);
@@ -1444,7 +1442,6 @@ integer integer::root(int m,bool floor,int zero)const//zero是浮点补丁
 		int k1 = f; k1 += ((k1 & 1) == 1);
 		while (k1 > 5) { k1 = k1 / 2 + 1; k1 += ((k1 & 1) == 1); kplan.push_back(k1); }
 		bool again=f<10;
-		//std::cout<<"c\n";
 		while (k < f||again)
 		{
 			xt.addsmall(1);
@@ -1455,7 +1452,7 @@ integer integer::root(int m,bool floor,int zero)const//zero是浮点补丁
 			integer tmp = shiftpow(xt, m - 1, need, b);
 			integer tmp1 = shiftmul(xt, tmp, need, b1).shift(b1 + p);//tmp1最大,决定*this折叠0边界
 			leftshift = m * (f - k) + b - p;
-			if (ns > leftshift-zero) {
+			if (num.size() > leftshift-zero) {
 				//std::cout<<f<<" "<<tmp1.num.size()<<"\n";
 				view nview(*this, leftshift-zero);
 				int check = abssub(tmp1.num.data(), tmp1.num.size(), nview.ptr, nview.len);
@@ -2792,12 +2789,12 @@ integer factor(const integer& n, bool& pollard)//不质数幂
 		equa(int ns, int ps) { x.num.resize(ns), y.num.resize(ns), mask.resize(ps / 64 + (bool)(ps % 64 != 0)), x.sign = -1; }
 	};
 	std::vector<equa>smooth;
-	std::vector<equa>flaw; int fs = 0;
+	std::unordered_map<int,equa>T;
 	std::vector<int>index;
 	std::vector<uc>pcnt;
 	int ta = 0, tb = 0, tc = 0;uc bound;
 	auto insert_lambda =
-	[&q, &prime, &smooth, &flaw, &fs, &n, &ok, &ta, &tb, &tc, &bound, &index, &pcnt](const integer& x, integer y) -> integer {
+	[&q, &prime, &smooth,&n, &ok, &ta, &tb, &tc, &bound, &index, &pcnt,&T](const integer& x, integer y) -> integer {
 		int  ps = prime.size();
 		equa e; e.mask.assign(ps / 64 + (bool)(ps % 64 != 0), 0);
 		int z = 0;
@@ -2819,7 +2816,7 @@ integer factor(const integer& n, bool& pollard)//不质数幂
 		int j = 0;
 		if (y.num[0] > 1)
 		{
-			tb++; for (; j < fs && flaw[j].x.sign != y.num[0]; j++); if (j >= flaw.size() || !miller(y.num[0], { 2 })) { return 0; }
+			tb++;if(!miller(y.num[0],{2})){return 0;}
 		}
 		else { ta++; }
 		e.x = q.in(x);
@@ -2837,8 +2834,13 @@ integer factor(const integer& n, bool& pollard)//不质数幂
 		if (y.sign < 0) { e.y = e.y + n; }
 		if (y.num[0] > 1)
 		{
-			equa& s = flaw[j];
-			if (s.x.sign < 0) { e.x.sign = y.num[0]; flaw[j] = e; fs++; return 0; }
+			auto it=T.find(y.num[0]);
+			if (it==T.end()) 
+			{
+				T.emplace(y.num[0],e);
+				return 0;
+			}
+			equa& s = it->second;
 			tc++;
 			s.x.sign = 1; e.x = q.out(e.x * s.x); s.x.sign = y.num[0];
 			e.y = (e.y * y.num[0]) * s.y;integer::div_native<0>(e.y,n,e.y);
@@ -2884,7 +2886,7 @@ integer factor(const integer& n, bool& pollard)//不质数幂
 			return gcd(q.out(e.x) + e.y, n);
 		}
 		smooth[index] = e;
-		//std::cout << "\n    relation:" << ta + tc << " need:" << prime.size() << " |from " <<tb << " fail extract " << fs << " flaw and " << tc << " relation\n";
+		//std::cout << "\n    relation:" << ta + tc << " need:" << prime.size() << " |from " <<tb << " fail extract " << tc << " relation\n";
 		const int level = 2;
 		if (tb > (ta << (level + 1))) { bound ++; }if ((ta << level) > tb) { bound --; }//倾向于错误多些,快
 		return 0;
@@ -2893,7 +2895,8 @@ integer factor(const integer& n, bool& pollard)//不质数幂
 	qsinit(d, n, prime, root, logp, bound, q,m);
 	pcnt.resize(prime.size());
 	smooth.assign(prime.size(), equa(n.num.size(), prime.size()));
-	flaw.assign(prime.size() << 2, equa(n.num.size(), prime.size()));
+	//flaw.assign(prime.size() << 2, equa(n.num.size(), prime.size()));
+	T.reserve(prime.size()<<2);
 	ok = 40;
 	integer a, b; int start = 30, gap = 1;
 	std::vector<integer>crtbase;
@@ -3900,7 +3903,7 @@ integer floatb::divide_core(const integer::view& a, const integer::view& b,int l
 		return div_native(a,b,l,azero,bzero);
 	}
 }
-//不检查超大指数的mul,div,pow溢出
+//不检查指数的mul,div溢出
 floatb floatb::multiply(const floatb& b,int l) const//尝试结果validlehgth=l
 {
 	integer::view aview = getview(), bview = b.getview();
@@ -3986,7 +3989,7 @@ floatb floatb::calpower(int n,int l)const
 	return ans;
 }
 
-floatb floatb::calroot(int n,int l)const//validlenth()*n要在int一定余量以内,否则integer::root内部参数溢出,超高精度开超大次根用floatb自己写牛顿迭代
+floatb floatb::calroot(int n,int l)const
 {
 	floatb c=integer(NUM.num.back()?1:0);
 	int l0=validlength();
@@ -4000,17 +4003,15 @@ floatb floatb::calroot(int n,int l)const//validlenth()*n要在int一定余量以
 	a.setvalidlength(l);
 	if(n==1){return a;}
 	ll t=l*n,gap=(t-l)*Blen,h=(n-(gap-(ll)a.EXP*Blen)%n)%n;
-	if(t>1e9){std::cout<<"calroot";exit(0);}
+	if(t>1e9){std::cout<<"calroot";exit(0);}//validlenth()*n要在int一定余量以内,否则integer::root内部参数溢出,超高精度开超大次根用floatb自己写牛顿迭代
 	gap+=h;
 	floatbtmp=a.getview();
 	//std::cout<<floatbtmp.num.size()<<"\n";
 	ll diff=gap+a.ZERO*Blen;
 	ll mindiff=(l*3+10-(int)floatbtmp.num.size())*Blen+diff%Blen;
-	//std::cout<<diff<<" "<<mindiff<<"\n";
 	int hiddenzero;
 	if(diff>mindiff){floatbtmp.mul2pow(mindiff);hiddenzero=(diff-mindiff)/Blen;}
 	else{floatbtmp.mul2pow(diff);hiddenzero=0;}
-	//std::cout<<floatbtmp.num.size()<<"\n";
 	a.NUM=floatbtmp.root(n,0,hiddenzero);
 	ll aexp2=(a.EXP*Blen-gap)/n;
 	int aexp=aexp2/Blen,v=aexp2%Blen;
@@ -4420,7 +4421,7 @@ floatb mathb::exp_bst(const floatb&x,int endexp,int need)
 			v=v.multiply(integer(j),1);
 		}
 		now.need=u.EXP-v.EXP-endexp+1;
-		if(now.need<1){break;}
+		if(j&&now.need<1){break;}
         l.push_back(now);
     }
     mathb::samesign_sum(l,need);
@@ -4428,7 +4429,7 @@ floatb mathb::exp_bst(const floatb&x,int endexp,int need)
 }
 floatb mathb::exp_usebs(const floatb&a)//exp(x*(1+r))约x*(1+r),结果相对误差约等于输入,维持validlength不变,ln同理
 {
-	if(a.getlog()>19.5){std::cout<<"exp";exit(0);}
+	if(a.getlog()>21){std::cout<<"exp";exit(0);}
     int l=a.validlength();
 	floatb b;
     int m=std::max((int)(a.getlog()/log(2)+30),0);
