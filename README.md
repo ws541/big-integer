@@ -1,6 +1,6 @@
+## 浮点部分展示 (floatbtest.cpp)
 
-浮点部分展示(floatbtest.cpp)
-
+```text
 PS D:\mycpp> ./a
 case               time(ms)   validlen
 sin(0.2)             25.038       1000
@@ -25,9 +25,11 @@ cos(2.7)             10.391
 atan(5.6)             8.666
 exp(4.8)              6.024
 ln(123)               4.155
+```
 
-整数部分测试展示(integertest.cpp)
+## 整数部分测试展示 (integertest.cpp)
 
+```text
 PS D:\mycpp> g++ -O2 a.cpp -L. -lintegerb -o a.exe                                               
 PS D:\mycpp> ./a
 =====================================
@@ -76,4 +78,5 @@ if mingw64 -O2,ic estimated init time :3.52571 s
 =====================================
 总时间: 10.239 s
 =====================================
-PS D:\mycpp> 
+PS D:\mycpp>
+```
