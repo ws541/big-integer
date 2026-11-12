@@ -1090,6 +1090,78 @@ void integer::endcatch()
     if(lastview.sign>0){delete[]lasty;}
     lastview.sign=-1;
 }
+
+integer integer::sqrtsmall(const integer::view&n,integer&res,bool needres)
+{
+    int ln=n.len;
+    if(ln==1)
+    {
+        ll a=n.ptr[0],b=sqrt(a);
+        if(needres){res=a-b*b;}
+        return b;
+    }
+    if(ln==2)
+    {
+        ll a=((ll)n.ptr[1]<<Blen)+n.ptr[0],b=sqrt(a);
+        b = (b + 1 + a / (b + 1)) / 2;
+		while (b * b > a) { b--; }
+        if(needres){res=a-b*b;}
+		return b;
+    }
+    integer b= sqrt((double)((ll)n.ptr[2] * Base + n.ptr[1]) * Base + n.ptr[0]) + 1;
+    res=integer(n)-b*b;
+    if(res.num.back()&&res.sign<0) {res=res+b+b;res.addsmall(-1);b.addsmall(-1);}
+    return b;
+}
+
+integer integer::sqrtdc(const integer::view&n,integer&res,bool needres)
+{
+    int ns=n.len;
+    if(ns<4){return sqrtsmall(n,res,1);}
+    int h=ns/4;
+    integer s1=sqrtdc(integer::view(n.ptr,h*2,ns-1,1),res,1);
+	if(!res.num.back()){res=integer::view(n.ptr,h,h*2,1);}
+	else
+	{
+		res=res.shift(h);
+		for(int i=0;i<h;i++){res.num[i]=n.ptr[h+i];}
+	}
+    integer q=integer::divide(res,s1+s1,res);
+    s1=s1.shift(h)+q;
+    if(needres){
+        if(!res.num.back()){res=integer::view(n.ptr,0,h,1);}
+		else
+		{
+			res=res.shift(h);
+			for(int i=0;i<h;i++){res.num[i]=n.ptr[i];}
+		}
+        res=res-q*q;
+        if(res.num.back()&&res.sign<0)
+        {
+            res=res+(s1+s1);
+            res.addsmall(-1);
+            s1.addsmall(-1);
+        }
+    }
+    return s1;
+}
+
+integer integer::isqrt(bool floor) const
+{
+    integer res;
+    if(num.size()<4){return sqrtsmall(*this,res,0);}
+	int m=0;
+	while ((num.back() << m) < Base / 4){m +=2;}
+	integer tmp;
+	tmp.num.reserve(num.size()+1);
+	tmp.num=num;
+	tmp.mul2pow(m);
+	tmp=sqrtdc(tmp,res,floor&&(m==0));
+	tmp.div2pow(m/2);
+	if(m&&floor&&(tmp*tmp).absbigger(*this,0)){tmp.addsmall(-1);}
+    return tmp;
+}
+
 integer integer::fftmul(const view&a,const view&b)
 {
     int m = (a.len+b.len) << 1, n = 256;
@@ -1270,113 +1342,6 @@ integer integer::reciprocal(const view& n,int l)
 		while (!xtsize.empty() && xt.num.size() >= xtsize.back()) { xtsize.pop_back(); }
 	}
 	xt.div2pow(Blen);
-	return xt;
-}
-
-integer integer::isqrt(bool floor)const
-{
-	
-	int ns = num.size();
-	if (ns < 3)
-	{
-		ll a = toll(), b = sqrt(a);
-		if (ns < 2) { return b; }
-		b = (b + 1 + a / (b + 1)) / 2;
-		while (b * b > a) { b--; }
-		return b;
-	}
-	int k = 2;
-	int f = ns / 2 + (ns % 2 != 0);
-	const bool useyk = f > 100;
-	int need, b;
-	integer xt;
-	double guess = (double)((ll)num.back() * Base + num[ns - 2]) * Base + num[ns- 3];
-	if (ns % 2)
-	{
-		xt = sqrt(guess) + 1;
-	}
-	else
-	{
-		xt = sqrt(guess * Base + num[ns - 4]) + 1000;
-		integer q; need = k + 1;
-		do
-		{
-			b = 0;
-			integer tmp = shiftmul(xt, xt, need, b).shift(b);
-			view nview(*this, 2 * (f - k));
-			abssub(tmp.num.data(), tmp.num.size(), nview.ptr, nview.len);
-			while (tmp.num.size() > 1 && tmp.num.back() == 0) { tmp.num.pop_back(); }
-			q = tmp / xt; q.div2pow(1);
-		} while (q.sign > 0 && q.num.back() && (xt = xt - q).num.back());
-	}
-	int p = 1;
-	integer yt; int l, yk = 0;
-	std::vector<int>kplan;
-	int k1 = f; k1 += ((k1 & 1) == 0);
-	while (k1 > 5) { k1 = k1 / 2 + 1; k1 += ((k1 & 1) == 0); kplan.push_back(k1); }
-	while (k < f)
-	{
-		xt.addsmall(1);
-		if (p + k > f) { p = f - k; }
-		else if (!kplan.empty() && kplan.back() > k && kplan.back() - k < p)
-		{
-			p = kplan.back() - k; kplan.pop_back();
-		}
-		need = xt.num.size() + p + 2, b = 0;
-		integer tmp = shiftmul(xt, xt, need, b).shift(p + b);
-		view nview(*this, 2 * (f - k) - p);
-		int check = abssub(tmp.num.data(), tmp.num.size(), nview.ptr, nview.len);
-		if (check < 0) { std::cout << "isqrt"; exit(0); }
-		while (tmp.num.size() > 1 && tmp.num.back() == 0) { tmp.num.pop_back(); }
-		integer q; bool flag = useyk;
-		if (useyk)
-		{
-			if (yt.num.empty())
-			{
-				l = 2 * xt.num.size();
-				yt = integer(1).shift(l) / xt;
-			}
-			else
-			{
-				yk = (int)xt.num.size() - (int)yt.num.size();
-				need = yt.num.size() + yk + 2, b = 0;
-				integer ytmp = shiftmul(yt, yt, need, b);
-				ytmp = shiftmul(xt, ytmp, need, b);
-				view ytmpview(ytmp, -(yk - l + b));
-				yt = (yt + yt).shift(yk);
-				abssub(yt.num.data(), yt.num.size(), ytmpview.ptr, ytmpview.len);
-				while (yt.num.back() == 0 && yt.num.size() > 1) { yt.num.pop_back(); }
-				l += yk;
-			}
-			need = tmp.num.size() - xt.num.size() + 1, b = 0;
-			if (need > 7)
-			{
-				q = shiftmul(tmp, yt, need, b);
-				view qview(q, l - b);
-				integer prod = karamul(qview, xt);
-				tmp.sign = abssub(tmp.num.data(), tmp.num.size(), prod.num.data(), prod.num.size());
-				while (tmp.num.back() == 0 && tmp.num.size() > 1) { tmp.num.pop_back(); }
-				integer ql= divide(tmp, xt, tmp);
-				q = addorsub(qview.ptr, qview.len, qview.sign, ql.num.data(), ql.num.size(), ql.sign, 1);
-				if (tmp.sign == -1 && tmp.num.back()) {q.addsmall(-1); }
-			}
-			else { flag = 0; }
-		}
-		if (!flag)
-		{
-			q = divide(tmp,xt,tmp);
-		}
-		q.div2pow(1);
-		xt = xt.shift(p);
-		abssub(xt.num.data(), xt.num.size(), q.num.data(), q.num.size());
-		while (xt.num.size() > 1 && xt.num.back() == 0) { xt.num.pop_back(); }
-		l += p;
-		k += p;
-		p = xt.num.size() - 1;
-		while (!kplan.empty() && k >= kplan.back()) { kplan.pop_back(); }
-	}
-	xt.addsmall(-1);
-	if (floor&&(xt * xt).absbigger(*this, 0)) { xt.addsmall(-1); }
 	return xt;
 }
 
@@ -1668,6 +1633,7 @@ void integer::mod2pow(int n)
 
 void integer::div2pow(int n)
 {
+	if(n<1){return;}
 	int start = n / Blen, i = 0; n %= Blen;
 	int m = Blen - n, mask = (1 << n) - 1;
 	for (; start + 1 < num.size(); i++)
@@ -1687,7 +1653,7 @@ void integer::div2pow(int n)
 
 void integer::mul2pow(int n)
 {
-	if (!num.back()) { return; }
+	if (!num.back()||n<1) { return; }
 	int start = n / Blen; n %= Blen;
 	int m = Blen - n, mask = (1 << m) - 1, ns = num.size();
 	num.resize(start + ns + 1);
