@@ -15,12 +15,12 @@ g++ -O2 a.cpp -L. -lintegerb -o a.exe
 //isprime不提供试除,qs,dlsolver是玩具级
 //非通用接口对输入可能有要求,例如div_newton,recip,div_bz对商最小长度有要求,公开这种接口是因为具有演示意义或者外部需要复用
 //参考来源:
-//用户withsky(github)的fft和div,view思想
+//用户withsky(github)的fft和divbz,view
 //mathu的介绍
-//网上的qs个人实现
+//网上的个人实现
 //ai辅助推导
-//mpfr的古早版本
-//大量实现是自推导原理(比如isqrt,lehmer的shift2),经过海量验证,但是无法保证一定正确
+//mpfr,flint,python
+//大量实现是自推导原理(比如root,lehmer的shift2),经过海量验证,但是无法保证一定正确
 //[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 #include <iostream>
 #include <vector>
@@ -150,6 +150,8 @@ private:
     static double* b14rrii(const view& a, int n);
     static void trycatch();//危险
     static void endcatch();
+    static integer sqrtsmall(const integer::view&n,integer&res,bool needres);
+    static integer sqrtdc(const integer::view&n,integer&res,bool needres);
 public:
     int sign = 1;
     std::vector<int> num;
