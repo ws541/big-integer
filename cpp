@@ -1102,19 +1102,27 @@ integer integer::sqrtsmall(const integer::view&n,integer&res,bool needres)
     }
     if(ln==2)
     {
-        ll a=((ll)n.ptr[1]<<Blen)+n.ptr[0],b=sqrt(a);
-        b = (b + 1 + a / (b + 1)) / 2;
+        ll a=((ll)n.ptr[1]<<Blen)+n.ptr[0],b=sqrt(a)+1;
+        b = (b + a / b) / 2;
 		while (b * b > a) { b--; }
         if(needres){res=a-b*b;}
 		return b;
     }
     integer b= sqrt((double)((ll)n.ptr[2] * Base + n.ptr[1]) * Base + n.ptr[0]) + 1;
     res=integer(n)-b*b;
-    if(res.num.back()&&res.sign<0) {res=res+b+b;res.addsmall(-1);b.addsmall(-1);}
+    while(res.num.back()&&res.sign<0) {res=res+b+b;res.addsmall(-1);b.addsmall(-1);}
     return b;
 }
 
 integer integer::sqrtdc(const integer::view&n,integer&res,bool needres)
+//T=a2*b^2+a1*b+a0
+//s1^2+r1=a3
+//r=(r1*b+a1)-2*s1*q
+//s=s1*b+q
+//s^2=a2*b^2+a1*b-b*r+q^2
+//u=T-(s+1)^2=a0+(r-2*s1)b-(q+1)^2,而r<2*s1,<0
+//v=T-(s-1)^2=a0+(r+2*s1)b-(q-1)^2,而归一化2*s1>b^2,q<b故>0
+//当完全平方,假设s偏大1,T-s^2=1-2*s<a0+b*r-q^2,矛盾
 {
     int ns=n.len;
     if(ns<4){return sqrtsmall(n,res,1);}
