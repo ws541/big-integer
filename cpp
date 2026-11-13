@@ -4597,6 +4597,15 @@ floatb mathb::sincos_usebs(const floatb&x,bool returnsin,int l,floatb*another)//
 	int ssign=g<2?1:-1;//sinx的符号
 	int csign=(g==0||g==3)?1:-1;
 	bool change=h&1;
+	bool returns0=(returnsin!=change);//返回sina
+	if((a.validlength()+a.EXP)*2<a.EXP-10)
+	{
+		floatb s0=std::move(a),c0=floatb(1,-a.EXP);
+		if(change){std::swap(s0,c0);}
+		s0.NUM.sign=ssign,c0.NUM.sign=csign;
+		if(returnsin){if(another){*another=std::move(c0);}return s0;}
+		else{if(another){*another=std::move(s0);}return c0;}
+	}
 	if(l<a.EXP){l=a.EXP;}
 	else{a.clear(l-2);}
     int m=(a.getlog()+logBase*0.5)/log(2);
@@ -4612,7 +4621,7 @@ floatb mathb::sincos_usebs(const floatb&x,bool returnsin,int l,floatb*another)//
     integer::view aview=a.getview();
     floatb s0(0,3-endexp),c0(1,3-endexp);
     int gap=2,lb=aview.len,nextlb,bexp=a.EXP+a.ZERO;
-	bool both=another&&m<=0,returns0=(returnsin!=change);//返回sina
+	bool both=another&&m<=0;
     do
     {
         floatb b;
@@ -4621,8 +4630,9 @@ floatb mathb::sincos_usebs(const floatb&x,bool returnsin,int l,floatb*another)//
         if(b.NUM.num.back())
         {
             b.EXP=bexp+nextlb;
-            int sneed=std::max(b.EXP+b.validlength()-endexp,0)+1;
-            b.setvalidlength(sneed);
+            int sneed=b.EXP+b.validlength()-endexp+1;
+			if(sneed<1){break;}
+			b.setvalidlength(sneed);
             floatb b2=b*b,b4=b2*b2;
             floatb s1=(sinx_divx(b4,b2,endexp,sneed,0)-sinx_divx(b4,b2,endexp,sneed,1))*b;
             floatb c1;
