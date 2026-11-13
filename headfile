@@ -368,7 +368,7 @@ public:
     //1.这里搭了一颗树,必须立即用floatb接收从而触发树从顶部释放,否则不仅树没释放,节点也悬空
     //2.精度传导对a*(b-c)对于b=c采用b-c=base^(min(b.exp,c.exp))理解
     //3.使用表达式树而不是调用函数自动精度管理
-    static int fblen;//fb字符串构造精度(初始精度),fsin,fcos的误差最小base^(-fblen)
+    static int fblen;//fb字符串构造精度(初始精度)
     integer NUM;
     int EXP = 0;
     int LOW = 0;
@@ -409,7 +409,6 @@ floatb::expr fpow(const floatb& a, int n);
 floatb::expr froot(const floatb& a, int n);
 #endif
 #if fudian>1
-//4.所有超越函数,validlength维护输出严格小于等于输入,防止不期望的越算越慢
 class mathb
 {
 private:
