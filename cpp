@@ -4399,16 +4399,16 @@ floatb mathb::exp_bst(const floatb&x,int endexp,int need)
 }
 //在超越函数情形,输入与输出的误差非线性
 //回退到下述半自动化策略
-//返回值遵循输出长度严格小于等于输入长度(防止越算越慢),返回部分一定精确
 //对于exp,ln,atan,维护输出长度等于输入长度
 //这导致
 //exp(fb(1e-999))结果损失信息
-//ln(fb(1)+fb(1e-999))返回值不满足B:输入末尾1ulp变化结果validlength部分几乎不变
+//ln(fb(1)+fb(1e-999))返回值不满足(mark语义):输入末尾1ulp变化结果validlength部分几乎不变
 //atan(fb(1e999))结果损失信息
-//对于大部分情况,输入有效长度等于输出是合理的,且validlength接近满足B语义
-//对于需要提升精度的场景,手动o(1)的setvalidlength或者from,结果有效长度就是你输入的
-//对于sin,cos,tan
-//计算结果采用输入最后1ulp变化结果validlength部分几乎不变语义,如这个测试
+//其余情况近似满足mark语义
+//对于需要提升精度的场景,手动o(1)的setvalidlength或者from
+//对于fsin,fcos,维护ans.exp=input.exp,(实际是max(input.exp,-fblen)防止cos(fb(1e-999))结果长度爆炸)
+//这导致sin(接近pi/2),cos(fb(1e-999))损失精度
+//其余情形sin,cos和任意tan,近似维护(mark语义),如这个测试
 /*
 #include "integerb.h"
 int main()
@@ -4425,9 +4425,8 @@ int main()
 PS D:\mycpp> .\a.exe
 281 282 500
 */
-//这种激进的策略导致atan(tan(x))不能复原全精度
-//对于需要提升精度的场景,对输入使用o(1)的setvalidlength或者from从而增大在mod pi/2下分辨率
-//fsin,fcos,ftan返回值在该分辨率下精确
+//对于需要提升精度的场景,对输入使用o(1)的setvalidlength或者from从而减小exp
+//直接操作sincos_usebs并传入足够小的lowexp
 floatb mathb::exp_usebs(const floatb&a)
 {
 	if(a.getlog()>21){std::cout<<"exp";exit(0);}
@@ -4626,7 +4625,9 @@ floatb mathb::sincos_usebs(const floatb&x,bool returnsin,int l,floatb*another)//
             b.setvalidlength(sneed);
             floatb b2=b*b,b4=b2*b2;
             floatb s1=(sinx_divx(b4,b2,endexp,sneed,0)-sinx_divx(b4,b2,endexp,sneed,1))*b;
-            floatb c1=floatb(floatb(1,1<<30)-s1*s1).calroot(2,1<<30);
+            floatb c1;
+			if((s1.EXP+s1.validlength())*2<endexp-5){c1=floatb(1,3-endexp);}
+			else{c1=floatb(floatb(1,1<<30)-s1*s1).calroot(2,1<<30);}
             if(nextlb||both)
             {
                 floatb o=(c0+s0)*(c1+s1),p=c0*c1,q=s0*s1;
@@ -4658,7 +4659,11 @@ floatb mathb::sincos_usebs(const floatb&x,bool returnsin,int l,floatb*another)//
         b.NUM.mul2pow(1);
         c0=b-floatb(1,1<<30);
     }
-	if(returns0||another){s0=floatb(floatb(1,1<<30)-c0*c0).calroot(2,1<<30);}
+	if(returns0||another)
+	{
+		if((c0.EXP+c0.validlength())*2<endexp-5){s0=floatb(1,3-endexp);}
+		else{s0=floatb(floatb(1,1<<30)-c0*c0).calroot(2,1<<30);}
+	}
 	s0.clear(l),c0.clear(l);
 	s0.NUM.sign=change?csign:ssign;
 	c0.NUM.sign=change?ssign:csign;
@@ -4673,8 +4678,8 @@ floatb mathb::sincos_usebs(const floatb&x,bool returnsin,int l,floatb*another)//
 floatb fln(const floatb&a){return mathb::ln_useagm(a);}
 floatb fexp(const floatb&a){return mathb::exp_usebs(a);}
 floatb fatan(const floatb&a){return mathb::atan_usebs(a);}
-floatb fsin(const floatb&a){return mathb::sincos_usebs(a,1,-(1<<30));}
-floatb fcos(const floatb&a){return mathb::sincos_usebs(a,0,-(1<<30));}
+floatb fsin(const floatb&a){return mathb::sincos_usebs(a,1,-floatb::fblen);}
+floatb fcos(const floatb&a){return mathb::sincos_usebs(a,0,-floatb::fblen);}
 floatb ftan(const floatb&a)
 {
 	floatb c,s=mathb::sincos_usebs(a,1,-(1<<30),&c);
