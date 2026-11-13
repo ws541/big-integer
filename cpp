@@ -4397,21 +4397,37 @@ floatb mathb::exp_bst(const floatb&x,int endexp,int need)
     mathb::samesign_sum(l,need);
     return l.back().t/l.back().q;
 }
-//在超越函数情形,仅仅一个validlength是无法承载全局计算精度prec,误差界2个语义的
+//在超越函数情形,输入与输出的误差非线性
 //回退到下述半自动化策略
 //返回值遵循输出长度严格小于等于输入长度(防止越算越慢),返回部分一定精确
 //对于exp,ln,atan,维护输出长度等于输入长度
 //这导致
-//exp(fb(1e-999))结果长度可能很短
-//ln(fb(1)+fb(1e-999))返回值不满足输入末尾1ulp变化结果validlength部分几乎不变
-//atan(fb(1e999))结果的有效精度被截断了
-//但是大部分情况,输入有效长度等于输出是合理的
+//exp(fb(1e-999))结果损失信息
+//ln(fb(1)+fb(1e-999))返回值不满足B:输入末尾1ulp变化结果validlength部分几乎不变
+//atan(fb(1e999))结果损失信息
+//对于大部分情况,输入有效长度等于输出是合理的,且validlength接近满足B语义
 //对于需要提升精度的场景,手动o(1)的setvalidlength或者from,结果有效长度就是你输入的
 //对于sin,cos,tan
-//计算结果采用输入最后1ulp变化结果validlength部分几乎不变语义
+//计算结果采用输入最后1ulp变化结果validlength部分几乎不变语义,如这个测试
+/*
+#include "integerb.h"
+int main()
+{
+    floatb a=fb(1e-999),b=integer(1);
+    b.EXP=-400;b.setvalidlength(1);
+    a=a+b;
+    floatb ans=ftan(a);
+    floatb u=ftan(a.from(500));
+    a=a-b;
+    floatb v=ftan(a.from(500));
+    std::cout<<mathb::samelimb(u,v)<<" "<<ans.validlength()<<" "<<u.validlength();
+}
+PS D:\mycpp> .\a.exe
+281 282 500
+*/
 //这种激进的策略导致atan(tan(x))不能复原全精度
 //对于需要提升精度的场景,对输入使用o(1)的setvalidlength或者from从而增大在mod pi/2下分辨率
-//直接调用sincos_usebs并且输入更负的lowexp参数从而允许更高精度的计算
+//fsin,fcos,ftan返回值在该分辨率下精确
 floatb mathb::exp_usebs(const floatb&a)
 {
 	if(a.getlog()>21){std::cout<<"exp";exit(0);}
@@ -4657,11 +4673,11 @@ floatb mathb::sincos_usebs(const floatb&x,bool returnsin,int l,floatb*another)//
 floatb fln(const floatb&a){return mathb::ln_useagm(a);}
 floatb fexp(const floatb&a){return mathb::exp_usebs(a);}
 floatb fatan(const floatb&a){return mathb::atan_usebs(a);}
-floatb fsin(const floatb&a){return mathb::sincos_usebs(a,1,-floatb::fblen);}
-floatb fcos(const floatb&a){return mathb::sincos_usebs(a,0,-floatb::fblen);}
+floatb fsin(const floatb&a){return mathb::sincos_usebs(a,1,-(1<<30));}
+floatb fcos(const floatb&a){return mathb::sincos_usebs(a,0,-(1<<30));}
 floatb ftan(const floatb&a)
 {
-	floatb c,s=mathb::sincos_usebs(a,1,-floatb::fblen,&c);
+	floatb c,s=mathb::sincos_usebs(a,1,-(1<<30),&c);
 	return s.divide(c,1<<30);
 }
 #endif
