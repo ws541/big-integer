@@ -3719,7 +3719,7 @@ floatb floatb::addorsub(const floatb& a, const floatb& b, bool add,int l)//è¿›ä¸
 	int azero,bzero,aexp,bexp;
     integer::view aview = a.clearview(azero,aexp,l), bview = b.clearview(bzero,bexp,l);
 	floatb ans;
-	bool asmall=azero==-1||!a.NUM.num.back(),bsmall=bzero==-1||!b.NUM.num.back();
+	bool asmall=azero==-1,bsmall=bzero==-1;
 	if(asmall)
 	{
 		if(bsmall){ans.EXP=l,ans.NUM=0;return ans;}
@@ -3747,13 +3747,9 @@ floatb floatb::addorsub(const floatb& a, const floatb& b, bool add,int l)//è¿›ä¸
 	{
 		ans.NUM.num.push_back(0);
 		ans.NUM.shiftadd(bview,bzero-ans.ZERO);
-		if(!ans.NUM.num.back()){ans.NUM.num.pop_back();}
 	}
-	else 
-	{
-		if(integer::abssub(ans.NUM.num.data(),ans.NUM.num.size(),bview.ptr,bview.len,bzero-ans.ZERO)<0){ans.NUM.sign*=-1;}
-		while(ans.NUM.num.size()>1&&ans.NUM.num.back()==0){ans.NUM.num.pop_back();}
-	}
+	else if(integer::abssub(ans.NUM.num.data(),ans.NUM.num.size(),bview.ptr,bview.len,bzero-ans.ZERO)<0){ans.NUM.sign*=-1;}
+	while(ans.NUM.num.size()>1&&ans.NUM.num.back()==0){ans.NUM.num.pop_back();}
 	ans.foldzero();
 	return ans;
 }
