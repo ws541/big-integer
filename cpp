@@ -4598,16 +4598,18 @@ floatb mathb::sincos_usebs(const floatb&x,bool returnsin,int l,floatb*another)//
 	int csign=(g==0||g==3)?1:-1;
 	bool change=h&1;
 	bool returns0=(returnsin!=change);//返回sina
-	if((a.validlength()+a.EXP)*2<a.EXP-10)
+	if(l>-1){l=-1;}
+	if(l<a.EXP){l=a.EXP;}
+	else{a.clear(l-1);}
+	if((a.validlength()+a.EXP)*2<l-10)
 	{
 		floatb s0=std::move(a),c0=floatb(1,-a.EXP);
 		if(change){std::swap(s0,c0);}
+		s0.clear(l),c0.clear(l);
 		s0.NUM.sign=ssign,c0.NUM.sign=csign;
 		if(returnsin){if(another){*another=std::move(c0);}return s0;}
 		else{if(another){*another=std::move(s0);}return c0;}
 	}
-	if(l<a.EXP){l=a.EXP;}
-	else{a.clear(l-2);}
     int m=(a.getlog()+logBase*0.5)/log(2);
     if(m>0)
     {
