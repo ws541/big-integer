@@ -2166,7 +2166,7 @@ integer mont::out(const integer& x)
 		bool add1=0;
 		for(int i=0,end=std::min((int)x.num.size(),m-1);i<end;i++){add1|=x.num[i]!=0;}
 		int shouldbe=(Base-add1-(x.num.size()<m?0:x.num[m-1]))&Bmask;
-		carry=u.num[m-1]>shouldbe;
+		if(u.num.size()>=m){carry=u.num[m-1]>shouldbe;}
 		//u(m-1)处来自低位量级eps=m*base^2/base^4=0,但是考虑全Bmask影响无法忽略eps=1
 		//u(m-1)+carry=shouldbe mod base,由eps=1得carry=0或者1 
 		//仅需修正u(m-1)=bmask,shouldbe=0情形,此时向上产生一个进位,判据u(m-1)>shouldbe
@@ -2454,7 +2454,7 @@ int getw(const  integer& n)
 	return std::min((int)n.num.size(), 4) + 1;
 }
 
-integer power(const integer& x, const integer& n, const integer& p)
+integer power(const integer& x, const integer& n, const integer& p)//p>1
 {
 	if (n.num.size() == 1)
 	{
