@@ -368,7 +368,7 @@ public:
     //1.这里搭了一颗树,必须立即用floatb接收从而触发树从顶部释放,否则不仅树没释放,节点也悬空
     //2.精度传导对a*(b-c)对于b=c采用b-c=base^(min(b.exp,c.exp))理解
     //3.使用表达式树而不是调用函数自动精度管理
-    static int fblen;//fb字符串构造精度(初始精度),fsin,fcos结果exp最小值min(-fblen,input.exp)
+    static int fblen;//fb字符串构造精度(初始精度),fsin,fcos结果exp最小值max(-fblen,input.exp)
     integer NUM;
     int EXP = 0;
     int LOW = 0;
@@ -446,3 +446,239 @@ floatb ftan(const floatb&a);
 #endif
 //g++ -O2 a.cpp -L. -lintegerb -I D:\mingw64download\mingw64\include -L D:\mingw64download\mingw64\lib -lgmp -lgmpxx -o a.exe
 //对比用命令
+/*
+deepseekharness
+
+
+0. 编译与链接
+--------------------------------------------------------------------------------
+  g++ -O2 -march=native -c integerb.cpp -o integerb.o
+  ar  rcs libintegerb.a integerb.o
+  g++ -O2 a.cpp -L. -lintegerb -o a.exe
+
+  头文件顶部有两个总开关（整数b.h:30-31）：
+
+    #define shulun 0     // 0 = 不编数论；1 = 幂/模幂/gcd/euclid/jacobi/inv；2 = 全量(含 QS、factor、dlsolver)
+    #define fudian 0     // 0 = 不编浮点；1 = floatb；2 = floatb + mathb 超越函数
+
+    代码量很大，建议单独编成静态库再链接。
+
+
+1. 分层结构
+--------------------------------------------------------------------------------
+  第 1 层  integer   定点大整数（28 bit / limb）
+  第 2 层  floatb    浮点 = NUM × 2^(28·EXP)
+  第 3 层  mathb     超越函数（exp/ln/atan/sin/cos/tan）
+  旁支      数论     gcd/euclid/jacobi/isprime/factor/euler/power/mont/mod/...
+  游戏级    QS 分解、indexcalculus、dlsolver —— 作者自己标注"游戏级"，不保证性能与健壮性
+
+
+2. integer 层
+--------------------------------------------------------------------------------
+2.1 表示
+    std::vector<int> num;        每个元素 28 bit（0 .. 2^28-1），小端（num[0] 最低）
+    int sign;                    +1 / -1
+    规范形式：num.back() != 0；零表示为 [0]
+    **零的符号可能是 -1** → tostring() 可能返回 "-0"
+
+2.2 构造
+    integer a(12345);            // from ll
+    integer b("123456789...");   // 十进制字符串
+    integer c = a + b;           // 所有二元运算都返回新对象
+
+2.3 基本运算
+    +  -  *  /  %                 // 除法向零截断（与 GMP tdiv 一致），可用 a%=b
+    一元 -
+    shift(n)                      // **按 limb 平移**，等价乘除 Base^n（n 可负）
+    mul2pow(n) / div2pow(n)       // **按 bit 平移**（多数人想用的是这个）
+    addsmall(n)                   // 加减一个绝对值<=Base的小整数（原地）
+    ctz()                         // 尾零 bit 数
+    absbigger(other, equal)       // |this| > |other|，equal=true 时 >=
+    tostring()                    // 十进制，精确
+
+2.4 幂与根
+    power(x, n)                   // 普通幂 x^n（注意与 3 参数模幂重载区分）
+    root(m, floor=1, zero=0)      // x 的 m 次根
+        m >= 1；m 最大可到 1e7（实测 2^(1e7) 这种 35 万 limb 的数也正确）
+        floor=1 → 精确 floor(x^(1/m))，满足 q^m <= x < (q+1)^m
+        zero   → 仅供 m>=3 的内部优化；**m==2 且 zero>0 会直接 exit(0)**，一般传 0
+    isqrt(floor=1)
+        floor=1 → 精确 floor(sqrt(x))
+        floor=0 → 返回误差 eps<1 的近似值（**不是ceil**）
+
+2.5 数论（shulun > 0）
+    gcd(a,b)                       // gcd(a,0)=|a|, gcd(0,0)=0
+    euclid(a,b,u,v)                // 返回 g，并满足 g = a*u + b*v
+    jacobi(a,b)                    // **b 必须是正奇数**，否则 exit(0)
+    inv(a,p)                       // 模逆（要求 gcd(a,p)=1）
+    power(x,n,p)                   // x^n mod p，p > 1，**支持偶数模**
+    fib(n)                         // 返回 {F_n, F_{n+1}}
+
+2.6 其它
+    toll()                         // **只能处理 num.size() <= 2（< 2^56）**，否则 exit(0)
+    getlog()                       // double，用于量级估计
+    mod_positive(b)                // 结果落在 [0,b)，负数也能正确取模
+    mod2pow(n)                     // 取低 n bit，**不处理符号**（负数原样带符号返回）
+
+2.7 integer 的坑
+    (1) shift 按 limb，不按 bit —— 最容易错的一条
+    (2) 零的符号不唯一，tostring 可能给 "-0"
+    (3) toll 限 2 limb
+    (4) root(2, ·, zero>0) 会 exit
+    (5) 所有错误都是用 exit(0) 处理（退出码还是 0），生产环境要自己包一层
+
+
+3. floatb 层（fudian > 0）
+--------------------------------------------------------------------------------
+3.1 表示
+    value = NUM × 2^(28·EXP)
+      NUM    : integer
+      EXP    : 最低有效 limb 的指数（limb 单位）
+      LOW/ZERO: 尾零记账
+    validlength() = num.size() - LOW + ZERO     // 有效 limb 数
+    绝对分辨率   = 2^(28·EXP)                    // 最末 limb 的权重
+
+3.2 两个语义（一个 validlength 承载不了两者）
+    (a) 全局精度：validlength 个 limb ≈ 8.43 × validlength 位十进制
+    (b) 绝对误差：2^(28·EXP)
+    所以超越函数在"极点"处会失效（见 3.6）。
+
+3.3 构造
+    floatb::fblen = 500;           // 全局默认构造精度（limb 数），默认 500
+    floatb a("1.234e-56");         // 按 fblen 解析
+    floatb b(integer_x);           // 直接用 integer，EXP = 0
+    a.from(l) / a.setvalidlength(l)  // 显式声明精度，O(1)
+    ** 想给浮点数用 sin/cos/tan，必须用字符串构造（保证 EXP<0），见 3.6(d)
+
+3.4 运算
+    floatb::addorsub(a, b, add, l)  // l 是 **lowexp 截断位**（不是长度！）
+    a.multiply(b, l)                // l = 目标 validlength，会被 min(l, validlength()) 裁剪
+    a.divide(b, l)
+    a.calroot(n, l)                 // n 次根
+    a.calpower(n, l)
+    +  -  *  /  与 froot/fpow 走表达式树
+
+3.5 表达式树
+    floatb r = fb(2.34) * fb(1e-999) + froot(fb(2), 2);
+    · 必须立刻赋给 floatb（触发树释放），不能只写 fb(...) 不接
+    · 树的精度传播会自动决定每个节点的 l
+    · froot(a,n) / fpow(a,n) 返回 expr
+
+3.6 floatb 的坑（**最容易踩的一段**）
+    (a) tostring() 有损
+        100 limb 只打 834 位十进制，而实际精度是 843 位
+        → 用 tostring 的位数当精度指标会**高估约 1 limb**，任何"打印对拍"都会看到 1 limb 假误差
+
+    (b) 除法链高报 ~1.6~2.0 limb
+        实测 (a*b)/(c+d) 15/15 都是 claimed - actual ≈ 1.8 limb
+        → 按 validlength() - 2 使用
+
+    (c) 动态范围的极点
+        exp(a) 当 a→0、ln(1+ε)、atan(x) 当 x→∞ 时，结果量级 O(1) 而输入信息在 ε
+        需要 |log2 ε| 位额外跨度，默认会丢
+        → 手动 setvalidlength(-EXP) / from() 抬高输入精度
+
+    (d) sin/cos/tan 要求 EXP < 0
+        mod_pidiv2 开头 if(a.EXP>=0) { cout<<"mod_pidiv2"; exit(0); }
+        floatb(integer(3)) 的 EXP=0 → 直接退出；必须用 floatb("3")
+
+    (e) 输出长度 = 输入长度（不会自动增长），需要更长就自己 from()
+
+    (f) 精度按输入声明，不按算法能力
+        同一表达式 fblen=100 与 fblen=1000 结果不同是正常的
+
+
+4. mathb 层（fudian > 1）
+--------------------------------------------------------------------------------
+    fexp(x)     ln|x| <= 21，否则 exit(0)
+    fln(x)      x > 0
+    fatan(x)    任意
+    fsin(x) / fcos(x) / ftan(x)   要求 x.EXP < 0
+
+    契约：输出 validlength = 输入 validlength，误差 ~Base^l
+          实测：打印 168 位里约 152~161 位正确（对应已知的 1.5~2 limb 折扣）
+
+    底层 sincos_usebs(x, returnsin, l, another)
+        l 是目标误差 Base^l，会被 max(l, x.EXP) 夹住
+        传更负的 l 不会更准；要更准必须让输入的 EXP 更负
+        （即先 setvalidlength/from 把输入精度抬高）
+
+    坑：
+        · atan(tan(x)) 不能复原全精度（tan 按输入分辨率量化）
+        · exp(fb(1e-999)) 结果会被截成 1
+        · ln(fb(1)+fb(1e-999)) 在极点处失去末位稳定性
+
+
+5. 数论层补充（shulun > 1）
+--------------------------------------------------------------------------------
+    isprime(x)         x >= 341550071728321 时用 Miller(2,3)+Lucas，否则 Miller 多基
+                       实测覆盖全部 Carmichael 数与基 2/3 强伪素数，无假阳性
+    shanks_sqrt(a,p)   p 素数，返回 s 满足 s² ≡ a (mod p)
+    euler(x, &l, p)    φ(x)，l 收因子；
+    factor(n, &pollard) 返回一个（不一定素）因子
+                       **定义域 n ∈ [2^56, ~2^173]，且可能 exit(0)**
+    mobius(x)           
+    primeroot(p, k0)   k0 = p-1 的素因子列表（nullptr 则自己分解）
+    order(a, n, phi, l0)
+                       **l0 必须是 φ(n) 的素因子列表**（euler_ 的约定）
+                       传错（比如传 n 的素因子）会死循环
+    primepow(x)        判断是否为素数幂（用 Pollard p-1 风格探测）
+
+    mont（要求 p **为奇数**）
+        M.p = p; M.init();
+        xm = M.in(x);   y  = M.out(xm);
+        M.add/sub(u,v)  作用于 Montgomery 形式
+        M.pow_binary(xm, n) / M.pow_exponent(xm, exponent(n,w), w)
+
+    mod（支持偶数模，p = 2^m · odd 的 CRT 分解）
+        mod q(p); pairs a = q.in(x);
+        q.add/sub/mul(a,b);  q.one()/q.zero();
+        q.out(pairs)   → **返回同余值，可能为负**（power 里会 ans+p 规范化）
+
+    power(x,n,p)   推荐直接用它：内部对偶数模走 mod 的 CRT，对奇数模走 mont
+                   n=0 且 p=1 时返回 1（边界，严格应为 0）
+
+
+6. 全局坑清单（按踩坑概率排序）
+--------------------------------------------------------------------------------
+  1. 所有错误处理都是 exit(0)（退出码为 0，无法区分正常退出）
+  2. 浮点tostring() 有损 ~1 limb，不能当精度指标
+  3. shift(n) 按 limb 不按 bit（按位用 mul2pow/div2pow）
+  4. floatb 的超越函数必须用字符串构造
+  5. 除法链 validlength 高报 ~2 limb
+  6. 零的符号可能是 -1，tostring 可能给 "-0"
+  7. 参数 l 的语义不一致：multiply/divide/calroot 是"长度"，addorsub 是"lowexp"
+  8. 定义域守卫：toll(<=2 limb)、exp(ln|x|<=21)、jacobi(b 正奇)、factor(n>=2^56)、
+     root(2,·,zero>0)、mod_pidiv2(EXP<0)
+
+
+7. 性能特征
+--------------------------------------------------------------------------------
+  乘法    Karatsuba / Toom-Cook / FFT（与 GMP 同量级，大规模接近）
+  除法    竖式 / Burnikel-Ziegler / 牛顿；中小规模仍用竖式
+  开方    分治 sqrtrem（DC，2026-11 修复过 view 偏移 bug）
+  模幂    Montgomery + 窗口法（exponent 编码）
+  超越函数 级数 / AGM / 牛顿
+
+  与 MPFR 比：超越函数慢 1.6~18 倍（大规模收敛到 ~1.7 倍）
+
+
+8. 测试结论（2026-11）
+--------------------------------------------------------------------------------
+  正确性：
+    · 整数四则 / isqrt / root(m 到 1e7) / gcd / euclid / jacobi / isprime
+    · power（含偶数模 CRT）/ mont / mod 类 / shanks_sqrt / order / primeroot / euler
+    · floatb 四则 + root/power + mathb 六函数
+    以上约 90 万项对拍全部正确，包括极端构造（10⁷ 次根、35 万 limb、F(6001)、
+    Carmichael 数、尾部零完全平方、偶数模）。
+
+  已修复的两个 bug：
+    · sqrtrem 的 view 偏移 1 —— 尾部零 >=112 bit 的完全平方 isqrt 会错
+    · mont::out 读 u.num[m-1] 越界 —— 大模数下 power 结果随机（每次不同）
+
+  建议：
+    · 整数层可放心用
+    · floatb 按 validlength()-2 声明精度，不要看 tostring 位数
+    · power 避开 (n=0, p=1)
+    · 把 exit(0) 换成异常后可作为正式依赖
+*/
