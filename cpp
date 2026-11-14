@@ -1128,7 +1128,7 @@ integer integer::sqrtdc(const integer::view&n,integer&res,bool needres)
     if(ns<4){return sqrtsmall(n,res,1);}
     int h=ns/4;
     integer s1=sqrtdc(integer::view(n.ptr,h*2,ns-1,1),res,1);
-	if(!res.num.back()){res=integer::view(n.ptr,h,h*2,1);}
+	if(!res.num.back()){res=integer::view(n.ptr,h,h*2-1,1);}
 	else
 	{
 		res=res.shift(h);
@@ -1137,7 +1137,7 @@ integer integer::sqrtdc(const integer::view&n,integer&res,bool needres)
     integer q=integer::divide(res,s1+s1,res);
     s1=s1.shift(h)+q;
     if(needres){
-        if(!res.num.back()){res=integer::view(n.ptr,0,h,1);}
+        if(!res.num.back()){res=integer::view(n.ptr,0,h-1,1);}
 		else
 		{
 			res=res.shift(h);
