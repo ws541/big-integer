@@ -1,6 +1,63 @@
 
 #include "integerb.h"
 
+// ---- 小整数内存池实现（非线程安全）----
+namespace
+{
+	constexpr int POOL_NCLS = 8;      // 1,2,4,...,128 个 int
+	constexpr int POOL_MAXN = 120;    // 只池化 <=120 个 int 的请求
+	constexpr int POOL_KEEP = 20;   // 每级最多缓存块数
+
+	struct alignas(16) PoolHeader { PoolHeader* next; int cls; int pad; };
+
+	PoolHeader* pool_head[POOL_NCLS] = {};
+	int pool_cnt[POOL_NCLS] = {};
+
+	inline int pool_class(std::size_t n, std::size_t& cap)
+	{
+		cap = 1; int cls = 0;
+		while (cap < n && cls < POOL_NCLS - 1) { cap <<= 1; cls++; }
+		return cls;
+	}
+}
+
+int* intpool_alloc::allocate(std::size_t n)
+{
+	if (!n) n = 1;
+	std::size_t cap; int cls = pool_class(n, cap);
+	if (n > (std::size_t)POOL_MAXN)
+	{
+		PoolHeader* h = (PoolHeader*)std::malloc(sizeof(PoolHeader) + n * sizeof(int));
+		if (!h) throw std::bad_alloc();
+		h->cls = -1;
+		return (int*)(h + 1);
+	}
+	if (pool_head[cls])
+	{
+		PoolHeader* h = pool_head[cls];
+		pool_head[cls] = h->next;
+		pool_cnt[cls]--;
+		return (int*)(h + 1);
+	}
+	PoolHeader* h = (PoolHeader*)std::malloc(sizeof(PoolHeader) + cap * sizeof(int));
+	if (!h) throw std::bad_alloc();
+	h->cls = cls;
+	return (int*)(h + 1);
+}
+
+void intpool_alloc::deallocate(int* p, std::size_t n)
+{
+	if (!p) return;
+	if (!n) n = 1;
+	std::size_t cap; int cls = pool_class(n, cap);
+	PoolHeader* h = (PoolHeader*)p - 1;
+	if (n > (std::size_t)POOL_MAXN || h->cls != cls) { std::free(h); return; }
+	if (pool_cnt[cls] >= POOL_KEEP) { std::free(h); return; }
+	h->next = pool_head[cls];
+	pool_head[cls] = h;
+	pool_cnt[cls]++;
+}
+
 // ============ 全局表与常量定义 ============
 
 std::vector<double> table(int f)
@@ -2216,7 +2273,7 @@ integer mont::sub(const integer& u, const integer& v)
 
 integer mont::pow_binary(const integer& x, const integer& y)
 {
-	const std::vector<int>& l = y.num;
+	const auto& l = y.num;
 	if (l.size() == 1 && l[0] == 0) { return f; }
 	integer u(x), v;
 	bool k = 1;
@@ -4410,7 +4467,7 @@ floatb mathb::exp_bst(const floatb&x,int endexp,int need)
 //这导致sin(接近pi/2),cos(fb(1e-999))损失精度
 //其余情形sin,cos和任意tan,近似维护(mark语义),如这个测试
 /*
-#include "integerb.h"
+#include "integerb_pool_full.h"
 int main()
 {
     floatb a=fb(1e-999),b=integer(1);
