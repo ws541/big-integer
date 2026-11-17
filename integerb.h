@@ -440,7 +440,8 @@ public:
 struct bst
 {
     int need;
-    floatb  p,q,t;
+    floatb  p,q,t,pextra;
+    bool pflag=0;
 };
 static void samesign_sum(std::vector<bst>&l,int need);
 static floatb getpi(int n);
