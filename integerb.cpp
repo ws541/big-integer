@@ -4247,23 +4247,36 @@ floatb mathb::chudnovsky(int n,int need,bool pos)
 }
 void mathb::samesign_sum(std::vector<bst>&l,int need)
 {
+	bool extra=!l[0].pextra.NUM.num.empty();
 	while(l.size()>1)
 	{
 		std::vector<bst>nextl;
 		int i=0;
 		if(l.size()&1)
 		{
+			l[0].pflag=0;
 			nextl.push_back(l[0]);i=1;
 		}
+		floatb h;
 		for(;i+1<l.size();i+=2)
 		{
 			bst &left=l[i],&right=l[i+1];
 			bst now;
 			now.need=left.need;
 			bool needp=(i+2!=l.size());
-			if(needp){now.p=right.p.multiply(left.p,now.need);now.p.setvalidlength(need);}
+			if(needp)
+			{
+				now.pflag=left.pflag&&right.pflag;
+				if(now.pflag==0||h.NUM.num.empty())
+				{
+					now.p=right.p.multiply(left.p,now.need);now.p.setvalidlength(need);
+					if(now.pflag){h=now.p;}
+				}
+				else{now.p=h;}
+				if(extra){now.pextra=left.pextra.multiply(right.pextra,now.need);}
+			}
 			now.q=left.q.multiply(right.q,now.need);now.q.setvalidlength(need);
-			now.t=left.t.multiply(right.q,now.need)+right.t.multiply(left.p,now.need);now.t.setvalidlength(need);
+			now.t=left.t.multiply(right.q,now.need)+right.t.multiply(extra?left.p.multiply(left.pextra,now.need):left.p,now.need);now.t.setvalidlength(need);
 			nextl.push_back(now);
 			bst l,r;
 			std::swap(l,left);
@@ -4375,11 +4388,11 @@ floatb mathb::getln2(int n0)
 		int n=std::max(n0+50,100);
 		int a=26,b=4801,c=8749;
 		int term=logBase*n/(4*log(a))+2,need=n+3;
-		floatb aa=(atanh_1divm_mulm(a,term,need,0)+atanh_1divm_mulm(a,term,need,1))/floatb(integer(a),need);
+		floatb aa=(atanh_1divm_mulm(a,term,need,0)+atanh_1divm_mulm(a,term,need,1))/floatb(a,need);
 		term=logBase*n/(4*log(b))+2;
-		floatb bb=(atanh_1divm_mulm(b,term,need,0)+atanh_1divm_mulm(b,term,need,1))/floatb(integer(b),need);
+		floatb bb=(atanh_1divm_mulm(b,term,need,0)+atanh_1divm_mulm(b,term,need,1))/floatb(b,need);
 		term=logBase*n/(4*log(c))+2;
-		floatb cc=(atanh_1divm_mulm(c,term,need,0)+atanh_1divm_mulm(c,term,need,1))/floatb(integer(c),need);
+		floatb cc=(atanh_1divm_mulm(c,term,need,0)+atanh_1divm_mulm(c,term,need,1))/floatb(c,need);
 		mathbln2=floatb(18,need)*aa-floatb(2,need)*bb+floatb(8,need)*cc;
 		mathbln2.setvalidlength(n);
 		gap=mathbln2.validlength()-n0;
@@ -4440,6 +4453,7 @@ floatb mathb::exp_bst(const floatb&x,int endexp,int need)
     {
         mathb::bst now;
         now.p=j?x:floatb(1,need);
+		now.pflag=j;
         now.q=floatb(j?j:1,need);
         now.t=now.p;
 		if(j)
@@ -4467,7 +4481,7 @@ floatb mathb::exp_bst(const floatb&x,int endexp,int need)
 //这导致sin(接近pi/2),cos(fb(1e-999))损失精度
 //其余情形sin,cos和任意tan,近似维护(mark语义),如这个测试
 /*
-#include "integerb_pool_full.h"
+#include "integerb.h"
 int main()
 {
     floatb a=fb(1e-999),b=integer(1);
@@ -4532,19 +4546,24 @@ floatb mathb::atan_m_divm(const floatb&m4,const floatb&m2,int n,int need,bool od
     for(ll j=0;j<n;j++)
     {
         mathb::bst now;
+		now.pflag=j;
 		if(odd)
 		{
-            now.p=j?m4.multiply(floatb(4*j-1,need),need):m2;
+            //now.p=j?m4.multiply(floatb(4*j-1,need),need):m2;
+			now.p=j?m4:m2;
+			now.pextra=floatb(j?4*j-1:1,need);
             now.q.NUM=j?4*j+3:3;
 			now.need=std::max((int)(need-(2*j+1)*f),1);
 		}
         else
 		{
-            now.p=j?m4.multiply(floatb(4*j-3,need),need):floatb(1,need);
+            //now.p=j?m4.multiply(floatb(4*j-3,need),need):floatb(1,need);
+			now.p=j?m4:floatb(1,need);
+			now.pextra=floatb(j?4*j-3:1,need);
             now.q.NUM=j?4*j+1:1;
 			now.need=std::max((int)(need-(2*j)*f),1);
 		}
-        now.t=now.p;
+        now.t=now.p.multiply(now.pextra,need);
         now.q.setvalidlength(need);
         l.push_back(now);
     }
@@ -4568,7 +4587,7 @@ floatb mathb::atan_usebs(const floatb&x)
         a=a.divide(b.calroot(2,l)+one,l);
     }
     int endexp=flag?-l-2:a.EXP-1;//flag情形为了维持结果不长于输入会损失一定精度
-    int gap=2,highexp;
+    int gap=endexp>-50?100:2,highexp;
     floatb sum(0,3-endexp);
     while(a.NUM.num.back()&&(highexp=a.EXP+a.validlength())>endexp)
     {
@@ -4608,6 +4627,7 @@ floatb mathb::sinx_divx(const floatb&x4,const floatb&x2,int endexp,int need,bool
     for(ll j=0;;j++)
     {
         mathb::bst now;
+		now.pflag=j;
         if(odd)
         {
             now.p=j?x4:x2;
@@ -4679,7 +4699,7 @@ floatb mathb::sincos_usebs(const floatb&x,bool returnsin,int l,floatb*another)//
     int endexp=l-3;
     integer::view aview=a.getview();
     floatb s0(0,3-endexp),c0(1,3-endexp);
-    int gap=2,lb=aview.len,nextlb,bexp=a.EXP+a.ZERO;
+    int gap=l>-50?100:2,lb=aview.len,nextlb,bexp=a.EXP+a.ZERO;
 	bool both=another&&m<=0;
     do
     {
