@@ -386,7 +386,7 @@ public:
     //1.这里搭了一颗树,必须立即用floatb接收从而触发树从顶部释放,否则不仅树没释放,节点也悬空
     //2.精度传导对a*(b-c)对于b=c采用b-c=base^(min(b.exp,c.exp))理解
     //3.使用表达式树而不是调用函数自动精度管理
-    static int fblen;//fb字符串构造精度(初始精度),fsin,fcos结果exp最小值max(-fblen,input.exp)
+    static int fblen;//fb字符串构造精度(初始精度),fsin,fcos结果长度最大值
     integer NUM;
     int EXP = 0;
     int LOW = 0;
