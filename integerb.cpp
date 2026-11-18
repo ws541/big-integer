@@ -1178,7 +1178,7 @@ integer integer::sqrtdc(const integer::view&n,integer&res,bool needres)
 //s=s1*b+q
 //s^2=a2*b^2+a1*b-b*r+q^2
 //u=T-(s+1)^2=a0+(r-2*s1)b-(q+1)^2,而r<2*s1,<0
-//v=T-(s-1)^2=a0+(r+2*s1)b-(q-1)^2,而归一化2*s1>b^2,q<b故>0
+//v=T-(s-1)^2=a0+(r+2*s1)b-(q-1)^2,而归一化2*s1>b,q<b故>0
 //当完全平方,假设s偏大1,T-s^2=1-2*s<a0+b*r-q^2,矛盾
 {
     int ns=n.len;
@@ -4029,7 +4029,7 @@ floatb floatb::calroot(int n,int l)const
 	else{a=*this;}
 	a.setvalidlength(l);
 	if(n==1){return a;}
-	ll t=l*n,gap=(t-l)*Blen,h=(n-(gap-(ll)a.EXP*Blen)%n)%n;
+	ll t=(ll)l*n,gap=(t-l)*Blen,h=(n-(gap-(ll)a.EXP*Blen)%n)%n;
 	if(t>1e9){std::cout<<"calroot";exit(0);}//validlenth()*n要在int一定余量以内,否则integer::root内部参数溢出,超高精度开超大次根用floatb自己写牛顿迭代
 	gap+=h;
 	floatbtmp=a.getview();
@@ -4468,36 +4468,7 @@ floatb mathb::exp_bst(const floatb&x,int endexp,int need)
     mathb::samesign_sum(l,need);
     return l.back().t/l.back().q;
 }
-//在超越函数情形,输入与输出的误差非线性
-//回退到下述半自动化策略
-//对于exp,ln,atan,维护输出长度等于输入长度
-//这导致
-//exp(fb(1e-999))结果损失信息
-//ln(fb(1)+fb(1e-999))返回值不满足(mark语义):输入末尾1ulp变化结果validlength部分几乎不变
-//atan(fb(1e999))结果损失信息
-//其余情况近似满足mark语义
-//对于需要提升精度的场景,手动o(1)的setvalidlength或者from
-//对于fsin,fcos,维护ans.exp=input.exp,(实际是max(input.exp,-fblen)防止cos(fb(1e-999))结果长度爆炸)
-//这导致sin(接近pi/2),cos(fb(1e-999))损失精度
-//其余情形sin,cos和任意tan,近似维护(mark语义),如这个测试
-/*
-#include "integerb.h"
-int main()
-{
-    floatb a=fb(1e-999),b=integer(1);
-    b.EXP=-400;b.setvalidlength(1);
-    a=a+b;
-    floatb ans=ftan(a);
-    floatb u=ftan(a.from(500));
-    a=a-b;
-    floatb v=ftan(a.from(500));
-    std::cout<<mathb::samelimb(u,v)<<" "<<ans.validlength()<<" "<<u.validlength();
-}
-PS D:\mycpp> .\a.exe
-281 282 500
-*/
-//对于需要提升精度的场景,对输入使用o(1)的setvalidlength或者from从而减小exp
-//直接操作sincos_usebs并传入足够小的lowexp
+//依然保持输出精度被输入精度钳制
 floatb mathb::exp_usebs(const floatb&a)
 {
 	if(a.getlog()>21){std::cout<<"exp";exit(0);}
@@ -4659,7 +4630,7 @@ floatb mathb::sinx_divx(const floatb&x4,const floatb&x2,int endexp,int need,bool
     mathb::samesign_sum(l,need);
     return l.back().t/l.back().q;
 }
-floatb mathb::sincos_usebs(const floatb&x,bool returnsin,int l,floatb*another)//尝试误差Base^l
+floatb mathb::sincos_usebs(const floatb&x,bool returnsin,int l,floatb*another)//l>0则为结果maxlen语义,l<0尝试误差Base^l(l被钳制到a.exp)
 //a先规约到+-pi/4,再/2到很小,a误差a.exp级别
 //sin,cos误差a.exp级别,cosa当a->0精度扩展,但是保守到a.exp级别
 //s0<-c0s1+s0c1,c0<-c0c1-s0s1
@@ -4675,7 +4646,12 @@ floatb mathb::sincos_usebs(const floatb&x,bool returnsin,int l,floatb*another)//
 	int csign=(g==0||g==3)?1:-1;
 	bool change=h&1;
 	bool returns0=(returnsin!=change);//返回sina
-	if(l>-1){l=-1;}
+	if(l>0)
+	{
+		if(another){std::cout<<"sincos";exit(0);}
+		if(returns0){l=a.EXP;}
+		else{l=-l;}//此时限制长度
+	}
 	if(l<a.EXP){l=a.EXP;}
 	else{a.clear(l-1);}
 	if((a.validlength()+a.EXP)*2<l-10)
@@ -4767,8 +4743,8 @@ floatb mathb::sincos_usebs(const floatb&x,bool returnsin,int l,floatb*another)//
 floatb fln(const floatb&a){return mathb::ln_useagm(a);}
 floatb fexp(const floatb&a){return mathb::exp_usebs(a);}
 floatb fatan(const floatb&a){return mathb::atan_usebs(a);}
-floatb fsin(const floatb&a){return mathb::sincos_usebs(a,1,-floatb::fblen);}
-floatb fcos(const floatb&a){return mathb::sincos_usebs(a,0,-floatb::fblen);}
+floatb fsin(const floatb&a){return mathb::sincos_usebs(a,1,floatb::fblen);}
+floatb fcos(const floatb&a){return mathb::sincos_usebs(a,0,floatb::fblen);}
 floatb ftan(const floatb&a)
 {
 	floatb c,s=mathb::sincos_usebs(a,1,-(1<<30),&c);
