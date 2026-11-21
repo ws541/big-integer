@@ -1,6 +1,21 @@
 
 #include "integerb.h"
 
+/* 读一个空白分隔的 token（语义同 std::cin >> s）：无长度上限、无额外拷贝、无静态状态。
+   逐字符读，纯标准库；若追求极致可把 std::getc 换成 _getc_nolock / getc_unlocked。 */
+static bool ib_read_token(std::string& s)
+{
+    s.clear();
+    int ch = std::getc(stdin);
+    while (ch==' '||ch=='\n'||ch=='\r'||ch=='\t'||ch=='\v'||ch=='\f')
+        ch = std::getc(stdin);
+    if (ch == EOF) return false;
+    s.reserve(256);
+    do { s.push_back((char)ch); ch = std::getc(stdin); }
+    while (ch != EOF && ch!=' '&&ch!='\n'&&ch!='\r'&&ch!='\t'&&ch!='\v'&&ch!='\f');
+    return true;
+}
+
 // ---- 小整数内存池实现（非线程安全）----
 namespace
 {
@@ -353,7 +368,7 @@ void integer::div_3n_2n(int*anum,int alen,const int*bnum,int blen,integer&q,int 
 	while(s<0)
 	{
 		s=-abssub(anum,alen,bnum,blen);
-		if(cnt++>2){std::cout<<"div_3n_2n ";exit(0);}
+		if(cnt++>2){std::fputs("div_3n_2n ", stdout);exit(0);}
 	}
 	if(cnt){abssub(q.num.data()+qstart,qlen,&cnt,1);}
 }
@@ -638,7 +653,7 @@ integer::integer(ll n)
 void integer::get()
 {
 	std::string s;
-	std::cin >> s;
+	ib_read_token(s);
 	*this = integer(s);
 }
 
@@ -701,7 +716,7 @@ void integer::e8tob28()
 ll integer::toll()const
 {
 	int ln = num.size();
-	if (ln > 2) { std::cout << "toll"; exit(0); }
+	if (ln > 2) { std::fputs("toll", stdout); exit(0); }
 	ll a = num.back();
 	if (ln > 1) { a = (a << Blen) + num[0]; }
 	return sign * a;
@@ -809,9 +824,9 @@ std::string integer::tostring(int m,int floatbe8)const
 
 void integer::print(bool stdendl, int m)const
 {
-	std::cout << tostring(m);
-	if (stdendl) { std::cout << '\n'; }
-	else { std::cout << ' '; }
+	std::fputs(tostring(m).c_str(), stdout);
+	if (stdendl) { std::fputc('\n', stdout); }
+	else { std::fputc(' ', stdout); }
 }
 
 bool integer::absbigger(const view& that, bool equal) const
@@ -835,7 +850,7 @@ integer integer::operator-()const
 
 void integer::shiftadd(const view& b, int i)
 {
-	if(b.len+i>num.size()){std::cout<<"shiftadd";exit(0);}
+	if(b.len+i>num.size()){std::fputs("shiftadd", stdout);exit(0);}
 	int lb = b.len, k = 0;
 	for (int j = 0; j < lb; j++)
 	{
@@ -882,7 +897,7 @@ void integer::operator%=(const integer& that)
 template <bool WantQ>
 integer integer::div_native(const view& a, const view& b, integer& r)
 {
-	if (!b.ptr[b.len - 1]) { std::cout << "integerdiv0"; exit(0); }
+	if (!b.ptr[b.len - 1]) { std::fputs("integerdiv0", stdout); exit(0); }
 	if(a.len<b.len){r=a;return 0;}
 	integer c;
 	if constexpr (WantQ)
@@ -940,7 +955,7 @@ integer integer::addorsub(const int* a, int la, int asign, const int* b, int lb,
 
 int integer::abssub(int* a, int la, const int* b, int lb,int bshift)//a-(b<<bshift)
 {
-	if (la < lb+bshift) { std::cout << "abssub"; exit(0); }
+	if (la < lb+bshift) { std::fputs("abssub", stdout); exit(0); }
 	for (int i = 0; i < lb; i++)
 	{
 		a[i+bshift] -= b[i];
@@ -1131,7 +1146,7 @@ integer integer::karamul(view  a, view b,int i,int iend)
 
 integer integer::shiftmul(const view& a, const view& b, int need, int& offset)
 {
-	if (need < 1) { std::cout << "shiftmul"; exit(0); }
+	if (need < 1) { std::fputs("shiftmul", stdout); exit(0); }
 	int b1 = std::max(0, a.len - need);
 	int b2 = std::max(0, b.len - need);
 	offset += b1 + b2;
@@ -1231,7 +1246,7 @@ integer integer::fftmul(const view&a,const view&b)
 {
     int m = (a.len+b.len) << 1, n = 256;
 	while (n < m) { n <<= 1; }
-	if (n > lenmax || n < 0) { std::cout << "fftmul"; exit(0); }
+	if (n > lenmax || n < 0) { std::fputs("fftmul", stdout); exit(0); }
 	int n4 = n >> 2;
 	double* x0 = b14rrii(a, n), * y0;
 	c2* xx = reinterpret_cast<c2*>(&x0[0]), * yy;
@@ -1273,7 +1288,7 @@ integer integer::fftmul(const view&a,const view&b)
 integer integer::nttmul(const view&a,const view&b)
     {
         int l=a.len+b.len;
-        if(l>>26){std::cout<<"nttmul reject";exit(0);}
+        if(l>>26){std::fputs("nttmul reject", stdout);exit(0);}
         int mlog2=std::min(log2lenmax-1,15),m=1<<mlog2,lenlog2=1;
         while(m>=l&&m>8){m>>=1;mlog2--;}
         int k=(m>>1)-1;
@@ -1282,7 +1297,7 @@ integer integer::nttmul(const view&a,const view&b)
             lenlog2++;
         }
         int len=1<<lenlog2;
-        if(mlog2+1<lenlog2){std::cout<<"nttmul need bigger log2lenmax";exit(0);}
+        if(mlog2+1<lenlog2){std::fputs("nttmul need bigger log2lenmax", stdout);exit(0);}
         const bool same=a.ptr==b.ptr&&a.len==b.len;
         int*x=mk(a,k,m,len),*y;
 		int*tmp=new int[m+2];
@@ -1413,7 +1428,7 @@ integer integer::reciprocal(const view& n,int l)
 integer integer::root(int m,bool floor,int zero)const//zero是浮点补丁
 {
 	if (!num.back() || m == 1) { return *this; }
-	if (m < 1||(zero&&m==2)) { std::cout << "root1"; exit(0); }
+	if (m < 1||(zero&&m==2)) { std::fputs("root1", stdout); exit(0); }
 	if (m == 2) { return isqrt(floor); }
 	int ns = num.size()+zero;
 	int f = ns / m + (ns % m != 0);
@@ -1486,7 +1501,7 @@ integer integer::root(int m,bool floor,int zero)const//zero是浮点补丁
 				//std::cout<<f<<" "<<tmp1.num.size()<<"\n";
 				view nview(*this, leftshift-zero);
 				int check = abssub(tmp1.num.data(), tmp1.num.size(), nview.ptr, nview.len);
-				if (check < 0) { std::cout << "root2"; exit(0); }
+				if (check < 0) { std::fputs("root2", stdout); exit(0); }
 				while (tmp1.num.size() > 1 && tmp1.num.back() == 0) { tmp1.num.pop_back(); }
 			}
 			bool flag = useyk;
@@ -1598,12 +1613,12 @@ integer integer::div_newton(const view& a, const view& b, integer& r,int bzero,b
 		integer now = karamul(pview,b);
         bview=lastview,db=lasty;
         lastview=lastviewtmp,lasty=lastytmp;
-		if (abssub(r.num.data() + start+bzero, std::min(l, lr)-bzero, now.num.data(), now.num.size()) < 0) { std::cout << "div_newton1"; exit(0); }
+		if (abssub(r.num.data() + start+bzero, std::min(l, lr)-bzero, now.num.data(), now.num.size()) < 0) { std::fputs("div_newton1", stdout); exit(0); }
 		if(wantq){q.shiftadd(pview, start);}
 		while (!r.num.back() && r.num.size() > 1) { r.num.pop_back(); }
 	}
     if(n>1){endcatch();if(bview.sign>0){delete[]db;}}
-	if (r.num.size() > lb + 4) { std::cout << "div_newton2"; exit(0); }
+	if (r.num.size() > lb + 4) { std::fputs("div_newton2", stdout); exit(0); }
 	if(bzero>0){r.div2pow(bzero*Blen);}
 	if(wantq)
 	{
@@ -1679,7 +1694,7 @@ integer integer::mod_positive(const integer& b)const
 
 int integer::ctz()const
 {
-	if(!num.back()){std::cout<<"ctz";exit(0);}
+	if(!num.back()){std::fputs("ctz", stdout);exit(0);}
 	int i = 0;
 	for (; i < num.size() - 1 && num[i] == 0; i++);
 	int h = num[i]; i *= Blen;
@@ -1800,7 +1815,7 @@ void integer::mul_core(std::vector<integer>& level, int& zeros)
 }
 integer power(const integer& b, const integer& c)
 {
-	if (c.sign == -1 || c.num.size() > 1) { std::cout << "power"; exit(0); }
+	if (c.sign == -1 || c.num.size() > 1) { std::fputs("power", stdout); exit(0); }
 	int n = c.num[0];
 	integer a(b), ans = n & 1 ? b : 1;
 	while (n >>= 1)
@@ -1997,7 +2012,7 @@ bool lehmer(integer& x, integer& y, integer* a, integer* b, integer* c, integer*
 
 int jacobi(const integer& a, const integer& b)
 {
-	if (b.num[0] % 2 == 0 || b.sign == -1) { std::cout << "jacobi"; exit(0); }
+	if (b.num[0] % 2 == 0 || b.sign == -1) { std::fputs("jacobi", stdout); exit(0); }
 	integer y(a.mod_positive(b)), x(b);
 	int m = 1;
 	while (y.num.back())
@@ -2066,7 +2081,7 @@ void hgcd(const integer::view& x, const integer::view& y, integer& a, integer& b
 	gcdshift2(a, b, c, d, A, B, C, D);
 	if (!yn.num.back() || yn.num.size() - 1 < m) { return; }
 	A = 0, B = C = 1, D = integer::divide(xn, yn, xn); D.sign = -D.sign;
-	if (yn.num.size() >= 2 * m) { std::cout << "hgcd"; exit(0); }
+	if (yn.num.size() >= 2 * m) { std::fputs("hgcd", stdout); exit(0); }
 	if (xn.num.back() && xn.num.size() > m)
 	{
 		int k = 2 * m - yn.num.size();
@@ -2803,8 +2818,8 @@ integer factor(const integer& n, bool& pollard)//不质数幂
 		if (check_lambda()) { return g; }
 		pollard = 0;
 	}
-	if (n.num.size() < 3) { std::cout << "pollard"; exit(0); }
-	if (n.getlog()>120) { std::cout << "qs too big"; exit(0); }
+	if (n.num.size() < 3) { std::fputs("pollard", stdout); exit(0); }
+	if (n.getlog()>120) { std::fputs("qs too big", stdout); exit(0); }
 	//qs知乎学的,10^47之内保证不超过10s
 	//11111111111111111111111111122332231111111111111117791这个需要20s,通过euler的参数l调用,不要直接调用factor
 	mont q;
@@ -2953,7 +2968,7 @@ integer factor(const integer& n, bool& pollard)//不质数幂
 			}neg[i] = 0;
 		}
 	}
-	std::cout << "factor"; exit(0);//可能是输入质数幂(qs非法输入)，或者极小概率geta产生重复的a导致，或者ok正常耗尽
+	std::fputs("factor", stdout); exit(0);//可能是输入质数幂(qs非法输入)，或者极小概率geta产生重复的a导致，或者ok正常耗尽
 }
 
 integer primepow(const integer& x)
@@ -3147,9 +3162,9 @@ bool indexcalculus::smooth(integer tmp,std::vector<int>&right)
 void indexcalculus::prepare()
 {
 	double lg = q.p.getlog();//lnp<42保证7s内
-	if(lg<20||lg>55){std::cout<<"indexcalculus reject";exit(0);}
+	if(lg<20||lg>55){std::fputs("indexcalculus reject", stdout);exit(0);}
 	if(lg>40){
-		std::cout << "\nif mingw64 -O2,ic estimated init time :" << 0.1216* exp(0.2427 *lg) / 1000.0 << " s\n";
+		std::printf("\nif mingw64 -O2,ic estimated init time :%g s\n", 0.1216* exp(0.2427 *lg) / 1000.0);
 	}//   Performance models (-O2,empirical):
 	int B=(15-lg*0.2)*pow(1.135,lg);
 	bound=lg*4-10;
@@ -3261,7 +3276,7 @@ void indexcalculus::init(int r0)
 	equa a(ps, pp);std::vector<ll>ans;
 	bool needr=1;
 	auto insert_lambda = [&a,&needr,&matrix, &ps, &need, &index, &needb, &indexb, &indexbb, &indexbbb, &maxtry, &left,&right,&ok,&ans](const  integer& pp)->void {
-		if(--ok<0){std::cout<<"p-1 too many factors,use dlsolver";exit(0);}
+		if(--ok<0){std::fputs("p-1 too many factors,use dlsolver", stdout);exit(0);}
 		for (int i = 0; i < right.size(); i += 2)
 		{
 			a.h[right[i]]=right[i + 1];
@@ -3443,7 +3458,7 @@ ll dlsolver::bsgs(const integer& a, const integer& b, int m)
         }
         now2 = ic.q.out(now2 * a);              // 你原代码是 *a
     }
-    std::cout << "bsgs"; exit(0);
+    std::fputs("bsgs", stdout); exit(0);
 }
 
 integer dlsolver::hellman(const integer&a,const integer&b)
@@ -3706,7 +3721,7 @@ void floatb::setvalidlength(int l)
     EXP += gap;
     if (ZERO > gap) { ZERO -= gap; }
     else { gap -= ZERO, ZERO = 0; LOW += gap;}
-    if (LOW >= NUM.num.size()) { std::cout << "setvalidlength"; exit(0); }//l>0就到不了这里
+    if (LOW >= NUM.num.size()) { std::fputs("setvalidlength", stdout); exit(0); }//l>0就到不了这里
 	foldzero();
 }
 
@@ -3832,7 +3847,7 @@ void floatb::quotient(const integer::view& a, const integer::view& b,int l,int a
 	for(int i=0;i<a.len;i++){floatbtmp.num.push_back(a.ptr[i]);}
     floatbtmp.num.push_back(0);
     int ln,w=l-b.len-bzero-1;
-	if(w>-1){std::cout<<"quotient request out of range";exit(0);}
+	if(w>-1){std::fputs("quotient request out of range", stdout);exit(0);}
     for (;(t =(ln = floatbtmp.num.size())+w) > 0&&ln>2; floatbtmp.num.pop_back())
     {
         int q = (((((ull)floatbtmp.num.back() << Blen) + floatbtmp.num[ln - 2]) << m_5)
@@ -3904,7 +3919,7 @@ integer floatb::div_native(const integer::view& a, const integer::view& b,int l,
 
 integer floatb::divide_core(const integer::view& a, const integer::view& b,int l,int azero,int  bzero)
 {
-	if(a.len+azero!=b.len+bzero||l>b.len+bzero){std::cout<<"divide_core";exit(0);}
+	if(a.len+azero!=b.len+bzero||l>b.len+bzero){std::fputs("divide_core", stdout);exit(0);}
 	if(a.ptr[a.len-1]==0){return 0;}
 	if(l>50&&b.len>50&&(b.len>bzero?(b.len>700-bzero*550.0/b.len):(b.len+bzero>300)))
 	{
@@ -3951,7 +3966,7 @@ floatb floatb::multiply(const floatb& b,int l) const//尝试结果validlehgth=l
 
 floatb floatb::divide(const floatb& b,int l) const//尝试NUM层面a*base^l/b,尝试结果validlehgth=l
 {
-	if(!b.NUM.num.back()){std::cout<<"floatbdiv0";exit(0);}
+	if(!b.NUM.num.back()){std::fputs("floatbdiv0", stdout);exit(0);}
 	integer::view aview = getview(), bview = b.getview();
 	int azero=ZERO,bzero=b.ZERO,la = aview.len+azero, lb = bview.len+bzero;
 	if(l>la){l=la;}
@@ -3968,7 +3983,7 @@ floatb floatb::divide(const floatb& b,int l) const//尝试NUM层面a*base^l/b,�
 }
 integer floatb::intdiv(const floatb&b,floatb&r,bool wantq)const
 {
-	if(b.validlength()+b.EXP<=EXP){std::cout<<"intdiv";exit(0);}
+	if(b.validlength()+b.EXP<=EXP){std::fputs("intdiv", stdout);exit(0);}
 	if(validlength()+EXP<=b.EXP){r=*this;return 0;}
 	int gap=EXP-b.EXP;
 	integer::view aview=getview(),bview=b.getview();
@@ -4030,7 +4045,7 @@ floatb floatb::calroot(int n,int l)const
 	a.setvalidlength(l);
 	if(n==1){return a;}
 	ll t=(ll)l*n,gap=(t-l)*Blen,h=(n-(gap-(ll)a.EXP*Blen)%n)%n;
-	if(t>1e9){std::cout<<"calroot";exit(0);}//validlenth()*n要在int一定余量以内,否则integer::root内部参数溢出,超高精度开超大次根用floatb自己写牛顿迭代
+	if(t>1e9){std::fputs("calroot", stdout);exit(0);}//validlenth()*n要在int一定余量以内,否则integer::root内部参数溢出,超高精度开超大次根用floatb自己写牛顿迭代
 	gap+=h;
 	floatbtmp=a.getview();
 	//std::cout<<floatbtmp.num.size()<<"\n";
@@ -4128,7 +4143,7 @@ floatb::floatb(const std::string&s)
 void floatb::get()
 {
 	std::string s;
-	std::cin>>s;
+	ib_read_token(s);
 	*this=floatb(s);
 }
 
@@ -4161,7 +4176,7 @@ std::string floatb::tostring(int m) const
 	floatb h=integer(e8);h.setvalidlength(m);
 	if (flag) { n-=(n!=0);h=multiply(h.calpower(n,m),m); }
 	else { n++;h=divide(h.calpower(n,m),m);}
-	if(h.EXP>0){std::cout<<"tostring";exit(0);}
+	if(h.EXP>0){std::fputs("tostring", stdout);exit(0);}
 	int hzero;
 	integer::view hview=h.leftshiftview(hzero,-h.EXP);
 	integer ans;
@@ -4174,9 +4189,9 @@ std::string floatb::tostring(int m) const
 
 void floatb::print(bool stdendl, int m) const
 {
-    std::cout << tostring(m);
-    if (stdendl) { std::cout << '\n'; }
-    else { std::cout << ' '; }
+    std::fputs(tostring(m).c_str(), stdout);
+    if (stdendl) { std::fputc('\n', stdout); }
+    else { std::fputc(' ', stdout); }
 }
 bool floatb::absbigger(const floatb&b,bool  equal)const
 {
@@ -4405,7 +4420,7 @@ floatb mathb::getln2(int n0)
 }
 int mathb::mod_pidiv2(floatb a,floatb&r)
 {
-	if(a.EXP>=0){std::cout<<"mod_pidiv2";exit(0);}
+	if(a.EXP>=0){std::fputs("mod_pidiv2", stdout);exit(0);}
 	int avl=a.validlength(),aexp=a.EXP,need=avl+2;
 	int gap=need+aexp;
 	bool fake=avl+aexp>0&&gap>0;
@@ -4428,7 +4443,7 @@ int mathb::mod_pidiv2(floatb a,floatb&r)
 }
 floatb mathb::ln_useagm(const floatb&a)
 {
-	if(a.NUM.num.back()==0||a.NUM.sign<0){std::cout<<"ln";exit(0);}
+	if(a.NUM.num.back()==0||a.NUM.sign<0){std::fputs("ln", stdout);exit(0);}
 	int l=a.validlength();
 	floatb q=getpi(l).divide(floatb(2,l),l);
 	ll h=(l+a.EXP-1)*Blen,k=l*Blen,m=k/2-h;
@@ -4471,7 +4486,7 @@ floatb mathb::exp_bst(const floatb&x,int endexp,int need)
 //依然保持输出精度被输入精度钳制
 floatb mathb::exp_usebs(const floatb&a)
 {
-	if(a.getlog()>21){std::cout<<"exp";exit(0);}
+	if(a.getlog()>21){std::fputs("exp", stdout);exit(0);}
     int l=a.validlength();
 	floatb b;
     int m=std::max((int)(a.getlog()/log(2)+30),0);
@@ -4648,7 +4663,7 @@ floatb mathb::sincos_usebs(const floatb&x,bool returnsin,int l,floatb*another)//
 	bool returns0=(returnsin!=change);//返回sina
 	if(l>0)
 	{
-		if(another){std::cout<<"sincos";exit(0);}
+		if(another){std::fputs("sincos", stdout);exit(0);}
 		if(returns0){l=a.EXP;}
 		else{l=-l;}//此时限制长度
 	}
