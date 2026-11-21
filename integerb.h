@@ -1,7 +1,7 @@
 
 #ifndef _INTEGERB_H_
 #define _INTEGERB_H_
-//使用此推荐编译指令快
+//使用此推荐编译指令快,一定编译成.a否则单次编译很慢
 /*
 # 1. 编译 .cpp 成 .o
 g++ -O2 -march=native -c integerb.cpp -o integerb.o
@@ -22,7 +22,7 @@ g++ -O2 a.cpp -L. -lintegerb -o a.exe
 //mpfr,flint,python
 //大量实现是自推导原理(比如root,lehmer的shift2),经过海量验证,但是无法保证一定正确
 //[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-#include <iostream>
+#include <cstdio>
 #include <vector>
 #include <cmath>
 #include <complex>
@@ -140,7 +140,7 @@ public:
         view(const view& x, int leftshift) {
             ptr = x.ptr + leftshift;
             len = x.len - leftshift;
-            if (len < 1 || leftshift < 0) { std::cout << "view leftshift"; exit(0); }
+            if (len < 1 || leftshift < 0) { std::fputs("view leftshift", stdout); exit(0); }
             sign = x.sign;
         }
     };
@@ -386,7 +386,7 @@ public:
     //1.这里搭了一颗树,必须立即用floatb接收从而触发树从顶部释放,否则不仅树没释放,节点也悬空
     //2.精度传导对a*(b-c)对于b=c采用b-c=base^(min(b.exp,c.exp))理解
     //3.使用表达式树而不是调用函数自动精度管理
-    static int fblen;//fb字符串构造精度(初始精度),fsin,fcos结果长度最大值
+    static int fblen;//fb字符串构造精度(初始精度),fsin,fcos当结果接近1时候长度限值
     integer NUM;
     int EXP = 0;
     int LOW = 0;
