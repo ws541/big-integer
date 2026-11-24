@@ -1,4 +1,3 @@
-
 #include "integerb.h"
 
 /* 读一个空白分隔的 token（语义同 std::cin >> s）：无长度上限、无额外拷贝、无静态状态。
@@ -1470,16 +1469,18 @@ integer integer::root(int m,bool floor,int zero)const//zero是浮点补丁
 		{
 			b = 0;
 			integer tmp = shiftpow(xt, m - 1, need, b);
+			int diff = std::max((int)tmp.num.size() - (int)xt.num.size()-1,0);
+			view tmpview(tmp, diff);
 			b1 = 0;
-			integer tmp1 = shiftmul(xt, tmp, need, b1).shift(b1);
-			leftshift = m * (f - k) + b;
+			integer tmp1 = shiftmul(xt, tmp, need, b1).shift(b1-diff);
+			leftshift = m * (f - k) + b+diff;
 			if (num.size() > leftshift-zero) {
 				//std::cout<<f<<" "<<tmp1.num.size()<<"\n";
 				view nview(*this, leftshift-zero);
 				abssub(tmp1.num.data(), tmp1.num.size(), nview.ptr, nview.len);
 				while (tmp1.num.size() > 1 && tmp1.num.back() == 0) { tmp1.num.pop_back(); }
 			}
-			q = tmp1 / (tmp * m);
+			q = div_native<1>(tmp1,tmpview,tmp1)/m;
 		} while (q.sign > 0 && q.num.back() && (xt = xt - q).num.back());
 		int p = k - 1;
 		integer yt; int l, yk = 0;
@@ -1488,6 +1489,9 @@ integer integer::root(int m,bool floor,int zero)const//zero是浮点补丁
 		while (k1 > 5) { k1 = k1 / 2 + 1; k1 += ((k1 & 1) == 1); kplan.push_back(k1); }
 		bool again=f<10;
 		while (k < f||again)
+		//使用diff=(xt^m-n0)/(m*xt^(m-1)),xt-=diff
+		//看似多算了xt^m但是由于有效长度翻倍,diff商长度约等于上一次xt长度而如果((m-1)*xt+n0/xt^(m-1))/m,这里的除法商长度是这一次结果xt的商长度
+		//公式采用xt=(n/base^(f-k)*m)^(1/m),n0=n/base^(f-k)*m
 		{
 			xt.addsmall(1);
 			again&=k<f;
@@ -1495,20 +1499,20 @@ integer integer::root(int m,bool floor,int zero)const//zero是浮点补丁
 			else if (!kplan.empty() && kplan.back() > k && kplan.back() - k < p) { p = kplan.back() - k; kplan.pop_back(); }
 			need = xt.num.size() + p + 2, b = 0, b1 = 0;
 			integer tmp = shiftpow(xt, m - 1, need, b);
-			integer tmp1 = shiftmul(xt, tmp, need, b1).shift(b1 + p);//tmp1最大,决定*this折叠0边界
-			leftshift = m * (f - k) + b - p;
+			int diff = std::max((int)tmp.num.size() - (int)xt.num.size()-1,0);
+			view tmpview(tmp, diff);
+			integer tmp1 = shiftmul(xt, tmp, need, b1).shift(b1 + p-diff);//tmp1最大,决定*this折叠0边界
+			leftshift = m * (f - k) + b+diff - p;
 			if (num.size() > leftshift-zero) {
 				//std::cout<<f<<" "<<tmp1.num.size()<<"\n";
 				view nview(*this, leftshift-zero);
 				int check = abssub(tmp1.num.data(), tmp1.num.size(), nview.ptr, nview.len);
-				if (check < 0) { std::fputs("root2", stdout); exit(0); }
+				if (check < 0) { std::fputs("root2", stdout);exit(0); }
 				while (tmp1.num.size() > 1 && tmp1.num.back() == 0) { tmp1.num.pop_back(); }
 			}
 			bool flag = useyk;
 			if (useyk)
 			{
-				int diff = tmp.num.size() - xt.num.size();
-				view tmpview(tmp, diff);
 				if (yt.num.empty())
 				{
 					l = 2 * tmpview.len;
@@ -1527,15 +1531,15 @@ integer integer::root(int m,bool floor,int zero)const//zero是浮点补丁
 					while (yt.num.back() == 0 && yt.num.size() > 1) { yt.num.pop_back(); }
 					l += yk;
 				}
-				need = tmp1.num.size() - tmp.num.size() + 1, b = 0;
+				need = tmp1.num.size() - tmpview.len + 1, b = 0;
 				if (need > 7)
 				{
 					q = shiftmul(tmp1, yt, need, b);
-					view qview(q, l + diff - b);
-					integer prod = karamul(qview, tmp);
+					view qview(q, l- b);
+					integer prod = karamul(qview, tmpview);
 					tmp1.sign = abssub(tmp1.num.data(), tmp1.num.size(), prod.num.data(), prod.num.size());
 					while (tmp1.num.back() == 0 && tmp1.num.size() > 1) { tmp1.num.pop_back(); }
-					integer q1= divide(tmp1, tmp, tmp1);
+					integer q1= divide(tmp1, tmpview, tmp1);
 					q = addorsub(qview.ptr, qview.len, qview.sign, q1.num.data(), q1.num.size(), q1.sign, 1);
 					if (tmp1.sign == -1 && tmp1.num.back()) { q.addsmall(-1); }
 					q = q / m;
@@ -1544,7 +1548,8 @@ integer integer::root(int m,bool floor,int zero)const//zero是浮点补丁
 			}
 			if (!flag)
 			{
-				q = divide(tmp1,tmp,tmp1) / m;
+				//std::cout<<tmp1.num.size()-tmp.num.size()<<" "<<xt.num.size()<<"\n";
+				q = divide(tmp1,tmpview,tmp1) / m;
 			}
 			xt = xt.shift(p);
 			abssub(xt.num.data(), xt.num.size(), q.num.data(), q.num.size());
@@ -4050,7 +4055,7 @@ floatb floatb::calroot(int n,int l)const
 	floatbtmp=a.getview();
 	//std::cout<<floatbtmp.num.size()<<"\n";
 	ll diff=gap+a.ZERO*Blen;
-	ll mindiff=(l*3+10-(int)floatbtmp.num.size())*Blen+diff%Blen;
+	ll mindiff=(l*2+10-(int)floatbtmp.num.size())*Blen+diff%Blen;
 	int hiddenzero;
 	if(diff>mindiff){floatbtmp.mul2pow(mindiff);hiddenzero=(diff-mindiff)/Blen;}
 	else{floatbtmp.mul2pow(diff);hiddenzero=0;}
@@ -4645,7 +4650,7 @@ floatb mathb::sinx_divx(const floatb&x4,const floatb&x2,int endexp,int need,bool
     mathb::samesign_sum(l,need);
     return l.back().t/l.back().q;
 }
-floatb mathb::sincos_usebs(const floatb&x,bool returnsin,int l,floatb*another)//l>0则为结果maxlen语义,l<0尝试误差Base^l(l被钳制到a.exp)
+floatb mathb::sincos_usebs(const floatb&x,bool returnsin,int l,floatb*another)//l>0则为结果接近1时maxlen语义,l<0尝试误差Base^l(l被钳制到a.exp)
 //a先规约到+-pi/4,再/2到很小,a误差a.exp级别
 //sin,cos误差a.exp级别,cosa当a->0精度扩展,但是保守到a.exp级别
 //s0<-c0s1+s0c1,c0<-c0c1-s0s1
