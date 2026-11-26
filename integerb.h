@@ -234,10 +234,12 @@ void gcdshift1(integer& x, integer& y, const integer& A, const integer& B, const
 void gcdshift2(integer& a, integer& b, integer& c, integer& d,
                const integer& A, const integer& B, const integer& C, const integer& D);
 void gcdshift1_inplace(integer&x, integer&y, ll A, ll B, ll C, ll D);
+void gcdshift3(integer&x,integer&xn,int m);
 void gethigh(integer&x, integer&y, ll&xh, ll&yh);
 bool lehmer(integer& x, integer& y, integer* a, integer* b, integer* c, integer* d);
 int jacobi(const integer& a, const integer& b);
-void hgcd(const integer::view& x, const integer::view& y, integer& a, integer& b, integer& c, integer& d);
+template <bool flag=1>
+void hgcd(integer& x, integer& y, integer* a, integer* b, integer* c, integer* d);
 integer gcd(const integer& m, const integer& n);
 integer euclid(const integer& m, const integer& n, integer& a, integer& c);
 integer inv(const integer& a, const integer& p);
@@ -463,6 +465,7 @@ floatb ftan(const floatb&a);
 #endif
 #endif
 //g++ -O2 a.cpp -L. -lintegerb -I D:\mingw64download\mingw64\include -L D:\mingw64download\mingw64\lib -lgmp -lgmpxx -o a.exe
+//g++ -O2 a.cpp -ID:/mycpp/third_party/mpfr/include -LD:/mycpp/third_party/mpfr/lib -lmpfr -I D:\mingw64download\mingw64\include -L D:\mingw64download\mingw64\lib -lgmp -lgmpxx -static -o a.exe
 //对比用命令
 /*
 deepseekharness
