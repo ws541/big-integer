@@ -1976,7 +1976,7 @@ void gethigh(integer&x,integer&y,ll&xh,ll&yh)
 
 bool lehmer(integer& x, integer& y, integer* a, integer* b, integer* c, integer* d)
 {
-	if (a) { a->sign *= x.sign; c->sign *= x.sign; b->sign *= y.sign; d->sign *= y.sign;}
+	if (d) { a->sign *= x.sign; c->sign *= x.sign; b->sign *= y.sign; d->sign *= y.sign;}
 	x.sign = y.sign = 1;
 	ll xh,yh;gethigh(x,y,xh,yh);
 	ll A = 1, B = 0, C = 0, D = 1, q, u, v, check;
@@ -2010,7 +2010,7 @@ bool lehmer(integer& x, integer& y, integer* a, integer* b, integer* c, integer*
 			b.sign *= (D > 0 ? 1 : -1);
 			a.sign = -b.sign;
 		};
-		if (a) shift2(*a, *b, A, B, C, D), shift2(*c, *d, A, B, C, D);
+		if (d) {shift2(*a, *b, A, B, C, D), shift2(*c, *d, A, B, C, D);}
 	}
 	return B;
 }
@@ -2061,38 +2061,72 @@ int jacobi(const integer& a, const integer& b)
 	return b.num.size() == 1 && b.num[0] == 1;
 }
 
-void hgcd(const integer::view& x, const integer::view& y, integer& a, integer& b, integer& c, integer& d)
+void gcdshift3(integer&x,integer&xn,int m)
 {
-	int m = x.len / 2;
+	const bool absadd=(x.sign==xn.sign);
+	int h=(int)xn.num.size()+m+absadd-(int)x.num.size();
+	if(h>0){x.num.insert(x.num.end(),h,0);}
+	if(absadd)
+	{
+		x.shiftadd(xn,m);
+	}
+	else
+	{
+		x.sign*=integer::abssub(x.num.data(),x.num.size(),xn.num.data(),xn.num.size(),m);
+	}
+	while(x.num.size()>1&&x.num.back()==0){x.num.pop_back();}
+}
+template<bool flag>
+void hgcd(integer& x, integer& y, integer* a, integer* b, integer* c, integer* d)
+{
+	int m = x.num.size() / 2;
 	if (m < 100)
 	{
-		integer xn(x), yn(y);
-		while (yn.num.back() && yn.num.size() >= m)
+		if constexpr(!flag){std::fputs("hgcd:small  dont in loop", stdout);exit(0);}
+		while (y.num.back() && y.num.size() >= m)
 		{
-			int l = yn.num.size();
-			if (!(l > m && xn.num.size() < l + 2 && lehmer(xn, yn, &a, &b, &c, &d)))
+			int l = y.num.size();
+			if (!(l > m && x.num.size() < l + 2 && lehmer(x, y, a, b, c, d)))
 			{
-				integer q = integer::divide(xn, yn, xn);
-				gcdshift(a, b, q);
-				gcdshift(c, d, q);
-				std::swap(xn, yn);
+				integer q = integer::divide(x, y, x);
+				gcdshift(*a, *b, q);
+				gcdshift(*c, *d, q);
+				std::swap(x, y);
 			}
 		}return;
 	}
-	else if (y.len - 1 < m) { return; }
-	integer A(1), B(0), C(0), D(1), xn(x), yn(y);
-	hgcd(integer::view(xn.num.data(), m, xn.num.size() - 1, xn.sign), integer::view(yn.num.data(), m, yn.num.size() - 1, yn.sign), A, B, C, D);
-	gcdshift1(xn, yn, A, B, C, D);
-	gcdshift2(a, b, c, d, A, B, C, D);
-	if (!yn.num.back() || yn.num.size() - 1 < m) { return; }
-	A = 0, B = C = 1, D = integer::divide(xn, yn, xn); D.sign = -D.sign;
-	if (yn.num.size() >= 2 * m) { std::fputs("hgcd", stdout); exit(0); }
-	if (xn.num.back() && xn.num.size() > m)
+	else if (y.num.size() - 1 < m) { return; }
+	integer A(1), B(0), C(0), D(1), xn,yn;
+	hgcd<1>(xn=integer::view(x.num.data(), m, x.num.size() - 1, x.sign),yn=integer::view(y.num.data(), m, y.num.size() - 1, y.sign), &A, &B, &C, &D);
+	x.num.resize(m),y.num.resize(m);
+	while(x.num.size()>1&&x.num.back()==0){x.num.pop_back();}
+	while(y.num.size()>1&&y.num.back()==0){y.num.pop_back();}
+	gcdshift1(x, y, A, B, C, D);
+	gcdshift3(x,xn,m);
+	gcdshift3(y,yn,m);
+	if constexpr(flag){gcdshift2(*a, *b, *c, *d, A, B, C, D);}
+	if (!y.num.back() || y.num.size() - 1 < m) { return; }
+	D= integer::divide(x, y, x);
+	if constexpr(flag)
 	{
-		int k = 2 * m - yn.num.size();
-		hgcd(integer::view(yn.num.data(), k, yn.num.size() - 1, yn.sign), integer::view(xn.num.data(), k, xn.num.size() - 1, xn.sign), A, B, C, D);
+		gcdshift(*a,*b,D);
+		gcdshift(*c,*d,D);
 	}
-	gcdshift2(a, b, c, d, A, B, C, D);
+	std::swap(x,y);
+	if (y.num.back() && y.num.size() > m)
+	{
+		int k = 2 * m - (int)x.num.size();
+		if (k<0) { std::fputs("hgcd", stdout); exit(0); }
+		A=D=1,B=C=0;
+		hgcd<1>(xn=integer::view(x.num.data(), k, x.num.size() - 1, x.sign),yn=integer::view(y.num.data(), k, y.num.size() - 1, y.sign), &A, &B, &C, &D);
+		x.num.resize(k),y.num.resize(k);
+		while(x.num.size()>1&&x.num.back()==0){x.num.pop_back();}
+		while(y.num.size()>1&&y.num.back()==0){y.num.pop_back();}
+		gcdshift1(x, y, A, B, C, D);
+		gcdshift3(x,xn,k);
+		gcdshift3(y,yn,k);
+		if constexpr(flag){gcdshift2(*a, *b, *c, *d, A, B, C, D);}
+	}
 }
 
 integer gcd(const integer& m, const integer& n)
@@ -2101,11 +2135,9 @@ integer gcd(const integer& m, const integer& n)
 	if (y.absbigger(x, 0)) { std::swap(x, y); }
 	while (y.num.back())
 	{
-		while (y.num.size() > 3100 && 10 * y.num.size() > 9 * x.num.size())
+		while (y.num.size() > 1500 && 10 * y.num.size() > 9 * x.num.size())
 		{
-			integer A(1), B(0), C(0), D(1);
-			hgcd(x, y, A, B, C, D);
-			gcdshift1(x, y, A, B, C, D);
+			hgcd<0>(x, y,0,0,0,0);
 		}
 		if (y.num.back())
 		{
@@ -2133,8 +2165,7 @@ integer euclid(const integer& m, const integer& n, integer& a, integer& c)
 		while (10 * y.num.size() > 9 * x.num.size())
 		{
 			integer A(1), B(0), C(0), D(1);
-			hgcd(x, y, A, B, C, D);
-			gcdshift1(x, y, A, B, C, D);
+			hgcd<1>(x, y, &A, &B, &C, &D);
 			gcdshift2(a, b, c, d, A, B, C, D);
 		}
 		if (y.num.size() > 900)
