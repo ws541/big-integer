@@ -4499,7 +4499,7 @@ floatb mathb::ln_useagm(const floatb&a)
 floatb mathb::exp_bst(const floatb&x,int endexp,int need)
 {
     std::vector<mathb::bst>l;
-	floatb h=x.from(1),u(1,1),v=u;
+	floatb h=x.from(2),u(1,2),v=u;//因为没有归一化from1无法保证会不会变成1bit垃圾
     for(ll j=0;;j++)
     {
         mathb::bst now;
@@ -4509,10 +4509,10 @@ floatb mathb::exp_bst(const floatb&x,int endexp,int need)
         now.t=now.p;
 		if(j)
 		{
-			u=u.multiply(h,1);
-			v=v.multiply(integer(j),1);
+			u=u.multiply(h,2);
+			v=v.multiply(floatb(j,2),2);
 		}
-		now.need=u.EXP-v.EXP-endexp+1;
+		now.need=u.EXP-v.EXP-endexp;
 		if(j&&now.need<1){break;}
         l.push_back(now);
     }
@@ -4645,8 +4645,7 @@ floatb mathb::atan_usebs(const floatb&x)
 floatb mathb::sinx_divx(const floatb&x4,const floatb&x2,int endexp,int need,bool odd)
 {
     std::vector<mathb::bst>l;
-	const int kk=((x4.NUM.num.back()>>12)==0)+1;//因为x4不像x那样(例如exp_bst)对齐到logBase*0.5确保有足够有效位
-    floatb h=x4.from(kk),u,v;
+    floatb h=x4.from(2),u,v;
     for(ll j=0;;j++)
     {
         mathb::bst now;
@@ -4663,13 +4662,13 @@ floatb mathb::sinx_divx(const floatb&x4,const floatb&x2,int endexp,int need,bool
         }
         if(j)
         {
-            u=u.multiply(h,kk);
-            v=v.multiply(now.q.from(1),1);
+            u=u.multiply(h,2);
+            v=v.multiply(now.q.from(2),2);
         }
         else
         {
-            u=now.p.from(kk);
-            v=now.q.from(1);
+            u=now.p.from(2);
+            v=now.q.from(2);
         }
         now.need=u.EXP-v.EXP-endexp;
         if(now.need<1){break;}
