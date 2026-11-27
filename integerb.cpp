@@ -4645,7 +4645,8 @@ floatb mathb::atan_usebs(const floatb&x)
 floatb mathb::sinx_divx(const floatb&x4,const floatb&x2,int endexp,int need,bool odd)
 {
     std::vector<mathb::bst>l;
-    floatb h=x4.from(1),u,v;
+	const int kk=((x4.NUM.num.back()>>12)==0)+1;//因为x4不像x那样(例如exp_bst)对齐到logBase*0.5确保有足够有效位
+    floatb h=x4.from(kk),u,v;
     for(ll j=0;;j++)
     {
         mathb::bst now;
@@ -4662,15 +4663,15 @@ floatb mathb::sinx_divx(const floatb&x4,const floatb&x2,int endexp,int need,bool
         }
         if(j)
         {
-            u=u.multiply(h,1);
+            u=u.multiply(h,kk);
             v=v.multiply(now.q.from(1),1);
         }
         else
         {
-            u=now.p.from(1);
+            u=now.p.from(kk);
             v=now.q.from(1);
         }
-        now.need=u.EXP-v.EXP-endexp+1;
+        now.need=u.EXP-v.EXP-endexp;
         if(now.need<1){break;}
         now.p.setvalidlength(need);
         now.q.setvalidlength(need);
@@ -4743,7 +4744,10 @@ floatb mathb::sincos_usebs(const floatb&x,bool returnsin,int l,floatb*another)//
             floatb s1=(sinx_divx(b4,b2,endexp,sneed,0)-sinx_divx(b4,b2,endexp,sneed,1))*b;
             floatb c1;
 			if((s1.EXP+s1.validlength())*2<endexp-5){c1=floatb(1,3-endexp);}
-			else{c1=floatb(floatb(1,1<<30)-s1*s1).calroot(2,1<<30);}
+			else
+			{
+				c1=floatb(floatb(1,1<<30)-s1*s1).calroot(2,3-endexp);
+			}
             if(nextlb||both)
             {
                 floatb o=(c0+s0)*(c1+s1),p=c0*c1,q=s0*s1;
@@ -4778,7 +4782,11 @@ floatb mathb::sincos_usebs(const floatb&x,bool returnsin,int l,floatb*another)//
 	if(returns0||another)
 	{
 		if((c0.EXP+c0.validlength())*2<endexp-5){s0=floatb(1,3-endexp);}
-		else{s0=floatb(floatb(1,1<<30)-c0*c0).calroot(2,1<<30);}
+		else
+		{
+			floatb h=floatb(1,1<<30)-c0*c0;
+			s0=h.calroot(2,(h.validlength()+h.EXP)/2-endexp);
+		}
 	}
 	s0.clear(l),c0.clear(l);
 	s0.NUM.sign=change?csign:ssign;
